@@ -1,0 +1,23 @@
+{
+  "name": "ada-monorepo",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "pnpm --filter @ada/web dev",
+    "build": "pnpm --filter @ada/web build",
+    "dev:api": "pnpm --filter @ada/api dev",
+    "build:all": "pnpm -r build"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "6.3.5"
+    },
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "@tailwindcss/oxide",
+      "esbuild",
+      "prisma"
+    ]
+  }
+}
