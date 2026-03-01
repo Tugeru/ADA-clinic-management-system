@@ -1,0 +1,158 @@
+Create a high-fidelity, responsive clickable prototype in Figma for the ADA “Settings” module (MVP-lite).
+
+PROJECT
+Name: ADA – Settings (MVP-lite)
+User role: Clinic In-Charge (single role)
+Style: modern clinical UI, calm/minimal, clear hierarchy, consistent components
+
+DESIGN SYSTEM (apply consistently)
+- Font: Inter
+- Colors:
+  - Primary: #2A9D8F
+  - Secondary: #3A86FF
+  - Background: #F4F6F8
+  - Card: #FFFFFF
+  - Success: #2ECC71
+  - Warning: #F4A261
+  - Danger: #E63946
+- Spacing: 8px system (8/16/24/32)
+- Radius: 8px
+- Shadows: subtle card shadow (light elevation)
+- Auto Layout friendly components for all cards/forms/tables/buttons
+- Reusable components/variants: Header, Sidebar, Mobile Drawer, Buttons, Inputs, Tabs/Sub-nav, Toasts, Modals
+
+UNIFORM GLOBAL SHELL (MUST APPEAR ON ALL PAGES)
+1) UNIFORM HEADER (same structure across screens)
+- Height ~64px
+- Left: Page title (changes by sub-page)
+- Middle/right: Global search input (“Search patients, visits, medicines…”)
+- Right: User menu “Clinic In-Charge”
+
+2) UNIFORM SIDEBAR NAVIGATION (same items across screens)
+- Desktop: fixed left sidebar width ~260px with logo “ADA”
+- Nav items: Dashboard, Patients, Visits, Inventory (disabled), Analytics (disabled), Archive (disabled), Settings (active)
+- Active state highlight for Settings
+- Mobile: hamburger menu in header opens overlay drawer with the same nav items
+
+RESPONSIVE REQUIREMENTS
+Create responsive variants for each screen:
+- Desktop: 1440x900
+- Mobile: 390x844
+Rules:
+- Desktop: sidebar visible; content can be two-column within cards
+- Mobile: sidebar hidden; use hamburger drawer; content becomes single-column stacked; sticky bottom action bar for forms if needed
+
+SCREENS TO GENERATE (3) + RESPONSIVE VARIANTS (DESKTOP + MOBILE)
+1) Settings – Account & Security (required)
+2) Settings – Clinic Profile (optional)
+3) Settings – Audit Log (optional)
+
+NAVIGATION INSIDE SETTINGS
+Use a consistent sub-navigation across all Settings screens:
+- Option A: Tabs under the page title
+- Tabs: Account & Security (default), Clinic Profile, Audit Log
+Choose one and apply consistently on desktop and mobile (mobile tabs can be scrollable).
+
+SCREEN DETAILS
+
+1) ACCOUNT & SECURITY (REQUIRED)
+Title: “Settings” + subtitle/tab = “Account & Security”
+Layout:
+- Two cards stacked (desktop) and stacked (mobile)
+Card A: Change Password
+- Fields:
+  - Current Password
+  - New Password
+  - Confirm New Password
+- Show/Hide password toggle icons
+- Helper text: “At least 8 characters”
+- Primary button: “Update Password”
+- Include hidden validation/error layer:
+  - Incorrect current password (red helper text)
+  - Weak password guidance
+  - Confirm password mismatch
+- Include success toast (hidden layer): “Password updated” (Success color)
+Card B: Session Controls
+- Primary button: “Sign Out”
+- Optional secondary: “Sign out of all sessions” (disabled placeholder)
+- Optional sign-out confirmation modal (hidden layer):
+  - Title: “Sign out?”
+  - Text: “You will need to log in again to access ADA.”
+  - Buttons: “Sign Out” (Primary) and “Cancel” (Ghost)
+
+Mobile:
+- Cards full width
+- Buttons full width
+- If needed: sticky bottom bar for “Update Password” on mobile
+
+2) CLINIC PROFILE (OPTIONAL)
+Title: “Settings” + tab = “Clinic Profile”
+Layout: single large form card
+Fields:
+- Clinic Name (prefilled: “Cabantian SHS Clinic”)
+- School Name (prefilled: “Cabantian Stand Alone Senior High School”)
+- Clinic Contact Number (optional)
+- Address (optional)
+- Clinic In-Charge Name (optional)
+Actions:
+- Primary: “Save Changes”
+- Ghost: “Cancel”
+States:
+- Success toast (hidden layer): “Clinic profile saved”
+- Optional inline validation layer (hidden): highlight missing required fields if any are set required
+
+Mobile:
+- Single-column stacked inputs
+- Sticky bottom action bar optional (Save/Cancel)
+
+3) AUDIT LOG (OPTIONAL)
+Title: “Settings” + tab = “Audit Log”
+Purpose: transparency for key actions; do NOT show sensitive medical notes
+Layout:
+- Filters row card (top) + Audit table card (below)
+Filters row:
+- Date Range (dropdown placeholder)
+- Action Type dropdown: Create / Edit / Archive / Restore / Stock-in / Stock-out
+- Entity Type dropdown: Patient / Visit / Medicine
+- Button (optional): “Export CSV”
+Audit table columns:
+- Timestamp
+- Action
+- Entity
+- Record Identifier (e.g., patient name or medicine name; no medical notes)
+- Performed By (shows “Clinic In-Charge”)
+Empty state (hidden layer):
+- “No activity recorded yet.”
+Loading state (hidden layer):
+- Skeleton rows
+Export interaction states (hidden layers):
+- Toast: “Preparing export…” then “Export ready”
+
+Mobile:
+- Filters wrap to multiple rows
+- Table becomes stacked log cards OR horizontal scroll (choose one and apply consistently)
+
+PROTOTYPE INTERACTIONS (MUST BE CLICKABLE ON DESKTOP + MOBILE)
+- Sidebar / Mobile drawer: Settings opens Account & Security screen
+- Settings tabs:
+  - Account & Security ↔ Clinic Profile ↔ Audit Log
+- Account & Security:
+  - Clicking “Update Password” shows success toast (prototype link to same screen state)
+  - Clicking “Sign Out” opens confirmation modal (state)
+- Clinic Profile:
+  - Clicking “Save Changes” shows success toast (state)
+- Audit Log:
+  - Clicking “Export CSV” shows “Preparing export…” toast then “Export ready” toast (state transitions)
+
+COMPONENTS (MAKE REUSABLE)
+- Header (desktop + mobile variants)
+- Sidebar + Mobile Drawer
+- Settings Sub-nav Tabs
+- Card container
+- Input field (label + input + helper/error)
+- Buttons (Primary/Secondary/Ghost/Danger)
+- Toast component (Success/Warning/Danger variants)
+- Modal component (confirmation)
+
+OUTPUT
+Generate all frames (desktop + mobile), reusable components, and prototype links in one Figma file. Ensure Auto Layout and constraints are set so layouts adapt cleanly between desktop and mobile.
