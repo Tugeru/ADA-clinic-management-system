@@ -903,7 +903,7 @@ function Background2() {
   return (
     <div className="bg-[#dbeafe] content-stretch flex items-center justify-center pb-[8.5px] pt-[7.5px] relative rounded-[9999px] shrink-0 size-[32px]" data-name="Background">
       <div className="flex flex-col font-['Inter:Bold',sans-serif] font-bold h-[16px] justify-center leading-[0] not-italic relative shrink-0 text-[#2563eb] text-[12px] text-center w-[15.69px]">
-        <p className="leading-[16px] whitespace-pre-wrap">JD</p>
+        <p className="leading-[16px] whitespace-pre-wrap">AE</p>
       </div>
     </div>
   );
@@ -914,7 +914,7 @@ function Data3() {
     <div className="content-stretch flex gap-[12px] items-center pl-[24px] relative shrink-0 w-[164.59px]" data-name="Data">
       <Background2 />
       <div className="flex flex-col font-['Inter:Medium',sans-serif] font-medium h-[20px] justify-center leading-[0] not-italic relative shrink-0 text-[#0f172a] text-[14px] w-[63.88px]">
-        <p className="leading-[20px] whitespace-pre-wrap">John Doe</p>
+        <p className="leading-[20px] whitespace-pre-wrap">Andy Zane B. Egut</p>
       </div>
     </div>
   );

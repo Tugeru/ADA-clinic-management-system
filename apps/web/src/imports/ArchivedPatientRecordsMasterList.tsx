@@ -1050,7 +1050,7 @@ function Background1() {
   return (
     <div className="bg-[#e0e7ff] content-stretch flex items-center justify-center pb-[8.5px] pt-[7.5px] relative rounded-[9999px] shrink-0 size-[32px]" data-name="Background">
       <div className="flex flex-col font-['Inter:Bold',sans-serif] font-bold h-[16px] justify-center leading-[0] not-italic relative shrink-0 text-[#4338ca] text-[12px] text-center w-[15.69px]">
-        <p className="leading-[16px] whitespace-pre-wrap">JD</p>
+        <p className="leading-[16px] whitespace-pre-wrap">AF</p>
       </div>
     </div>
   );
@@ -1068,7 +1068,7 @@ function Container57() {
   return (
     <div className="content-stretch flex flex-col items-start relative shrink-0" data-name="Container">
       <div className="flex flex-col font-['Inter:Medium',sans-serif] font-medium h-[20px] justify-center leading-[0] not-italic relative shrink-0 text-[#0f172a] text-[14px] w-[85.88px]">
-        <p className="leading-[20px] whitespace-pre-wrap">Doe, John A.</p>
+        <p className="leading-[20px] whitespace-pre-wrap">Famor, Alvin A.</p>
       </div>
     </div>
   );

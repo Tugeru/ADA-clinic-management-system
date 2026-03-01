@@ -74,11 +74,11 @@ function ArchivedPatientsTab() {
 
   // Mock additional archived patients for display
   const displayPatients = [
-    { id: 'a1', idNumber: '2023-0891', fullName: 'Doe, John A.', type: 'Student', context: 'Grade 10 - Rizal', dateArchived: 'Oct 12, 2023', initials: 'JD', initialsColor: 'bg-blue-100 text-blue-700' },
+    { id: 'a1', idNumber: '2023-0891', fullName: 'Mamoa, Jason A.', type: 'Student', context: 'Grade 12 - Masidlak', dateArchived: 'Oct 12, 2023', initials: 'JD', initialsColor: 'bg-blue-100 text-blue-700' },
     { id: 'a2', idNumber: 'T-2020-004', fullName: 'Santos, Maria L.', type: 'Teacher', context: 'Science Dept.', dateArchived: 'Sep 28, 2023', initials: 'MS', initialsColor: 'bg-purple-100 text-purple-700' },
-    { id: 'a3', idNumber: '2021-1102', fullName: 'Jimenez, Roberto', type: 'Student', context: 'Grade 12 - Aguinaldo', dateArchived: 'Sep 15, 2023', initials: 'RJ', initialsColor: 'bg-indigo-100 text-indigo-700' },
-    { id: 'a4', idNumber: 'NTP-2019-02', fullName: 'Lim, Elena', type: 'NTP', context: 'Library Staff', dateArchived: 'Aug 02, 2023', initials: 'EL', initialsColor: 'bg-teal-100 text-teal-700' },
-    { id: 'a5', idNumber: '2022-0012', fullName: 'Cruz, Anna', type: 'Student', context: 'Grade 8 - Sampaguita', dateArchived: 'July 20, 2023', initials: 'AC', initialsColor: 'bg-pink-100 text-pink-700' },
+    { id: 'a3', idNumber: '2021-1102', fullName: 'Jimenez, Roberto A.', type: 'Student', context: 'Grade 11 - Matatag', dateArchived: 'Sep 15, 2023', initials: 'RJ', initialsColor: 'bg-indigo-100 text-indigo-700' },
+    { id: 'a4', idNumber: 'NTP-2019-02', fullName: 'Lim, Elena D.', type: 'NTP', context: 'Library Staff', dateArchived: 'Aug 02, 2023', initials: 'EL', initialsColor: 'bg-teal-100 text-teal-700' },
+    { id: 'a5', idNumber: '2022-0012', fullName: 'Cruz, Anna', type: 'Student', context: 'Grade 11 - Matatag', dateArchived: 'July 20, 2023', initials: 'AC', initialsColor: 'bg-pink-100 text-pink-700' },
   ];
 
   return (

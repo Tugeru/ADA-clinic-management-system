@@ -1099,7 +1099,7 @@ function Overlay5() {
   return (
     <div className="bg-[rgba(42,157,143,0.1)] content-stretch flex items-center justify-center relative rounded-[9999px] shrink-0 size-[32px]" data-name="Overlay">
       <div className="flex flex-col font-['Inter:Bold',sans-serif] font-bold h-[20px] justify-center leading-[0] not-italic relative shrink-0 text-[#2a9d8f] text-[10px] text-center w-[13.08px]">
-        <p className="leading-[20px] whitespace-pre-wrap">JD</p>
+        <p className="leading-[20px] whitespace-pre-wrap">AA</p>
       </div>
     </div>
   );
@@ -1109,7 +1109,7 @@ function Container57() {
   return (
     <div className="content-stretch flex flex-col items-start relative shrink-0" data-name="Container">
       <div className="flex flex-col font-['Inter:Medium',sans-serif] font-medium h-[20px] justify-center leading-[0] not-italic relative shrink-0 text-[#121716] text-[14px] w-[63.88px]">
-        <p className="leading-[20px] whitespace-pre-wrap">John Doe</p>
+        <p className="leading-[20px] whitespace-pre-wrap">Abbegail D. Abebon</p>
       </div>
     </div>
   );
