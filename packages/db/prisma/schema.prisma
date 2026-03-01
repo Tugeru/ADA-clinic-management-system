@@ -1,0 +1,38 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+//
+// Placeholder — define your data models here when backend development begins.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Example model (placeholder — replace/expand as needed) ───────────────────
+
+// model Patient {
+//   id        String   @id @default(cuid())
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+//
+//   firstName String
+//   lastName  String
+//   birthDate DateTime?
+//
+//   visits Visit[]
+// }
+
+// model Visit {
+//   id        String   @id @default(cuid())
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+//
+//   patientId String
+//   patient   Patient  @relation(fields: [patientId], references: [id])
+//
+//   notes     String?
+// }
