@@ -5,3 +5,7 @@ packages/db/node_modules/
 packages/shared/node_modules/
 
 .env
+
+
+database-engineer-plan.json
+database-engineer-plan.md
