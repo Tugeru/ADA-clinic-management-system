@@ -1,11 +1,18 @@
+#Install dependencies
 apps/api/node_modules/
 apps/web/node_modules/
 node_modules/
 packages/db/node_modules/
 packages/shared/node_modules/
 
+#Environment variables and Secrets
 .env
 
-
+# AGENT PLANS
 database-engineer-plan.json
 database-engineer-plan.md
+backend-plan.json
+backend-plan.md
+frontend-plan.json
+frontend-plan.md
+
