@@ -3,3 +3,5 @@ apps/web/node_modules/
 node_modules/
 packages/db/node_modules/
 packages/shared/node_modules/
+
+.env
