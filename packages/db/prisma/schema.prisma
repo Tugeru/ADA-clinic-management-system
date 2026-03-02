@@ -1,7 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-//
-// Placeholder — define your data models here when backend development begins.
+// ─── ADA Clinic Management System — Prisma Schema ─────────────────────────────
+// Database: PostgreSQL | ORM: Prisma
+// Reference: docs/dev-guidelines/Technical_Architecture.md
 
 generator client {
   provider = "prisma-client-js"
@@ -9,30 +8,159 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-// ─── Example model (placeholder — replace/expand as needed) ───────────────────
+// ─── Enums ─────────────────────────────────────────────────────────────────────
 
-// model Patient {
-//   id        String   @id @default(cuid())
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-//
-//   firstName String
-//   lastName  String
-//   birthDate DateTime?
-//
-//   visits Visit[]
-// }
+/// Types of stock transactions for the inventory audit trail.
+enum TransactionType {
+  IN
+  OUT
+  ADJUST
+}
 
-// model Visit {
-//   id        String   @id @default(cuid())
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-//
-//   patientId String
-//   patient   Patient  @relation(fields: [patientId], references: [id])
-//
-//   notes     String?
-// }
+// ─── User ──────────────────────────────────────────────────────────────────────
+// Single-role: Clinic In-Charge. Handles authentication.
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  visits Visit[]
+
+  @@map("users")
+}
+
+// ─── Student ───────────────────────────────────────────────────────────────────
+// Patient profiles managed by the Clinic In-Charge.
+
+model Student {
+  id                     String    @id @default(uuid()) @db.Uuid
+  fullName               String    @map("full_name")
+  gradeLevel             String?   @map("grade_level")
+  section                String?
+  dateOfBirth            DateTime? @map("date_of_birth") @db.Date
+  gender                 String?
+  knownMedicalConditions String?   @map("known_medical_conditions")
+  isArchived             Boolean   @default(false) @map("is_archived")
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  visits Visit[]
+
+  @@map("students")
+}
+
+// ─── Medicine ──────────────────────────────────────────────────────────────────
+// Master catalog of medicines available in the clinic.
+
+model Medicine {
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String   @unique
+  description      String?
+  purpose          String?
+  reorderThreshold Int      @default(0) @map("reorder_threshold")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  batches        InventoryBatch[]
+  visitMedicines VisitMedicine[]
+
+  @@map("medicines")
+}
+
+// ─── InventoryBatch ────────────────────────────────────────────────────────────
+// Batch-level inventory tracking per medicine (supports expiration and FEFO).
+
+model InventoryBatch {
+  id             String    @id @default(uuid()) @db.Uuid
+  medicineId     String    @map("medicine_id") @db.Uuid
+  batchNumber    String?   @map("batch_number")
+  expirationDate DateTime? @map("expiration_date") @db.Date
+  quantityOnHand Int       @default(0) @map("quantity_on_hand")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  medicine          Medicine           @relation(fields: [medicineId], references: [id])
+  stockTransactions StockTransaction[]
+  visitMedicines    VisitMedicine[]
+
+  @@unique([medicineId, batchNumber, expirationDate], name: "uq_batch")
+  @@map("inventory_batches")
+}
+
+// ─── StockTransaction ──────────────────────────────────────────────────────────
+// Audit trail for every inventory change (stock-in, dispensing out, adjustments).
+
+model StockTransaction {
+  id               String          @id @default(uuid()) @db.Uuid
+  batchId          String          @map("batch_id") @db.Uuid
+  txnType          TransactionType @map("txn_type")
+  quantity         Int
+  referenceVisitId String?         @map("reference_visit_id") @db.Uuid
+  notes            String?
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  batch          InventoryBatch @relation(fields: [batchId], references: [id])
+  referenceVisit Visit?         @relation(fields: [referenceVisitId], references: [id])
+
+  @@map("stock_transactions")
+}
+
+// ─── Visit ─────────────────────────────────────────────────────────────────────
+// Clinic visit records: time-in/out, complaint, action taken, and release info.
+
+model Visit {
+  id                     String    @id @default(uuid()) @db.Uuid
+  studentId              String    @map("student_id") @db.Uuid
+  loggedByUserId         String    @map("logged_by_user_id") @db.Uuid
+  visitDate              DateTime  @default(now()) @map("visit_date") @db.Date
+  timeIn                 DateTime  @map("time_in") @db.Timestamptz
+  timeOut                DateTime? @map("time_out") @db.Timestamptz
+  complaint              String
+  actionTaken            String    @map("action_taken")
+  remarks                String?
+  releasedToName         String?   @map("released_to_name")
+  releasedToRelationship String?   @map("released_to_relationship")
+  releaseTime            DateTime? @map("release_time") @db.Timestamptz
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  student           Student            @relation(fields: [studentId], references: [id])
+  loggedByUser      User               @relation(fields: [loggedByUserId], references: [id])
+  visitMedicines    VisitMedicine[]
+  stockTransactions StockTransaction[]
+
+  @@map("visits")
+}
+
+// ─── VisitMedicine ─────────────────────────────────────────────────────────────
+// Junction table: medicines dispensed during a specific visit.
+
+model VisitMedicine {
+  id                String   @id @default(uuid()) @db.Uuid
+  visitId           String   @map("visit_id") @db.Uuid
+  medicineId        String   @map("medicine_id") @db.Uuid
+  batchId           String?  @map("batch_id") @db.Uuid
+  quantityDispensed Int      @map("quantity_dispensed")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  visit    Visit           @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  medicine Medicine        @relation(fields: [medicineId], references: [id])
+  batch    InventoryBatch? @relation(fields: [batchId], references: [id])
+
+  @@map("visit_medicines")
+}
