@@ -78,7 +78,7 @@ function ArchivedPatientsTab() {
     { id: 'a2', idNumber: 'T-2020-004', fullName: 'Santos, Maria L.', type: 'Teacher', context: 'Science Dept.', dateArchived: 'Sep 28, 2023', initials: 'MS', initialsColor: 'bg-purple-100 text-purple-700' },
     { id: 'a3', idNumber: '2021-1102', fullName: 'Jimenez, Roberto A.', type: 'Student', context: 'Grade 11 - Matatag', dateArchived: 'Sep 15, 2023', initials: 'RJ', initialsColor: 'bg-indigo-100 text-indigo-700' },
     { id: 'a4', idNumber: 'NTP-2019-02', fullName: 'Lim, Elena D.', type: 'NTP', context: 'Library Staff', dateArchived: 'Aug 02, 2023', initials: 'EL', initialsColor: 'bg-teal-100 text-teal-700' },
-    { id: 'a5', idNumber: '2022-0012', fullName: 'Cruz, Anna', type: 'Student', context: 'Grade 11 - Matatag', dateArchived: 'July 20, 2023', initials: 'AC', initialsColor: 'bg-pink-100 text-pink-700' },
+    { id: 'a5', idNumber: '2022-0012', fullName: 'Cruz, Anna M.', type: 'Student', context: 'Grade 11 - Matatag', dateArchived: 'July 20, 2023', initials: 'AC', initialsColor: 'bg-pink-100 text-pink-700' },
   ];
 
   return (

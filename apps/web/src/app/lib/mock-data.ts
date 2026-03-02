@@ -127,12 +127,12 @@ export const consumptionTrend = [
 
 // ─── Archived Visits Data ────────────────────────────────────
 export const mockArchivedVisits: ArchivedVisit[] = [
-  { id: 1, visitDate: 'Oct 20, 2023', patientName: 'Elena Martinez', patientInitials: 'EM', initialsColor: 'bg-teal-100 text-teal-700', type: 'Existing', complaint: 'Seasonal allergies, ...', disposition: 'Returned', dispositionColor: 'text-emerald-600', dateArchived: 'Oct 21, 2023' },
-  { id: 2, visitDate: 'Oct 19, 2023', patientName: 'John Doe', patientInitials: 'JD', initialsColor: 'bg-blue-100 text-blue-700', type: 'New', complaint: 'Acute abdominal pain', disposition: 'Sent Home', dispositionColor: 'text-orange-600', dateArchived: 'Oct 22, 2023' },
-  { id: 3, visitDate: 'Oct 18, 2023', patientName: 'Robert Kim', patientInitials: 'RK', initialsColor: 'bg-purple-100 text-purple-700', type: 'Existing', complaint: 'Routine checkup, blo...', disposition: 'Returned', dispositionColor: 'text-emerald-600', dateArchived: 'Oct 18, 2023' },
-  { id: 4, visitDate: 'Oct 15, 2023', patientName: 'Alice Johnson', patientInitials: 'AJ', initialsColor: 'bg-amber-100 text-amber-700', type: 'Emergency', complaint: 'Fractured wrist', disposition: 'Transferred', dispositionColor: 'text-blue-600', dateArchived: 'Oct 16, 2023' },
-  { id: 5, visitDate: 'Oct 12, 2023', patientName: 'Bruce Wayne', patientInitials: 'BW', initialsColor: 'bg-slate-200 text-slate-700', type: 'Existing', complaint: 'Shoulder dislocation,...', disposition: 'Sent Home', dispositionColor: 'text-orange-600', dateArchived: 'Oct 13, 2023' },
-  { id: 6, visitDate: 'Oct 10, 2023', patientName: 'Sarah Green', patientInitials: 'SG', initialsColor: 'bg-rose-100 text-rose-700', type: 'New', complaint: 'Migraine, severe sen...', disposition: 'Returned', dispositionColor: 'text-emerald-600', dateArchived: 'Oct 10, 2023' },
+  { id: 1, visitDate: 'Oct 20, 2023', patientName: 'Philip R. Hanson', patientInitials: 'PH', initialsColor: 'bg-teal-100 text-teal-700', type: 'Existing', complaint: 'Seasonal allergies, ...', disposition: 'Returned', dispositionColor: 'text-emerald-600', dateArchived: 'Oct 21, 2023' },
+  { id: 2, visitDate: 'Oct 19, 2023', patientName: 'Andy Zane B, Egut', patientInitials: 'AE', initialsColor: 'bg-blue-100 text-blue-700', type: 'New', complaint: 'Acute abdominal pain', disposition: 'Sent Home', dispositionColor: 'text-orange-600', dateArchived: 'Oct 22, 2023' },
+  { id: 3, visitDate: 'Oct 18, 2023', patientName: 'Abbegail D. Abebon', patientInitials: 'AA', initialsColor: 'bg-purple-100 text-purple-700', type: 'Existing', complaint: 'Routine checkup, blo...', disposition: 'Returned', dispositionColor: 'text-emerald-600', dateArchived: 'Oct 18, 2023' },
+  { id: 4, visitDate: 'Oct 15, 2023', patientName: 'Harry R. Osborne', patientInitials: 'HO', initialsColor: 'bg-amber-100 text-amber-700', type: 'Emergency', complaint: 'Fractured wrist', disposition: 'Transferred', dispositionColor: 'text-blue-600', dateArchived: 'Oct 16, 2023' },
+  { id: 5, visitDate: 'Oct 12, 2023', patientName: 'Hans D. Sander', patientInitials: 'HS', initialsColor: 'bg-slate-200 text-slate-700', type: 'Existing', complaint: 'Shoulder dislocation,...', disposition: 'Sent Home', dispositionColor: 'text-orange-600', dateArchived: 'Oct 13, 2023' },
+  { id: 6, visitDate: 'Oct 10, 2023', patientName: 'Sarah F. Green', patientInitials: 'SG', initialsColor: 'bg-rose-100 text-rose-700', type: 'New', complaint: 'Migraine, severe sen...', disposition: 'Returned', dispositionColor: 'text-emerald-600', dateArchived: 'Oct 10, 2023' },
 ];
 
 // ─── Archived Medicines Data ─────────────────────────────────
