@@ -1,14 +1,18 @@
-import 'dotenv/config'
 import path from 'node:path'
-import { defineConfig } from 'prisma/config'
+import dotenv from 'dotenv'
+import { defineConfig, env } from 'prisma/config'
+
+// Load .env from the monorepo root (two levels up from packages/db)
+dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 export default defineConfig({
-    earlyAccess: true,
     schema: path.join(__dirname, 'prisma', 'schema.prisma'),
 
-    migrate: {
-        async datasourceUrl() {
-            return process.env.DATABASE_URL ?? ''
-        },
+    migrations: {
+        path: path.join(__dirname, 'prisma', 'migrations'),
+    },
+
+    datasource: {
+        url: env('DATABASE_URL'),
     },
 })
