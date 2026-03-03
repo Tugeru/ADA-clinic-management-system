@@ -139,6 +139,28 @@ export const inventoryApi = {
     const { data } = await http.get('/reports/consumption', { params: { startDate: sixtyAgo, endDate: today } });
     return { data: data.medicines ?? [], total: 0, page: 1, limit: 20, totalPages: 1 };
   },
+
+  // M-2: get single medicine with batches
+  async getById(id: string): Promise<any> {
+    const { data } = await http.get(`/medicines/${id}`);
+    const totalStock = (data.batches ?? []).reduce((s: number, b: any) => s + b.quantityOnHand, 0);
+    return { ...mapMedicine(data), batches: data.batches ?? [], totalStock };
+  },
+
+  // M-1: reduce stock by adjusting a specific batch
+  async adjustStock(payload: { batchId: string; quantity: number; notes?: string }): Promise<void> {
+    await http.post('/inventory/adjust', payload);
+  },
+
+  // M-2: archive medicine (set isActive = false)
+  async archiveMedicine(id: string): Promise<void> {
+    await http.patch(`/medicines/${id}`, { isActive: false });
+  },
+
+  // M-2: permanently delete medicine
+  async deleteMedicine(id: string): Promise<void> {
+    await http.delete(`/medicines/${id}`);
+  },
 };
 
 // ─── Dashboard ───────────────────────────────────────────────
@@ -239,18 +261,37 @@ export const auditLogApi = {
 
 // ─── Mappers ─────────────────────────────────────────────────
 function mapStudent(s: any): Patient {
+  // P-3: compute age from dateOfBirth
+  let age: string | undefined;
+  if (s.dateOfBirth) {
+    const dob = new Date(s.dateOfBirth);
+    const today = new Date();
+    let years = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) years--;
+    age = `${years}`;
+  }
+
   return {
     id: s.id,
     fullName: s.fullName,
     idNumber: s.id.slice(0, 8),
-    type: 'Student',
+    type: (s.patientType as any) ?? 'Student',
     gradeLevel: s.gradeLevel ?? '',
     section: s.section ?? '',
     status: s.isArchived ? 'Archived' : 'Active',
     context: `${s.gradeLevel ?? ''} - ${s.section ?? ''}`.trim(),
     gender: s.gender,
     dateOfBirth: s.dateOfBirth?.slice(0, 10),
-    // Preserve these for the edit form prefill
+    age,
+    // P-4: Emergency contact (persisted once schema migration runs)
+    contactName: s.contactName,
+    contactRelationship: s.contactRelationship,
+    contactNumber: s.contactNumber,
+    // department/position for Teacher/NTP
+    department: s.department,
+    position: s.position,
+    // Preserve for edit form prefill
     knownMedicalConditions: s.knownMedicalConditions,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
@@ -297,11 +338,18 @@ function mapMedicine(m: any): Medicine {
 function studentPayload(p: any) {
   return {
     fullName: p.fullName,
-    gradeLevel: p.gradeLevel,
-    section: p.section,
-    dateOfBirth: p.dateOfBirth,
-    gender: p.gender,
-    knownMedicalConditions: p.medicalConditions ?? p.knownMedicalConditions,
+    patientType: p.patientType ?? 'Student',
+    gradeLevel: p.gradeLevel || undefined,
+    section: p.section || undefined,
+    department: p.department || undefined,
+    position: p.position || undefined,
+    dateOfBirth: p.dateOfBirth || undefined,
+    gender: p.gender || undefined,
+    knownMedicalConditions: p.knownMedicalConditions || undefined,
+    // P-4: Emergency contact
+    contactName: p.contactName || undefined,
+    contactRelationship: p.contactRelationship || undefined,
+    contactNumber: p.contactNumber || undefined,
   };
 }
 

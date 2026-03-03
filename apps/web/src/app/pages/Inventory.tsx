@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Plus, Search, Package, ArrowRightLeft, PackagePlus } from 'lucide-react';
+import { Plus, Search, Package, ArrowRightLeft, PackagePlus, Eye, Archive, Trash2, Minus, MoreVertical } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -8,7 +8,10 @@ import { Input } from '../components/ui/input';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Skeleton } from '../components/ui/skeleton';
 import { cn } from '../components/ui/utils';
-import { useInventory } from '../lib/hooks';
+import { toast } from 'sonner';
+import { useInventory, useArchiveMedicine, useDeleteMedicine } from '../lib/hooks';
+import { ReduceStockDialog } from '../components/ReduceStockDialog';
+import { useNavigate } from 'react-router';
 
 const statusStyles: Record<string, string> = {
   critical: 'bg-red-100 text-red-700 border-red-200',
@@ -17,8 +20,15 @@ const statusStyles: Record<string, string> = {
 };
 
 export function Inventory() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const { data: medicines, isLoading } = useInventory(search);
+  const archiveMutation = useArchiveMedicine();
+  const deleteMutation = useDeleteMedicine();
+
+  // Reduce stock dialog state
+  const [reduceTarget, setReduceTarget] = useState<{ id: string; name: string; stock: number } | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const totalItems = medicines?.length || 0;
   const lowStock = medicines?.filter(m => m.status === 'low').length || 0;
@@ -31,8 +41,29 @@ export function Inventory() {
     { label: 'Expiring Soon', value: '5', color: 'text-yellow-600' },
   ];
 
+  const handleArchive = async (id: string, name: string) => {
+    try {
+      await archiveMutation.mutateAsync(id);
+      toast.success(`${name} archived`);
+      setOpenMenuId(null);
+    } catch {
+      toast.error('Failed to archive medicine');
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!window.confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+    try {
+      await deleteMutation.mutateAsync(id);
+      toast.success(`${name} deleted`);
+      setOpenMenuId(null);
+    } catch {
+      toast.error('Failed to delete medicine — it may have stock on hand');
+    }
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" onClick={() => setOpenMenuId(null)}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-800">Medicine Inventory</h2>
@@ -56,7 +87,7 @@ export function Inventory() {
         {stats.map((s, i) => (
           <Card key={i} className="p-4 gap-1">
             <p className="text-[10px] text-slate-400 uppercase font-semibold">{s.label}</p>
-            <p className={cn("text-2xl font-bold", s.color)}>{s.value}</p>
+            <p className={cn('text-2xl font-bold', s.color)}>{s.value}</p>
           </Card>
         ))}
       </div>
@@ -85,6 +116,8 @@ export function Inventory() {
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Threshold</TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Expiry</TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Status</TableHead>
+                {/* M-2: Actions column */}
+                <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9 text-right pr-4">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -100,9 +133,63 @@ export function Inventory() {
                   <TableCell className="text-xs text-slate-500 py-3">{item.threshold}</TableCell>
                   <TableCell className="text-xs text-slate-500 py-3">{item.expiry}</TableCell>
                   <TableCell className="py-3">
-                    <Badge variant="outline" className={cn("text-[9px] font-bold", statusStyles[item.status])}>
+                    <Badge variant="outline" className={cn('text-[9px] font-bold', statusStyles[item.status])}>
                       {item.status.toUpperCase()}
                     </Badge>
+                  </TableCell>
+                  {/* M-2: Actions */}
+                  <TableCell className="py-3 pr-4 text-right">
+                    <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                      {/* M-2: View details */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-teal-600"
+                        title="View Details"
+                        onClick={() => navigate(`/inventory/${item.id}`)}
+                      >
+                        <Eye size={13} />
+                      </Button>
+                      {/* M-1: Reduce stock */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-orange-600"
+                        title="Reduce Stock"
+                        disabled={item.stock === 0}
+                        onClick={() => setReduceTarget({ id: item.id, name: item.name, stock: item.stock })}
+                      >
+                        <Minus size={13} />
+                      </Button>
+                      {/* More actions dropdown */}
+                      <div className="relative">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-400 hover:text-slate-700"
+                          title="More actions"
+                          onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === item.id ? null : item.id); }}
+                        >
+                          <MoreVertical size={13} />
+                        </Button>
+                        {openMenuId === item.id && (
+                          <div className="absolute right-0 top-8 z-20 bg-white border border-slate-200 rounded-lg shadow-lg w-40 py-1">
+                            <button
+                              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-amber-700 hover:bg-amber-50 transition-colors"
+                              onClick={() => handleArchive(item.id, item.name)}
+                            >
+                              <Archive size={12} /> Archive
+                            </button>
+                            <button
+                              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                              onClick={() => handleDelete(item.id, item.name)}
+                            >
+                              <Trash2 size={12} /> Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -110,6 +197,15 @@ export function Inventory() {
           </Table>
         )}
       </Card>
+
+      {/* M-1: Reduce stock dialog — opens from table row without batches (uses first batch) */}
+      {reduceTarget && (
+        <ReduceStockDialog
+          medicine={reduceTarget}
+          batches={[]}  // dialog header, batches loaded via useMedicine in MedicineDetails; for table-level we navigate to details
+          onClose={() => setReduceTarget(null)}
+        />
+      )}
     </div>
   );
 }

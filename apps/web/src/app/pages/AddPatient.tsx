@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, User, GraduationCap, Heart, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  ArrowLeft, User, GraduationCap, Heart, CheckCircle, AlertCircle,
+  Briefcase, Phone,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -13,6 +16,10 @@ import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
 import { useCreatePatient, useUpdatePatient, usePatient } from '../lib/hooks';
 
+type PatientType = 'Student' | 'Teacher' | 'Non-Teaching Personnel';
+
+const PATIENT_TYPES: PatientType[] = ['Student', 'Teacher', 'Non-Teaching Personnel'];
+
 export function AddPatient() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -22,38 +29,56 @@ export function AddPatient() {
   const createPatient = useCreatePatient();
   const updatePatient = useUpdatePatient();
 
-  // Bug 3 fix: fetch existing patient data for edit prefill
+  // Controlled selects (react-hook-form doesn't auto-bind Select)
+  const [patientType, setPatientType] = useState<PatientType>('Student');
+  const [gradeLevel, setGradeLevel] = useState('');
+  const [gender, setGender] = useState('');
+  const [contactRelationship, setContactRelationship] = useState('');
+
+  // Fetch existing patient for edit prefill
   const { data: existingPatient } = usePatient(id ?? '');
 
-  // Controlled Select values (react-hook-form doesn't auto-bind Select)
-  const [gradeLevel, setGradeLevel] = useState('');
-
-  // Bug 3 fix: populate form once patient data loads
   useEffect(() => {
     if (isEdit && existingPatient) {
+      const ep = existingPatient as any;
+      const type: PatientType = ep.type ?? ep.patientType ?? 'Student';
+      setPatientType(type);
+      setGradeLevel(ep.gradeLevel ?? '');
+      setGender(ep.gender ?? '');
+      setContactRelationship(ep.contactRelationship ?? '');
       reset({
-        fullName: existingPatient.fullName,
-        gender: existingPatient.gender,
-        dateOfBirth: existingPatient.dateOfBirth?.slice(0, 10) ?? '',
-        section: existingPatient.section,
-        knownMedicalConditions: (existingPatient as any).knownMedicalConditions ?? '',
+        fullName: ep.fullName,
+        dateOfBirth: ep.dateOfBirth?.slice(0, 10) ?? '',
+        section: ep.section ?? '',
+        department: ep.department ?? '',
+        position: ep.position ?? '',
+        knownMedicalConditions: ep.knownMedicalConditions ?? '',
+        contactName: ep.contactName ?? '',
+        contactNumber: ep.contactNumber ?? '',
       });
-      if (existingPatient.gradeLevel) {
-        setGradeLevel(existingPatient.gradeLevel);
-        setValue('gradeLevel', existingPatient.gradeLevel);
-      }
+      if (ep.gradeLevel) setValue('gradeLevel', ep.gradeLevel);
+      if (ep.gender) setValue('gender', ep.gender);
     }
   }, [existingPatient, isEdit, reset, setValue]);
 
   const onSubmit = async (data: any) => {
-    // Build payload matching CreateStudentSchema / UpdateStudentSchema
     const payload = {
       fullName: data.fullName,
+      patientType,
+      // Student fields
       gradeLevel: gradeLevel || undefined,
       section: data.section || undefined,
+      // Teacher/NTP fields
+      department: data.department || undefined,
+      position: data.position || undefined,
+      // Common
       dateOfBirth: data.dateOfBirth || undefined,
-      gender: data.gender || undefined,
+      gender: gender || undefined,
       knownMedicalConditions: data.knownMedicalConditions || undefined,
+      // P-4: Emergency contact
+      contactName: data.contactName || undefined,
+      contactRelationship: contactRelationship || undefined,
+      contactNumber: data.contactNumber || undefined,
     };
 
     try {
@@ -83,14 +108,34 @@ export function AddPatient() {
         <p className="text-slate-500 text-xs">{isEdit ? 'Update patient record.' : 'Create a new patient record in the system.'}</p>
       </div>
 
+      {/* P-1: Patient Type Tabs */}
+      <div className="flex gap-2">
+        {PATIENT_TYPES.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => { setPatientType(t); setGradeLevel(''); }}
+            className={cn(
+              'px-4 py-2 rounded-lg text-xs font-semibold border transition-colors',
+              patientType === t
+                ? 'bg-teal-600 text-white border-teal-600'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300',
+            )}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
       <Card>
         <CardHeader className="border-b bg-slate-50/50 rounded-t-xl">
-          <CardTitle className="text-sm font-bold">Student Registration</CardTitle>
+          <CardTitle className="text-sm font-bold">{patientType} Registration</CardTitle>
           <p className="text-xs text-slate-500">Fields marked * are required.</p>
         </CardHeader>
 
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+
             {/* Identification */}
             <section>
               <div className="flex items-center gap-2 text-teal-700 font-bold text-xs mb-4 uppercase tracking-wide">
@@ -100,58 +145,101 @@ export function AddPatient() {
                 <div className="space-y-1.5">
                   <Label className="text-xs">Full Name <span className="text-red-500">*</span></Label>
                   <Input
-                    {...register("fullName", { required: true })}
+                    {...register('fullName', { required: true })}
                     placeholder="Last Name, First Name, Middle Name"
-                    className={cn("h-9 text-xs", errors.fullName && "border-red-300 bg-red-50")}
+                    className={cn('h-9 text-xs', errors.fullName && 'border-red-300 bg-red-50')}
                   />
                   {errors.fullName && <p className="text-[10px] text-red-500 flex items-center gap-0.5"><AlertCircle size={10} /> Required</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Date of Birth</Label>
-                  <Input type="date" {...register("dateOfBirth")} className="h-9 text-xs" />
+                  <Input type="date" {...register('dateOfBirth')} className="h-9 text-xs" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Gender</Label>
-                  <div className="flex items-center gap-4 mt-1">
-                    {['Male', 'Female', 'Other'].map(g => (
-                      <label key={g} className="flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="radio"
-                          value={g}
-                          {...register("gender")}
-                          className="accent-teal-600 w-3.5 h-3.5"
-                        />
-                        <span className="text-xs text-slate-600">{g}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Academic Details */}
-            <section className="bg-slate-50 p-5 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-2 text-teal-700 font-bold text-xs mb-4 uppercase tracking-wide">
-                <GraduationCap size={14} /> Academic Details
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Grade Level</Label>
-                  <Select
-                    value={gradeLevel}
-                    onValueChange={(v) => { setGradeLevel(v); setValue('gradeLevel', v); }}
-                  >
-                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select Grade" /></SelectTrigger>
+                  <Select value={gender} onValueChange={(v) => { setGender(v); setValue('gender', v); }}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select Gender" /></SelectTrigger>
                     <SelectContent>
-                      {['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map(g => (
+                      {['Male', 'Female', 'Other'].map(g => (
                         <SelectItem key={g} value={g}>{g}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+            </section>
+
+            {/* P-1: Conditional section — Academic (Student) or Work (Teacher/NTP) */}
+            {patientType === 'Student' ? (
+              <section className="bg-slate-50 p-5 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-2 text-teal-700 font-bold text-xs mb-4 uppercase tracking-wide">
+                  <GraduationCap size={14} /> Academic Details
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Grade Level</Label>
+                    <Select value={gradeLevel} onValueChange={(v) => { setGradeLevel(v); setValue('gradeLevel', v); }}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select Grade" /></SelectTrigger>
+                      <SelectContent>
+                        {['Grade 11', 'Grade 12'].map(g => (
+                          <SelectItem key={g} value={g}>{g}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Section / Class</Label>
+                    <Input {...register('section')} placeholder="e.g. STEM-A" className="h-9 text-xs" />
+                  </div>
+                </div>
+              </section>
+            ) : (
+              <section className="bg-slate-50 p-5 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-2 text-teal-700 font-bold text-xs mb-4 uppercase tracking-wide">
+                  <Briefcase size={14} /> Employment Details
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Department</Label>
+                    <Input {...register('department')} placeholder="e.g. Science Department" className="h-9 text-xs" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Position / Designation</Label>
+                    <Input {...register('position')} placeholder="e.g. Subject Teacher" className="h-9 text-xs" />
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* P-4: Emergency Contact */}
+            <section>
+              <div className="flex items-center gap-2 text-teal-700 font-bold text-xs mb-4 uppercase tracking-wide">
+                <Phone size={14} /> Emergency Contact
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Section / Class</Label>
-                  <Input {...register("section")} placeholder="e.g. STEM-A" className="h-9 text-xs" />
+                  <Label className="text-xs">
+                    {patientType === 'Student' ? 'Parent / Guardian Name' : 'Emergency Contact Name'}
+                  </Label>
+                  <Input {...register('contactName')} placeholder="Full name" className="h-9 text-xs" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Relationship</Label>
+                  <Select value={contactRelationship} onValueChange={setContactRelationship}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select Relationship" /></SelectTrigger>
+                    <SelectContent>
+                      {(patientType === 'Student'
+                        ? ['Father', 'Mother', 'Guardian', 'Sibling', 'Relative', 'Other']
+                        : ['Spouse', 'Parent', 'Sibling', 'Relative', 'Friend', 'Other']
+                      ).map(r => (
+                        <SelectItem key={r} value={r}>{r}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Contact Number</Label>
+                  <Input {...register('contactNumber')} placeholder="e.g. 09XX-XXX-XXXX" className="h-9 text-xs" />
                 </div>
               </div>
             </section>
@@ -164,7 +252,7 @@ export function AddPatient() {
               <div className="space-y-1.5">
                 <Label className="text-xs">Known Medical Conditions / Allergies</Label>
                 <Textarea
-                  {...register("knownMedicalConditions")}
+                  {...register('knownMedicalConditions')}
                   rows={3}
                   placeholder="e.g. Asthma, Penicillin allergy..."
                   className="text-xs"
@@ -186,6 +274,6 @@ export function AddPatient() {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </div >
   );
 }

@@ -29,7 +29,11 @@ export function NewVisit() {
 
   // Visit fields
   const [visitDate] = useState(new Date().toISOString().split('T')[0]);
-  const [timeIn] = useState('09:30 AM');
+  // V-1: auto-fill current time, but allow editing
+  const [timeIn, setTimeIn] = useState(() => {
+    const now = new Date();
+    return now.toTimeString().slice(0, 5); // 'HH:MM' in 24h format
+  });
   const [timeOut, setTimeOut] = useState('');
   const [complaint, setComplaint] = useState('');
   const [assessment, setAssessment] = useState('');
@@ -86,8 +90,8 @@ export function NewVisit() {
     if (medicines.some(m => m.error)) { toast.error('Fix medicine stock errors'); return; }
     setComplaintError(false);
 
-    // Build ISO datetime for timeIn (today's date + current time)
-    const todayISO = new Date().toISOString(); // proper datetime for the schema validator
+    // V-1: build proper ISO 8601 datetime from date + editable timeIn
+    const todayISO = new Date(`${visitDate}T${timeIn}:00`).toISOString();
 
     try {
       const result = await createVisit.mutateAsync({
@@ -186,7 +190,7 @@ export function NewVisit() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5"><Label className="text-xs">Date</Label><Input type="date" value={visitDate} readOnly className="h-9 text-xs bg-slate-50" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Time In</Label><Input value={timeIn} readOnly className="h-9 text-xs bg-slate-50" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Time In <span className="text-red-500">*</span></Label><Input type="time" value={timeIn} onChange={e => setTimeIn(e.target.value)} className="h-9 text-xs" /></div>
               <div className="space-y-1.5"><Label className="text-xs">Time Out</Label><Input value={timeOut} onChange={e => setTimeOut(e.target.value)} placeholder="--:-- --" className="h-9 text-xs" /></div>
             </div>
             <div className="space-y-1.5">

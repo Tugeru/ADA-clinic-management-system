@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Package2 } from 'lucide-react';
+import { Package2, ArrowLeft } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -47,6 +47,15 @@ export function AddMedicine() {
 
   return (
     <div className="max-w-2xl mx-auto">
+      {/* Back Navigation */}
+      <button
+        onClick={() => navigate('/inventory')}
+        className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors mb-4"
+      >
+        <ArrowLeft size={16} />
+        <span>Back to Inventory</span>
+      </button>
+
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-slate-900">Add New Medicine</h2>

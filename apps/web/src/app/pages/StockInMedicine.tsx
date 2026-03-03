@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Download, Calendar, Package2 } from 'lucide-react';
+import { Download, Calendar, Package2, ArrowLeft } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -39,6 +39,15 @@ export function StockInMedicine() {
 
   return (
     <div className="max-w-2xl mx-auto">
+      {/* Back Navigation */}
+      <button
+        onClick={() => navigate('/inventory')}
+        className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors mb-4"
+      >
+        <ArrowLeft size={16} />
+        <span>Back to Inventory</span>
+      </button>
+
       <Card className="p-8">
         {/* Header */}
         <div className="mb-6">

@@ -14,6 +14,7 @@ import { Inventory } from "./pages/Inventory";
 import { StockInMedicine } from "./pages/StockInMedicine";
 import { AddMedicine } from "./pages/AddMedicine";
 import { StockMovements } from "./pages/StockMovements";
+import { MedicineDetails } from "./pages/MedicineDetails";
 import { Analytics } from "./pages/Analytics";
 import { Archive } from "./pages/Archive";
 import { Settings } from "./pages/Settings";
@@ -45,6 +46,7 @@ export const router = createBrowserRouter([
             { path: "inventory/stock-in", Component: StockInMedicine },
             { path: "inventory/add-medicine", Component: AddMedicine },
             { path: "inventory/movements", Component: StockMovements },
+            { path: "inventory/:id", Component: MedicineDetails },
             { path: "analytics", Component: Analytics },
             { path: "archive", Component: Archive },
             { path: "settings", Component: Settings },
