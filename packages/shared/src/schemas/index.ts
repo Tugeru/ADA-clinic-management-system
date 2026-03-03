@@ -1,7 +1,4 @@
-/**
- * Shared Zod schemas
- * Placeholder — define validation schemas shared between frontend and backend.
- * Install: pnpm add zod
- */
-
-// export { patientSchema, visitSchema } from './patient.schema.js'
+export * from './auth.schema.js'
+export * from './student.schema.js'
+export * from './visit.schema.js'
+export * from './inventory.schema.js'

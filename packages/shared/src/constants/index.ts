@@ -1,10 +1,21 @@
-/**
- * Shared constants
- * Placeholder — add constants shared between frontend and backend here.
- */
+// ─── Shared Constants ──────────────────────────────────────────────────────────
 
-export const APP_NAME = 'ADA — Patient Records and Inventory System'
+/** Types of stock transactions for inventory audit trail */
+export const TransactionType = {
+    IN: 'IN',
+    OUT: 'OUT',
+    ADJUST: 'ADJUST',
+} as const
 
-export const API_VERSION = 'v1'
+export type TransactionType =
+    (typeof TransactionType)[keyof typeof TransactionType]
 
+/** Default low-stock reorder threshold */
+export const DEFAULT_REORDER_THRESHOLD = 10
+
+/** Pagination defaults */
 export const DEFAULT_PAGE_SIZE = 20
+export const MAX_PAGE_SIZE = 100
+
+/** Expiration warning window (days before expiration) */
+export const EXPIRY_WARNING_DAYS = 30
