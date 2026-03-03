@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Download, Calendar, Package2, Truck } from 'lucide-react';
+import { Download, Calendar, Package2 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -14,26 +14,26 @@ export function StockInMedicine() {
   const { data: medicines } = useInventory();
   const stockInMutation = useStockIn();
 
+  // medicineId stores the UUID string directly from medicine.id
   const [medicineId, setMedicineId] = useState('');
   const [quantity, setQuantity] = useState('100');
-  const [dateReceived, setDateReceived] = useState('2023-10-27');
-  const [supplier, setSupplier] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
+  const [batchNumber, setBatchNumber] = useState('');
+  const [expirationDate, setExpirationDate] = useState('');
 
   const handleSubmit = async () => {
-    if (!medicineId || !quantity || !dateReceived) return;
+    if (!medicineId || !quantity) return;
     try {
       await stockInMutation.mutateAsync({
-        medicineId: Number(medicineId),
+        medicineId,                          // UUID string — matches StockInSchema
         quantity: Number(quantity),
-        dateReceived,
-        supplier: supplier || undefined,
-        expiryDate: expiryDate || undefined,
+        batchNumber: batchNumber || undefined,
+        expirationDate: expirationDate || undefined, // YYYY-MM-DD — matches schema
       });
       toast.success('Stock-in recorded successfully!');
       navigate('/inventory');
-    } catch {
-      toast.error('Failed to record stock-in.');
+    } catch (err: any) {
+      const msg = err?.response?.data?.errors?.[0]?.message ?? err?.response?.data?.error ?? 'Failed to record stock-in.';
+      toast.error(msg);
     }
   };
 
@@ -65,14 +65,16 @@ export function StockInMedicine() {
               </SelectTrigger>
               <SelectContent>
                 {medicines?.map((m) => (
-                  <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
+                  <SelectItem key={m.id} value={String(m.id)}>
+                    {m.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-slate-400 mt-1">Search available medicines in the catalog</p>
+            <p className="text-xs text-slate-400 mt-1">Select from the medicine catalog</p>
           </div>
 
-          {/* Quantity + Date */}
+          {/* Quantity + Batch */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-sm font-semibold text-slate-800">
@@ -90,50 +92,27 @@ export function StockInMedicine() {
               </div>
             </div>
             <div>
-              <Label className="text-sm font-semibold text-slate-800">
-                Date Received <span className="text-red-500">*</span>
-              </Label>
-              <div className="relative mt-1.5">
-                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                <Input
-                  type="date"
-                  value={dateReceived}
-                  onChange={(e) => setDateReceived(e.target.value)}
-                  className="h-11 pl-9"
-                />
-              </div>
+              <Label className="text-sm font-semibold text-slate-800">Batch Number</Label>
+              <Input
+                value={batchNumber}
+                onChange={(e) => setBatchNumber(e.target.value)}
+                placeholder="e.g. BT-2025-001"
+                className="h-11 mt-1.5"
+              />
             </div>
           </div>
 
-          {/* Optional Details */}
+          {/* Expiry Date */}
           <div>
-            <p className="text-xs font-medium text-slate-400 mb-3">Optional Details</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-sm font-medium text-slate-700">Supplier</Label>
-                <div className="relative mt-1.5">
-                  <Truck size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  <Input
-                    placeholder="e.g. Pharma Global Inc."
-                    value={supplier}
-                    onChange={(e) => setSupplier(e.target.value)}
-                    className="h-11 pl-9"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-slate-700">Expiry Date</Label>
-                <div className="relative mt-1.5">
-                  <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  <Input
-                    type="date"
-                    value={expiryDate}
-                    onChange={(e) => setExpiryDate(e.target.value)}
-                    className="h-11 pl-9"
-                    placeholder="mm/dd/yyyy"
-                  />
-                </div>
-              </div>
+            <Label className="text-sm font-medium text-slate-700">Expiry Date</Label>
+            <div className="relative mt-1.5">
+              <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <Input
+                type="date"
+                value={expirationDate}
+                onChange={(e) => setExpirationDate(e.target.value)}
+                className="h-11 pl-9"
+              />
             </div>
           </div>
         </div>
@@ -146,17 +125,12 @@ export function StockInMedicine() {
           <Button
             className="bg-teal-600 hover:bg-teal-700 gap-2 text-sm px-6"
             onClick={handleSubmit}
-            disabled={!medicineId || !quantity || !dateReceived || stockInMutation.isPending}
+            disabled={!medicineId || !quantity || stockInMutation.isPending}
           >
-            <Download size={14} /> Save Stock-in
+            <Download size={14} /> {stockInMutation.isPending ? 'Saving...' : 'Save Stock-in'}
           </Button>
         </div>
       </Card>
-
-      {/* Footer note */}
-      <p className="text-center text-xs text-slate-400 mt-4">
-        Changes are auto-saved to drafts. <span className="underline cursor-pointer">View history</span>
-      </p>
     </div>
   );
 }
