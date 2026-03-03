@@ -16,6 +16,7 @@
       "@prisma/client",
       "@prisma/engines",
       "@tailwindcss/oxide",
+      "bcrypt",
       "esbuild",
       "prisma"
     ]
