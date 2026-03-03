@@ -1,6 +1,8 @@
 import prisma from '../config/db.js'
 import type { CreateStudentInput, UpdateStudentInput } from '@ada/shared'
 
+// Prisma client regenerated after add_strand_field migration
+
 export async function listStudents(search?: string, includeArchived = false) {
     return prisma.student.findMany({
         where: {
@@ -21,11 +23,19 @@ export async function createStudent(data: CreateStudentInput) {
     return prisma.student.create({
         data: {
             fullName: data.fullName,
+            patientType: data.patientType ?? 'Student',
             gradeLevel: data.gradeLevel,
+            strand: data.strand,
             section: data.section,
+            department: data.department,
+            position: data.position,
             dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
             gender: data.gender,
             knownMedicalConditions: data.knownMedicalConditions,
+            // P-4: Emergency contact
+            contactName: data.contactName,
+            contactRelationship: data.contactRelationship,
+            contactNumber: data.contactNumber,
         },
     })
 }

@@ -32,6 +32,7 @@ export function AddPatient() {
   // Controlled selects (react-hook-form doesn't auto-bind Select)
   const [patientType, setPatientType] = useState<PatientType>('Student');
   const [gradeLevel, setGradeLevel] = useState('');
+  const [strand, setStrand] = useState('');
   const [gender, setGender] = useState('');
   const [contactRelationship, setContactRelationship] = useState('');
 
@@ -44,6 +45,7 @@ export function AddPatient() {
       const type: PatientType = ep.type ?? ep.patientType ?? 'Student';
       setPatientType(type);
       setGradeLevel(ep.gradeLevel ?? '');
+      setStrand(ep.strand ?? '');
       setGender(ep.gender ?? '');
       setContactRelationship(ep.contactRelationship ?? '');
       reset({
@@ -67,6 +69,7 @@ export function AddPatient() {
       patientType,
       // Student fields
       gradeLevel: gradeLevel || undefined,
+      strand: strand || undefined,
       section: data.section || undefined,
       // Teacher/NTP fields
       department: data.department || undefined,
@@ -183,6 +186,17 @@ export function AddPatient() {
                       <SelectContent>
                         {['Grade 11', 'Grade 12'].map(g => (
                           <SelectItem key={g} value={g}>{g}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Strand</Label>
+                    <Select value={strand} onValueChange={(v) => { setStrand(v); setValue('strand', v); }}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select Strand" /></SelectTrigger>
+                      <SelectContent>
+                        {['STEM', 'ABM', 'HUMSS', 'GAS', 'TVL', 'Sports', 'Arts & Design'].map(s => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

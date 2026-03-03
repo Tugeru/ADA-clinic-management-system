@@ -48,6 +48,7 @@ model Student {
   patientType            String    @default("Student") @map("patient_type")
   // Student-specific
   gradeLevel             String?   @map("grade_level")
+  strand                 String?
   section                String?
   // Teacher/NTP-specific
   department             String?
