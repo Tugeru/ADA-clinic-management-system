@@ -1,21 +1,13 @@
-/**
- * client.ts — Prisma client singleton
- *
- * Placeholder: exports a shared PrismaClient instance.
- * TODO: configure when database models are defined.
- */
+import 'dotenv/config'
+import path from 'node:path'
+import dotenv from 'dotenv'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient }
+// Load .env from monorepo root
+dotenv.config({ path: path.resolve(import.meta.dirname, '../../../.env') })
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-  })
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma
-}
-
+const connectionString = process.env.DATABASE_URL!
+const adapter = new PrismaPg({ connectionString })
+export const prisma = new PrismaClient({ adapter })
 export default prisma
