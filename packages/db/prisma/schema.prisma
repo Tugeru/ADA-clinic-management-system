@@ -3,7 +3,8 @@
 // Reference: docs/dev-guidelines/Technical_Architecture.md
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
