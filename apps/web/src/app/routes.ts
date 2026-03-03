@@ -1,5 +1,7 @@
 import { createBrowserRouter } from "react-router";
 import { Layout } from "./components/Layout";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { LoginPage } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { PatientsList } from "./pages/PatientsList";
 import { PatientProfile } from "./pages/PatientProfile";
@@ -17,9 +19,17 @@ import { Archive } from "./pages/Archive";
 import { Settings } from "./pages/Settings";
 
 export const router = createBrowserRouter([
+  // Public route
+  { path: "/login", Component: LoginPage },
+
+  // Protected routes (all wrapped by Layout + ProtectedRoute)
   {
     path: "/",
-    Component: Layout,
+    element: (
+      <ProtectedRoute>
+      <Layout />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, Component: Dashboard },
       { path: "patients", Component: PatientsList },

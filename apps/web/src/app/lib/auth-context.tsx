@@ -1,43 +1,55 @@
 // ─────────────────────────────────────────────────────────────
-// Auth Context with mock JWT + RBAC (simulates custom middleware)
+// Real Auth Context — persists JWT to localStorage
 // ─────────────────────────────────────────────────────────────
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import type { User, AuthState, UserRole } from './types';
-import { mockUser } from './mock-data';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { authApi } from './api';
+
+interface AuthUser {
+  id: string;
+  email: string;
+  fullName: string;
+}
+
+interface AuthState {
+  user: AuthUser | null;
+  token: string | null;
+  isAuthenticated: boolean;
+}
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  hasRole: (roles: UserRole[]) => boolean;
+  hasRole: (roles: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const TOKEN_KEY = 'ada_token';
+const USER_KEY = 'ada_user';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Auto-login for demo purposes
-  const [state, setState] = useState<AuthState>({
-    user: mockUser,
-    token: 'mock-jwt-token',
-    isAuthenticated: true,
+  const [state, setState] = useState<AuthState>(() => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const userJson = localStorage.getItem(USER_KEY);
+    const user = userJson ? JSON.parse(userJson) : null;
+    return { user, token, isAuthenticated: !!token && !!user };
   });
 
   const login = useCallback(async (email: string, password: string) => {
-    // In production: POST /api/auth/login → returns JWT
-    setState({
-      user: { ...mockUser, email },
-      token: 'mock-jwt-token',
-      isAuthenticated: true,
-    });
+    const { token, user } = await authApi.login(email, password);
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    setState({ user, token, isAuthenticated: true });
   }, []);
 
   const logout = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
     setState({ user: null, token: null, isAuthenticated: false });
   }, []);
 
-  const hasRole = useCallback((roles: UserRole[]) => {
-    return state.user ? roles.includes(state.user.role) : false;
-  }, [state.user]);
+  const hasRole = useCallback((_roles: string[]) => state.isAuthenticated, [state.isAuthenticated]);
 
   return (
     <AuthContext.Provider value={{ ...state, login, logout, hasRole }}>
