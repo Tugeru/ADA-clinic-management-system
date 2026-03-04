@@ -29,7 +29,7 @@ export async function listMedicines(filters?: { includeInactive?: boolean }) {
 }
 
 export async function getMedicineById(id: string) {
-    return prisma.medicine.findUniqueOrThrow({
+    return prisma.medicine.findUnique({
         where: { id },
         include: {
             batches: {
