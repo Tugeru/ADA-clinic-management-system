@@ -151,6 +151,19 @@ export function useCreateVisit() {
   });
 }
 
+export function useDeleteVisit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => visitApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.visits.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.kpis });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
+    },
+  });
+}
+
+
 // ─── Inventory Hooks ─────────────────────────────────────────
 export function useInventory(search?: string) {
   return useQuery({

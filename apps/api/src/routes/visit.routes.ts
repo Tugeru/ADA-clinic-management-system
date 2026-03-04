@@ -37,4 +37,11 @@ router.patch('/:id', validate(UpdateVisitSchema), async (req, res, next) => {
     } catch (err) { next(err) }
 })
 
+router.delete('/:id', async (req, res, next) => {
+    try {
+        await svc.deleteVisit(req.params.id)
+        res.status(204).end()
+    } catch (err) { next(err) }
+})
+
 export default router

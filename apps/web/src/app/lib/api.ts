@@ -85,6 +85,10 @@ export const visitApi = {
     const items: any[] = Array.isArray(data) ? data : data.data ?? [];
     return items.length;
   },
+
+  async delete(id: string): Promise<void> {
+    await http.delete(`/visits/${id}`);
+  },
 };
 
 // ─── Inventory ───────────────────────────────────────────────

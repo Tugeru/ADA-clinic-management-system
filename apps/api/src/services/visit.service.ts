@@ -130,3 +130,14 @@ export async function updateVisit(id: string, data: UpdateVisitInput) {
         },
     })
 }
+
+export async function deleteVisit(id: string) {
+    return prisma.$transaction(async (tx) => {
+        // Delete stock transactions referencing this visit first
+        await tx.stockTransaction.deleteMany({ where: { referenceVisitId: id } })
+        // Delete visit-medicine links
+        await tx.visitMedicine.deleteMany({ where: { visitId: id } })
+        // Now delete the visit itself
+        return tx.visit.delete({ where: { id } })
+    })
+}
