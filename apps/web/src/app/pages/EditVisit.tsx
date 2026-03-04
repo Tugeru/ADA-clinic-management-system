@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { useVisit, useDispensableMedicines } from '../lib/hooks';
+import { useVisit, useUpdateVisit, useDispensableMedicines } from '../lib/hooks';
 import { Skeleton } from '../components/ui/skeleton';
 
 type MedRow = { name: string; quantity: number; dosage: string };
@@ -26,6 +26,7 @@ export function EditVisit() {
   const [complaint, setComplaint] = useState('');
   const [assessment, setAssessment] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [timeOut, setTimeOut] = useState('');
   const [bp, setBp] = useState('120/80');
   const [hr, setHr] = useState('78');
   const [temp, setTemp] = useState('36.6');
@@ -44,6 +45,19 @@ export function EditVisit() {
     if (visit) {
       setComplaint(visit.complaint);
       setAssessment(visit.assessment || '');
+      setRemarks(visit.nurseRemarks || '');
+      // Pre-fill timeOut if already set (convert "HH:MM AM/PM" → "HH:MM" 24hr)
+      if (visit.timeOut && visit.timeOut !== '—') {
+        try {
+          // visit.timeOut is stored as formatted string; try to parse back
+          const d = new Date(`1970-01-01 ${visit.timeOut}`);
+          if (!isNaN(d.getTime())) {
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            setTimeOut(`${hh}:${mm}`);
+          }
+        } catch { /* ignore */ }
+      }
     }
   });
 
@@ -55,9 +69,33 @@ export function EditVisit() {
     setMedicines(updated);
   };
 
-  const handleSave = () => {
-    toast.success('Visit record updated successfully');
-    navigate(`/visits/${id}`);
+  const updateMutation = useUpdateVisit();
+
+  const handleSave = async () => {
+    if (!id) return;
+    try {
+      // Build payload — only include timeOut if the user set it
+      const payload: { timeOut?: string; remarks?: string } = {};
+      if (timeOut) {
+        // Convert local HH:mm to ISO 8601 datetime using today's date
+        const visitDateStr = visit?.date || new Date().toISOString().slice(0, 10);
+        // visit.date is like "Mar 04, 2026" — we need YYYY-MM-DD
+        let dateISO: string;
+        try {
+          dateISO = new Date(visitDateStr).toISOString().slice(0, 10);
+        } catch {
+          dateISO = new Date().toISOString().slice(0, 10);
+        }
+        payload.timeOut = new Date(`${dateISO}T${timeOut}:00`).toISOString();
+      }
+      if (remarks) payload.remarks = remarks;
+
+      await updateMutation.mutateAsync({ id, data: payload });
+      toast.success('Visit updated successfully');
+      navigate(`/visits/${id}`);
+    } catch {
+      toast.error('Failed to update visit. Please try again.');
+    }
   };
 
   if (isLoading) {
@@ -95,6 +133,16 @@ export function EditVisit() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><Label className="text-xs">Date</Label><Input value={visit?.date || ''} readOnly className="h-9 text-xs bg-slate-50" /></div>
                 <div className="space-y-1.5"><Label className="text-xs">Time In</Label><Input value={visit?.timeIn || ''} readOnly className="h-9 text-xs bg-slate-50" /></div>
+                <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                  <Label className="text-xs">Time Out</Label>
+                  <Input
+                    type="time"
+                    value={timeOut}
+                    onChange={e => setTimeOut(e.target.value)}
+                    className="h-9 text-xs"
+                    placeholder="Set time out"
+                  />
+                </div>
               </div>
               <div className="space-y-1.5"><Label className="text-xs">Chief Complaint</Label><Input value={complaint || visit?.complaint || ''} onChange={e => setComplaint(e.target.value)} className="h-9 text-xs" /></div>
               <div className="space-y-1.5"><Label className="text-xs">Assessment / Intervention</Label><Textarea value={assessment || visit?.assessment || ''} onChange={e => setAssessment(e.target.value)} rows={3} className="text-xs" /></div>
@@ -202,7 +250,9 @@ export function EditVisit() {
       <Separator />
       <div className="flex flex-col sm:flex-row justify-end gap-3 pb-8">
         <Button variant="outline" asChild className="text-xs h-9"><Link to={`/visits/${id}`}>Cancel</Link></Button>
-        <Button onClick={handleSave} className="bg-teal-600 hover:bg-teal-700 text-xs h-9"><Save size={14} /> Save Changes</Button>
+        <Button onClick={handleSave} disabled={updateMutation.isPending} className="bg-teal-600 hover:bg-teal-700 text-xs h-9">
+          <Save size={14} /> {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+        </Button>
       </div>
     </div>
   );

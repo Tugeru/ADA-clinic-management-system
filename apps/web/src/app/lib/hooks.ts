@@ -163,6 +163,18 @@ export function useDeleteVisit() {
   });
 }
 
+export function useUpdateVisit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { timeOut?: string; remarks?: string } }) =>
+      visitApi.update(id, data),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: queryKeys.visits.all });
+      qc.invalidateQueries({ queryKey: queryKeys.visits.detail(variables.id) });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
+    },
+  });
+}
 
 // ─── Inventory Hooks ─────────────────────────────────────────
 export function useInventory(search?: string) {
