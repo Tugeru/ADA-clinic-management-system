@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useLocation } from 'react-router';
 import { ArrowLeft, Search, X, Plus, Trash2, AlertCircle, User, Calendar, Stethoscope, Pill, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -19,11 +19,13 @@ type MedRow = { id: string; name: string; quantity: number; maxStock: number; er
 
 export function NewVisit() {
   const navigate = useNavigate();
+  const location = useLocation();
   const createVisit = useCreateVisit();
 
-  // Patient selection
+  // Patient selection — pre-fill from router state when navigating from a profile
+  const prefillPatient = (location.state as any)?.patient as Patient | null ?? null;
   const [patientQuery, setPatientQuery] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(prefillPatient);
   const [showDropdown, setShowDropdown] = useState(false);
   const { data: patientResults } = usePatientSearch(patientQuery);
 
