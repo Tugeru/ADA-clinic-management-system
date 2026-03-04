@@ -7,8 +7,11 @@ const router = Router()
 
 // ─── Medicine catalog ──────────────────────────────────────────────────────────
 
-router.get('/', async (_req, res, next) => {
-    try { res.json(await svc.listMedicines()) } catch (err) { next(err) }
+router.get('/', async (req, res, next) => {
+    try {
+        const includeInactive = req.query.includeInactive === 'true'
+        res.json(await svc.listMedicines({ includeInactive }))
+    } catch (err) { next(err) }
 })
 
 router.get('/:id', async (req, res, next) => {
@@ -25,6 +28,10 @@ router.patch('/:id', validate(UpdateMedicineSchema), async (req, res, next) => {
 
 router.delete('/:id', async (req, res, next) => {
     try { await svc.deleteMedicine(req.params.id); res.status(204).send() } catch (err) { next(err) }
+})
+
+router.patch('/:id/restore', async (req, res, next) => {
+    try { res.json(await svc.restoreMedicine(req.params.id)) } catch (err) { next(err) }
 })
 
 // ─── Stock operations ──────────────────────────────────────────────────────────
