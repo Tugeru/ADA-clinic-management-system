@@ -15,7 +15,11 @@ router.get('/', async (req, res, next) => {
 })
 
 router.get('/:id', async (req, res, next) => {
-    try { res.json(await svc.getMedicineById(req.params.id)) } catch (err) { next(err) }
+    try {
+        const medicine = await svc.getMedicineById(req.params.id)
+        if (!medicine) { res.status(404).json({ error: 'Medicine not found' }); return }
+        res.json(medicine)
+    } catch (err) { next(err) }
 })
 
 router.post('/', validate(CreateMedicineSchema), async (req, res, next) => {
