@@ -317,9 +317,9 @@ function mapStudent(s: any): Patient {
 function mapVisit(v: any): Visit {
   return {
     id: v.id,
-    date: v.visitDate?.slice(0, 10) ?? v.timeIn?.slice(0, 10),
-    timeIn: v.timeIn?.slice(11, 16),
-    timeOut: v.timeOut?.slice(11, 16),
+    date: v.visitDate?.slice(0, 10) ?? (v.timeIn ? new Date(v.timeIn).toLocaleDateString('en-CA') : ''),
+    timeIn: v.timeIn ? new Date(v.timeIn).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+    timeOut: v.timeOut ? new Date(v.timeOut).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
     patientId: v.studentId,
     patientName: v.student?.fullName ?? 'Unknown',
     patientType: v.student?.patientType ?? 'Student',
@@ -337,7 +337,7 @@ function mapVisit(v: any): Visit {
     // Release info
     releasedTo: v.releasedToName ?? '',
     releasedToRelationship: v.releasedToRelationship ?? '',
-    releaseTime: v.releaseTime?.slice(11, 16) ?? '',
+    releaseTime: v.releaseTime ? new Date(v.releaseTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
     // Medicines
     medicines: (v.visitMedicines ?? []).map((m: any) => ({
       name: m.medicine?.name ?? '',
