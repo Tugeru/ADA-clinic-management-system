@@ -256,17 +256,19 @@ export function useArchiveMedicine() {
     mutationFn: (id: string) => inventoryApi.archiveMedicine(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+      qc.invalidateQueries({ queryKey: queryKeys.archive.medicines() });
     },
   });
 }
 
-// M-2: permanently delete a medicine
+// M-2: soft-delete a medicine (set isActive = false)
 export function useDeleteMedicine() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => inventoryApi.deleteMedicine(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+      qc.invalidateQueries({ queryKey: queryKeys.archive.medicines() });
     },
   });
 }

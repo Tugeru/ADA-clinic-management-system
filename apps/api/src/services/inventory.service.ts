@@ -4,9 +4,9 @@ import type { CreateMedicineInput, UpdateMedicineInput, StockInInput, AdjustStoc
 
 // ─── Medicine catalog ──────────────────────────────────────────────────────────
 
-export async function listMedicines() {
+export async function listMedicines(filters?: { includeInactive?: boolean }) {
     const medicines = await prisma.medicine.findMany({
-        where: { isActive: true },
+        where: filters?.includeInactive ? {} : { isActive: true },
         include: {
             batches: {
                 select: { id: true, batchNumber: true, expirationDate: true, quantityOnHand: true },
@@ -49,7 +49,19 @@ export async function updateMedicine(id: string, data: UpdateMedicineInput) {
 }
 
 export async function deleteMedicine(id: string) {
-    return prisma.medicine.delete({ where: { id } })
+    const medicine = await prisma.medicine.findUnique({ where: { id } })
+    if (!medicine) {
+        throw Object.assign(new Error('Medicine not found'), { status: 404 })
+    }
+    return prisma.medicine.update({ where: { id }, data: { isActive: false } })
+}
+
+export async function restoreMedicine(id: string) {
+    const medicine = await prisma.medicine.findUnique({ where: { id } })
+    if (!medicine) {
+        throw Object.assign(new Error('Medicine not found'), { status: 404 })
+    }
+    return prisma.medicine.update({ where: { id }, data: { isActive: true } })
 }
 
 // ─── Stock operations ──────────────────────────────────────────────────────────
