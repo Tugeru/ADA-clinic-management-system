@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Plus, Search, Package, ArrowRightLeft, PackagePlus, Eye, Archive, Trash2, Minus, MoreVertical } from 'lucide-react';
+import { Plus, Search, Package, ArrowRightLeft, PackagePlus, Archive, Trash2, Minus, MoreVertical } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -11,6 +11,7 @@ import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
 import { useInventory, useArchiveMedicine, useDeleteMedicine } from '../lib/hooks';
 import { ReduceStockDialog } from '../components/ReduceStockDialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { useNavigate } from 'react-router';
 
 const statusStyles: Record<string, string> = {
@@ -28,7 +29,6 @@ export function Inventory() {
 
   // Reduce stock dialog state
   const [reduceTarget, setReduceTarget] = useState<{ id: string; name: string; stock: number } | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const totalItems = medicines?.length || 0;
   const lowStock = medicines?.filter(m => m.status === 'low').length || 0;
@@ -45,7 +45,6 @@ export function Inventory() {
     try {
       await archiveMutation.mutateAsync(id);
       toast.success(`${name} archived`);
-      setOpenMenuId(null);
     } catch {
       toast.error('Failed to archive medicine');
     }
@@ -56,14 +55,13 @@ export function Inventory() {
     try {
       await deleteMutation.mutateAsync(id);
       toast.success(`${name} deleted`);
-      setOpenMenuId(null);
     } catch {
       toast.error('Failed to delete medicine — it may have stock on hand');
     }
   };
 
   return (
-    <div className="space-y-5" onClick={() => setOpenMenuId(null)}>
+    <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-800">Medicine Inventory</h2>
@@ -137,20 +135,10 @@ export function Inventory() {
                       {item.status.toUpperCase()}
                     </Badge>
                   </TableCell>
-                  {/* M-2: Actions */}
+                  {/* Actions */}
                   <TableCell className="py-3 pr-4 text-right">
                     <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                      {/* M-2: View details */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-slate-400 hover:text-teal-600"
-                        title="View Details"
-                        onClick={() => navigate(`/inventory/${item.id}`)}
-                      >
-                        <Eye size={13} />
-                      </Button>
-                      {/* M-1: Reduce stock */}
+                      {/* Reduce stock */}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -162,33 +150,36 @@ export function Inventory() {
                         <Minus size={13} />
                       </Button>
                       {/* More actions dropdown */}
-                      <div className="relative">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-slate-400 hover:text-slate-700"
-                          title="More actions"
-                          onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === item.id ? null : item.id); }}
-                        >
-                          <MoreVertical size={13} />
-                        </Button>
-                        {openMenuId === item.id && (
-                          <div className="absolute right-0 top-8 z-20 bg-white border border-slate-200 rounded-lg shadow-lg w-40 py-1">
-                            <button
-                              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-amber-700 hover:bg-amber-50 transition-colors"
-                              onClick={() => handleArchive(item.id, item.name)}
-                            >
-                              <Archive size={12} /> Archive
-                            </button>
-                            <button
-                              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
-                              onClick={() => handleDelete(item.id, item.name)}
-                            >
-                              <Trash2 size={12} /> Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-slate-400 hover:text-slate-700"
+                            title="More actions"
+                          >
+                            <MoreVertical size={13} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem onClick={() => navigate(`/inventory/${item.id}`)}>
+                            <span className="flex items-center gap-2 text-xs"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg> View Details</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleArchive(item.id, item.name)}
+                            className="text-amber-600 focus:text-amber-700 focus:bg-amber-50"
+                          >
+                            <Archive size={12} /> Archive
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(item.id, item.name)}
+                            className="text-red-600 focus:text-red-700 focus:bg-red-50"
+                          >
+                            <Trash2 size={12} /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
