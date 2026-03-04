@@ -11,7 +11,7 @@ import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
 import { useInventory, useArchiveMedicine, useDeleteMedicine } from '../lib/hooks';
 import { ReduceStockDialog } from '../components/ReduceStockDialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { useNavigate } from 'react-router';
 
 const statusStyles: Record<string, string> = {
@@ -165,7 +165,6 @@ export function Inventory() {
                           <DropdownMenuItem onClick={() => navigate(`/inventory/${item.id}`)}>
                             <span className="flex items-center gap-2 text-xs"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg> View Details</span>
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => handleArchive(item.id, item.name)}
                             className="text-amber-600 focus:text-amber-700 focus:bg-amber-50"
