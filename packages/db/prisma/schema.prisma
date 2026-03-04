@@ -3,7 +3,8 @@
 // Reference: docs/dev-guidelines/Technical_Architecture.md
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
@@ -43,11 +44,24 @@ model User {
 model Student {
   id                     String    @id @default(uuid()) @db.Uuid
   fullName               String    @map("full_name")
+  // P-1: patient type to distinguish Student / Teacher / NTP
+  patientType            String    @default("Student") @map("patient_type")
+  // Student-specific
   gradeLevel             String?   @map("grade_level")
+  strand                 String?
   section                String?
+  // Teacher/NTP-specific
+  department             String?
+  position               String?
+  // Common
   dateOfBirth            DateTime? @map("date_of_birth") @db.Date
   gender                 String?
   knownMedicalConditions String?   @map("known_medical_conditions")
+  // P-4: Emergency contact fields
+  contactName            String?   @map("contact_name")
+  contactRelationship    String?   @map("contact_relationship")
+  contactNumber          String?   @map("contact_number")
+  // Status
   isArchived             Boolean   @default(false) @map("is_archived")
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz
@@ -131,6 +145,12 @@ model Visit {
   complaint              String
   actionTaken            String    @map("action_taken")
   remarks                String?
+  // Vital signs
+  temperature            String?
+  bloodPressure          String?   @map("blood_pressure")
+  heartRate              String?   @map("heart_rate")
+  respiratoryRate        String?   @map("respiratory_rate")
+  // Release info
   releasedToName         String?   @map("released_to_name")
   releasedToRelationship String?   @map("released_to_relationship")
   releaseTime            DateTime? @map("release_time") @db.Timestamptz

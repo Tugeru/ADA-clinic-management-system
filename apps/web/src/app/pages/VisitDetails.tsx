@@ -18,7 +18,7 @@ const typeColors: Record<string, string> = {
 
 export function VisitDetails() {
   const { id } = useParams();
-  const { data: visit, isLoading } = useVisit(Number(id));
+  const { data: visit, isLoading } = useVisit(id || '');
 
   if (isLoading) {
     return (

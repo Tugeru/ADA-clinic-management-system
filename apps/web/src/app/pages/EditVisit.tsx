@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { useVisit, useDispensableMedicines } from '../lib/hooks';
+import { useVisit, useUpdateVisit, useDispensableMedicines } from '../lib/hooks';
 import { Skeleton } from '../components/ui/skeleton';
 
 type MedRow = { name: string; quantity: number; dosage: string };
@@ -20,20 +20,19 @@ type MedRow = { name: string; quantity: number; dosage: string };
 export function EditVisit() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { data: visit, isLoading } = useVisit(Number(id));
+  const { data: visit, isLoading } = useVisit(id || '');
   const { data: availableMeds } = useDispensableMedicines();
 
   const [complaint, setComplaint] = useState('');
   const [assessment, setAssessment] = useState('');
   const [remarks, setRemarks] = useState('');
-  const [bp, setBp] = useState('120/80');
-  const [hr, setHr] = useState('78');
-  const [temp, setTemp] = useState('36.6');
-  const [rr, setRr] = useState('18');
-  const [medicines, setMedicines] = useState<MedRow[]>([
-    { name: 'Sumatriptan 50mg', quantity: 6, dosage: '1 tab PRN' },
-    { name: 'Ibuprofen 400mg', quantity: 10, dosage: '1 tab 3x a day' },
-  ]);
+  const [timeIn, setTimeIn] = useState('');
+  const [timeOut, setTimeOut] = useState('');
+  const [bp, setBp] = useState('');
+  const [hr, setHr] = useState('');
+  const [temp, setTemp] = useState('');
+  const [rr, setRr] = useState('');
+  const [medicines, setMedicines] = useState<MedRow[]>([]);
   const [disposition, setDisposition] = useState<'returned' | 'sentHome' | 'hospital'>('sentHome');
   const [notifiedPerson, setNotifiedPerson] = useState('');
   const [relationship, setRelationship] = useState('');
@@ -44,6 +43,37 @@ export function EditVisit() {
     if (visit) {
       setComplaint(visit.complaint);
       setAssessment(visit.assessment || '');
+      setRemarks(visit.nurseRemarks || '');
+      // Pre-fill timeIn from the loaded visit (already HH:MM from mapVisit)
+      if (visit.timeIn) setTimeIn(visit.timeIn);
+      // Pre-fill timeOut if already set
+      if (visit.timeOut && visit.timeOut !== '—') {
+        setTimeOut(visit.timeOut);
+      }
+      // Vital signs
+      setBp(visit.bloodPressure || '');
+      setHr(visit.heartRate || '');
+      setTemp(visit.temperature || '');
+      setRr(visit.respiratoryRate || '');
+      // Medicines from visit
+      if (visit.medicines?.length) {
+        setMedicines(visit.medicines.map((m: any) => ({
+          name: m.name,
+          quantity: m.quantity,
+          dosage: '',
+        })));
+      }
+      // Disposition
+      if (visit.disposition) {
+        const d = visit.disposition as string;
+        if (d.includes('Hospital')) setDisposition('hospital');
+        else if (d.includes('Sent Home') || d.includes('Released')) setDisposition('sentHome');
+        else setDisposition('returned');
+      }
+      // Release info
+      if (visit.releasedTo) setNotifiedPerson(visit.releasedTo);
+      if (visit.releasedToRelationship) setRelationship(visit.releasedToRelationship);
+      if (visit.releaseTime) setReleaseTime(visit.releaseTime);
     }
   });
 
@@ -55,9 +85,39 @@ export function EditVisit() {
     setMedicines(updated);
   };
 
-  const handleSave = () => {
-    toast.success('Visit record updated successfully');
-    navigate(`/visits/${id}`);
+  const updateMutation = useUpdateVisit();
+
+  const handleSave = async () => {
+    if (!id) return;
+    try {
+      // Build payload — only include timeOut if the user set it
+      const payload: { timeIn?: string; timeOut?: string; remarks?: string; temperature?: string; bloodPressure?: string; heartRate?: string; respiratoryRate?: string } = {};
+      const visitDateStr = visit?.date || new Date().toISOString().slice(0, 10);
+      let dateISO: string;
+      try {
+        dateISO = new Date(visitDateStr).toISOString().slice(0, 10);
+      } catch {
+        dateISO = new Date().toISOString().slice(0, 10);
+      }
+      if (timeIn) {
+        payload.timeIn = new Date(`${dateISO}T${timeIn}:00`).toISOString();
+      }
+      if (timeOut) {
+        payload.timeOut = new Date(`${dateISO}T${timeOut}:00`).toISOString();
+      }
+      if (remarks) payload.remarks = remarks;
+      // Vital signs
+      payload.temperature = temp || undefined;
+      payload.bloodPressure = bp || undefined;
+      payload.heartRate = hr || undefined;
+      payload.respiratoryRate = rr || undefined;
+
+      await updateMutation.mutateAsync({ id, data: payload });
+      toast.success('Visit updated successfully');
+      navigate(`/visits/${id}`);
+    } catch {
+      toast.error('Failed to update visit. Please try again.');
+    }
   };
 
   if (isLoading) {
@@ -92,9 +152,26 @@ export function EditVisit() {
               <div className="flex items-center gap-2"><Stethoscope size={15} className="text-teal-600" /><CardTitle className="text-sm font-bold">Visit Details</CardTitle></div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5"><Label className="text-xs">Date</Label><Input value={visit?.date || ''} readOnly className="h-9 text-xs bg-slate-50" /></div>
-                <div className="space-y-1.5"><Label className="text-xs">Time In</Label><Input value={visit?.timeIn || ''} readOnly className="h-9 text-xs bg-slate-50" /></div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Time In</Label>
+                  <Input
+                    type="time"
+                    value={timeIn}
+                    onChange={e => setTimeIn(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Time Out</Label>
+                  <Input
+                    type="time"
+                    value={timeOut}
+                    onChange={e => setTimeOut(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                </div>
               </div>
               <div className="space-y-1.5"><Label className="text-xs">Chief Complaint</Label><Input value={complaint || visit?.complaint || ''} onChange={e => setComplaint(e.target.value)} className="h-9 text-xs" /></div>
               <div className="space-y-1.5"><Label className="text-xs">Assessment / Intervention</Label><Textarea value={assessment || visit?.assessment || ''} onChange={e => setAssessment(e.target.value)} rows={3} className="text-xs" /></div>
@@ -202,7 +279,9 @@ export function EditVisit() {
       <Separator />
       <div className="flex flex-col sm:flex-row justify-end gap-3 pb-8">
         <Button variant="outline" asChild className="text-xs h-9"><Link to={`/visits/${id}`}>Cancel</Link></Button>
-        <Button onClick={handleSave} className="bg-teal-600 hover:bg-teal-700 text-xs h-9"><Save size={14} /> Save Changes</Button>
+        <Button onClick={handleSave} disabled={updateMutation.isPending} className="bg-teal-600 hover:bg-teal-700 text-xs h-9">
+          <Save size={14} /> {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+        </Button>
       </div>
     </div>
   );

@@ -18,15 +18,16 @@ export const queryKeys = {
   visits: {
     all: ['visits'] as const,
     list: (params?: Record<string, string>) => ['visits', 'list', params] as const,
-    detail: (id: number) => ['visits', 'detail', id] as const,
+    detail: (id: string) => ['visits', 'detail', id] as const,
     todayCount: ['visits', 'todayCount'] as const,
   },
   inventory: {
     all: ['inventory'] as const,
-    list: (search?: string) => ['inventory', 'list', search] as const,
+    list: (params?: Record<string, string>) => ['inventory', 'list', params] as const,
+    detail: (id: string) => ['inventory', 'detail', id] as const,
     lowStock: ['inventory', 'lowStock'] as const,
     dispensable: ['inventory', 'dispensable'] as const,
-    movements: (params?: Record<string, string>) => ['inventory', 'movements', params] as const,
+    movements: (params?: Record<string, any>) => ['inventory', 'movements', params] as const,
   },
   dashboard: {
     kpis: ['dashboard', 'kpis'] as const,
@@ -104,6 +105,16 @@ export function useArchivePatient() {
   });
 }
 
+export function useDeletePatient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => patientApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.patients.all });
+    },
+  });
+}
+
 export function usePatientVisits(patientId: string, params?: { search?: string; page?: number }) {
   return useQuery({
     queryKey: queryKeys.patients.visits(patientId, params),
@@ -120,7 +131,7 @@ export function useVisits(params?: { search?: string; type?: string; disposition
   });
 }
 
-export function useVisit(id: number) {
+export function useVisit(id: string) {
   return useQuery({
     queryKey: queryKeys.visits.detail(id),
     queryFn: () => visitApi.getById(id),
@@ -136,6 +147,33 @@ export function useCreateVisit() {
       qc.invalidateQueries({ queryKey: queryKeys.visits.all });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.kpis });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
+      // Bug 2 fix: also refresh patient profile visit history
+      qc.invalidateQueries({ queryKey: ['patients', 'visits'] });
+    },
+  });
+}
+
+export function useDeleteVisit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => visitApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.visits.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.kpis });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
+    },
+  });
+}
+
+export function useUpdateVisit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { timeOut?: string; remarks?: string } }) =>
+      visitApi.update(id, data),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: queryKeys.visits.all });
+      qc.invalidateQueries({ queryKey: queryKeys.visits.detail(variables.id) });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
     },
   });
 }
@@ -143,7 +181,7 @@ export function useCreateVisit() {
 // ─── Inventory Hooks ─────────────────────────────────────────
 export function useInventory(search?: string) {
   return useQuery({
-    queryKey: queryKeys.inventory.list(search),
+    queryKey: queryKeys.inventory.list(search ? { search } : undefined),
     queryFn: () => inventoryApi.getAll({ search }),
   });
 }
@@ -183,6 +221,49 @@ export function useCreateMedicine() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: MedicineFormData) => inventoryApi.createMedicine(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+    },
+  });
+}
+
+// M-2: get a single medicine (with batches) by id
+export function useMedicine(id: string) {
+  return useQuery({
+    queryKey: queryKeys.inventory.detail(id),
+    queryFn: () => inventoryApi.getById(id),
+    enabled: !!id,
+  });
+}
+
+// M-1: adjust (reduce) stock for a specific batch
+export function useAdjustStock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { batchId: string; quantity: number; notes?: string }) =>
+      inventoryApi.adjustStock(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+    },
+  });
+}
+
+// M-2: archive a medicine (set isActive = false)
+export function useArchiveMedicine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.archiveMedicine(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+    },
+  });
+}
+
+// M-2: permanently delete a medicine
+export function useDeleteMedicine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.deleteMedicine(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
     },

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { ArrowLeft, Edit, Archive as ArchiveIcon, Plus, Search, Eye, AlertTriangle, ShieldPlus, Calendar, GraduationCap, Filter } from 'lucide-react';
+import { ArrowLeft, Edit, Archive as ArchiveIcon, Plus, Search, Eye, AlertTriangle, Calendar, GraduationCap, Filter } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -243,27 +243,17 @@ function InformationTab({ patient }: { patient: any }) {
 
           {/* Medical Alerts */}
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-4">Medical Alerts</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-4">Medical Notes / Alerts</h3>
             <div className="space-y-3">
-              {patient.allergies && (
-                <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-lg">
-                  <AlertTriangle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+              {patient.knownMedicalConditions ? (
+                <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                  <AlertTriangle size={16} className="text-amber-500 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-red-600">Allergies</p>
-                    <p className="text-sm text-red-600">{patient.allergies}</p>
+                    <p className="text-xs font-semibold text-amber-700">Known Medical Conditions / Allergies</p>
+                    <p className="text-sm text-amber-700 mt-0.5">{patient.knownMedicalConditions}</p>
                   </div>
                 </div>
-              )}
-              {patient.conditions && (
-                <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                  <ShieldPlus size={16} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-blue-600">Medical Conditions</p>
-                    <p className="text-sm text-blue-600">{patient.conditions}</p>
-                  </div>
-                </div>
-              )}
-              {!patient.allergies && !patient.conditions && (
+              ) : (
                 <p className="text-xs text-slate-400">No medical alerts on file.</p>
               )}
             </div>

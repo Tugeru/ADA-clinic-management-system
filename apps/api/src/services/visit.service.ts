@@ -46,9 +46,14 @@ export async function createVisit(userId: string, data: LogVisitInput) {
                 studentId: data.studentId,
                 loggedByUserId: userId,
                 timeIn: new Date(data.timeIn),
+                timeOut: data.timeOut ? new Date(data.timeOut) : undefined,
                 complaint: data.complaint,
                 actionTaken: data.actionTaken,
                 remarks: data.remarks,
+                temperature: data.temperature,
+                bloodPressure: data.bloodPressure,
+                heartRate: data.heartRate,
+                respiratoryRate: data.respiratoryRate,
                 releasedToName: data.release?.releasedToName,
                 releasedToRelationship: data.release?.releasedToRelationship,
                 releaseTime: data.release?.releaseTime
@@ -120,13 +125,29 @@ export async function updateVisit(id: string, data: UpdateVisitInput) {
     return prisma.visit.update({
         where: { id },
         data: {
+            timeIn: data.timeIn ? new Date(data.timeIn) : undefined,
             timeOut: data.timeOut ? new Date(data.timeOut) : undefined,
             remarks: data.remarks,
+            temperature: data.temperature,
+            bloodPressure: data.bloodPressure,
+            heartRate: data.heartRate,
+            respiratoryRate: data.respiratoryRate,
             releasedToName: data.release?.releasedToName,
             releasedToRelationship: data.release?.releasedToRelationship,
             releaseTime: data.release?.releaseTime
                 ? new Date(data.release.releaseTime)
                 : undefined,
         },
+    })
+}
+
+export async function deleteVisit(id: string) {
+    return prisma.$transaction(async (tx) => {
+        // Delete stock transactions referencing this visit first
+        await tx.stockTransaction.deleteMany({ where: { referenceVisitId: id } })
+        // Delete visit-medicine links
+        await tx.visitMedicine.deleteMany({ where: { visitId: id } })
+        // Now delete the visit itself
+        return tx.visit.delete({ where: { id } })
     })
 }

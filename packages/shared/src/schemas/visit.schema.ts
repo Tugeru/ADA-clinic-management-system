@@ -8,23 +8,35 @@ const DispensedMedicineSchema = z.object({
 
 const ReleaseInfoSchema = z.object({
     releasedToName: z.string().min(1),
-    releasedToRelationship: z.string().min(1),
-    releaseTime: z.string().datetime(),
+    releasedToRelationship: z.string().optional(),
+    releaseTime: z.string().datetime().optional(),
 })
 
 export const LogVisitSchema = z.object({
     studentId: z.string().uuid(),
     timeIn: z.string().datetime(),
+    timeOut: z.string().datetime().optional(),
     complaint: z.string().min(1, 'Complaint is required'),
     actionTaken: z.string().min(1, 'Action taken is required'),
     remarks: z.string().optional(),
+    // Vital signs
+    temperature: z.string().optional(),
+    bloodPressure: z.string().optional(),
+    heartRate: z.string().optional(),
+    respiratoryRate: z.string().optional(),
     medicines: z.array(DispensedMedicineSchema).optional(),
     release: ReleaseInfoSchema.optional(),
 })
 
 export const UpdateVisitSchema = z.object({
+    timeIn: z.string().datetime().optional(),
     timeOut: z.string().datetime().optional(),
     remarks: z.string().optional(),
+    // Vital signs
+    temperature: z.string().optional(),
+    bloodPressure: z.string().optional(),
+    heartRate: z.string().optional(),
+    respiratoryRate: z.string().optional(),
     release: ReleaseInfoSchema.optional(),
 })
 

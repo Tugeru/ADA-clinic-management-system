@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Search, Plus, Eye, Edit, ArchiveIcon, MoreHorizontal } from 'lucide-react';
+import { Search, Plus, Eye, Edit, ArchiveIcon, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -10,8 +10,10 @@ import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
-import { usePatients } from '../lib/hooks';
+import { toast } from 'sonner';
+import { usePatients, useArchivePatient, useDeletePatient } from '../lib/hooks';
 
 const typeColors: Record<string, string> = {
   Student: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -23,17 +25,70 @@ export function PatientsList() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [statusFilter, setStatusFilter] = useState('Active');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteName, setConfirmDeleteName] = useState('');
 
   const { data, isLoading } = usePatients({
     search,
     type: typeFilter,
     status: statusFilter === 'All Statuses' ? undefined : statusFilter,
   });
+  const archiveMutation = useArchivePatient();
+  const deleteMutation = useDeletePatient();
 
   const patients = data?.data || [];
 
+  const handleArchive = async (id: string, name: string) => {
+    try {
+      await archiveMutation.mutateAsync(id);
+      toast.success(`${name} archived`);
+    } catch {
+      toast.error('Failed to archive patient');
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    setConfirmDeleteId(id);
+    setConfirmDeleteName(name);
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
+    try {
+      await deleteMutation.mutateAsync(confirmDeleteId);
+      toast.success(`${confirmDeleteName} permanently deleted`);
+    } catch {
+      toast.error('Cannot delete — patient has visit records. Archive instead.');
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  };
+
   return (
     <div className="space-y-5">
+      {/* Confirm Delete Dialog */}
+      <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Patient Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to permanently delete <span className="font-semibold text-slate-700">{confirmDeleteName}</span>.
+              This action <span className="font-semibold text-red-600">cannot be undone</span>. All data for this patient will be removed.
+              <br /><br />
+              If this patient has visit records, deletion will fail — use <span className="font-semibold">Archive</span> instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Yes, Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -138,14 +193,25 @@ export function PatientsList() {
                               <MoreHorizontal size={14} />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuContent align="end" className="w-44">
                             <DropdownMenuItem asChild>
                               <Link to={`/patients/${p.id}`}><Eye size={13} /> View Profile</Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                               <Link to={`/patients/edit/${p.id}`}><Edit size={13} /> Edit</Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem><ArchiveIcon size={13} /> Archive</DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleArchive(p.id, p.fullName)}
+                              className="text-amber-600 focus:text-amber-700 focus:bg-amber-50"
+                            >
+                              <ArchiveIcon size={13} /> Archive
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(p.id, p.fullName)}
+                              className="text-red-600 focus:text-red-700 focus:bg-red-50"
+                            >
+                              <Trash2 size={13} /> Delete
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

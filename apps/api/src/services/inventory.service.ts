@@ -28,12 +28,28 @@ export async function listMedicines() {
     })
 }
 
+export async function getMedicineById(id: string) {
+    return prisma.medicine.findUniqueOrThrow({
+        where: { id },
+        include: {
+            batches: {
+                select: { id: true, batchNumber: true, expirationDate: true, quantityOnHand: true },
+                orderBy: { expirationDate: 'asc' },
+            },
+        },
+    })
+}
+
 export async function createMedicine(data: CreateMedicineInput) {
     return prisma.medicine.create({ data })
 }
 
 export async function updateMedicine(id: string, data: UpdateMedicineInput) {
     return prisma.medicine.update({ where: { id }, data })
+}
+
+export async function deleteMedicine(id: string) {
+    return prisma.medicine.delete({ where: { id } })
 }
 
 // ─── Stock operations ──────────────────────────────────────────────────────────

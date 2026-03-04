@@ -14,7 +14,8 @@ import { toast } from 'sonner';
 import { usePatientSearch, useDispensableMedicines, useCreateVisit } from '../lib/hooks';
 import type { Patient, DispositionType } from '../lib/types';
 
-type MedRow = { name: string; quantity: number; maxStock: number; error?: string };
+// Bug fix: track medicineId UUID alongside name for display
+type MedRow = { id: string; name: string; quantity: number; maxStock: number; error?: string };
 
 export function NewVisit() {
   const navigate = useNavigate();
@@ -28,7 +29,11 @@ export function NewVisit() {
 
   // Visit fields
   const [visitDate] = useState(new Date().toISOString().split('T')[0]);
-  const [timeIn] = useState('09:30 AM');
+  // V-1: auto-fill current time, but allow editing
+  const [timeIn, setTimeIn] = useState(() => {
+    const now = new Date();
+    return now.toTimeString().slice(0, 5); // 'HH:MM' in 24h format
+  });
   const [timeOut, setTimeOut] = useState('');
   const [complaint, setComplaint] = useState('');
   const [assessment, setAssessment] = useState('');
@@ -39,10 +44,11 @@ export function NewVisit() {
   const [temp, setTemp] = useState('');
   const [bp, setBp] = useState('');
   const [hr, setHr] = useState('');
+  const [rr, setRr] = useState('');
 
   // Medicines
   const { data: availableMeds } = useDispensableMedicines();
-  const [medicines, setMedicines] = useState<MedRow[]>([{ name: '', quantity: 1, maxStock: 0 }]);
+  const [medicines, setMedicines] = useState<MedRow[]>([{ id: '', name: '', quantity: 1, maxStock: 0 }]);
 
   // Disposition
   const [disposition, setDisposition] = useState<'returned' | 'sentHome' | 'hospital'>('returned');
@@ -56,13 +62,14 @@ export function NewVisit() {
     setShowDropdown(false);
   };
 
-  const addMedicine = () => setMedicines([...medicines, { name: '', quantity: 1, maxStock: 0 }]);
+  const addMedicine = () => setMedicines([...medicines, { id: '', name: '', quantity: 1, maxStock: 0 }]);
 
   const updateMedicine = (i: number, field: string, value: any) => {
     const updated = [...medicines];
-    if (field === 'name') {
-      const med = availableMeds?.find(m => m.name === value);
-      updated[i] = { ...updated[i], name: value, maxStock: med?.stock || 0, error: undefined };
+    if (field === 'id') {
+      // value is the medicine UUID from availableMeds
+      const med = availableMeds?.find(m => m.id === value);
+      updated[i] = { ...updated[i], id: value, name: med?.name ?? value, maxStock: med?.stock || 0, error: undefined };
     } else if (field === 'quantity') {
       const qty = parseInt(value) || 0;
       updated[i] = { ...updated[i], quantity: qty, error: qty > updated[i].maxStock ? `Exceeds stock (max: ${updated[i].maxStock})` : undefined };
@@ -79,23 +86,32 @@ export function NewVisit() {
   };
 
   const handleSubmit = async () => {
+    if (!selectedPatient) { toast.error('Please select a patient'); return; }
     if (!complaint.trim()) { setComplaintError(true); toast.error('Chief Complaint is required'); return; }
     if (medicines.some(m => m.error)) { toast.error('Fix medicine stock errors'); return; }
     setComplaintError(false);
 
+    // V-1: build proper ISO 8601 datetime from date + editable timeIn
+    const todayISO = new Date(`${visitDate}T${timeIn}:00`).toISOString();
+    const timeOutISO = timeOut ? new Date(`${visitDate}T${timeOut}:00`).toISOString() : undefined;
+
     try {
       const result = await createVisit.mutateAsync({
-        patientId: selectedPatient?.id || '',
-        date: visitDate,
-        timeIn,
-        timeOut,
+        patientId: selectedPatient.id,
+        timeIn: todayISO,            // ISO 8601 — satisfies z.string().datetime()
+        timeOut: timeOutISO,
         complaint,
-        assessment,
+        // actionTaken is required on backend — use assessment if filled, else reuse complaint
+        assessment: assessment.trim() || complaint,
         remarks,
-        temperature: temp,
-        bloodPressure: bp,
-        heartRate: hr,
-        medicines: medicines.filter(m => m.name).map(m => ({ name: m.name, quantity: m.quantity })),
+        // Vital signs
+        temperature: temp || undefined,
+        bloodPressure: bp || undefined,
+        heartRate: hr || undefined,
+        respiratoryRate: rr || undefined,
+        medicines: medicines
+          .filter(m => m.id)          // only rows where a medicine UUID was selected
+          .map(m => ({ medicineId: m.id, quantity: m.quantity })),
         disposition: getDispositionValue(),
         guardianName,
         relationship,
@@ -103,8 +119,9 @@ export function NewVisit() {
       });
       toast.success('Visit record saved and finalized');
       navigate(`/visits/${result.id}`);
-    } catch {
-      toast.error('Failed to save visit');
+    } catch (err: any) {
+      const msg = err?.response?.data?.errors?.[0]?.message ?? err?.response?.data?.error ?? 'Failed to save visit';
+      toast.error(msg);
     }
   };
 
@@ -145,8 +162,8 @@ export function NewVisit() {
                       <button key={p.id} onClick={() => selectPatient(p)} className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2.5 text-xs">
                         <Badge variant="outline" className={cn("text-[8px]",
                           p.type === 'Student' ? "bg-blue-50 text-blue-700 border-blue-200" :
-                          p.type === 'Teacher' ? "bg-purple-50 text-purple-700 border-purple-200" :
-                          "bg-orange-50 text-orange-700 border-orange-200"
+                            p.type === 'Teacher' ? "bg-purple-50 text-purple-700 border-purple-200" :
+                              "bg-orange-50 text-orange-700 border-orange-200"
                         )}>{p.type}</Badge>
                         <span className="font-medium text-slate-800">{p.fullName}</span>
                         <span className="text-slate-400">[{p.idNumber}]</span>
@@ -181,8 +198,8 @@ export function NewVisit() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5"><Label className="text-xs">Date</Label><Input type="date" value={visitDate} readOnly className="h-9 text-xs bg-slate-50" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Time In</Label><Input value={timeIn} readOnly className="h-9 text-xs bg-slate-50" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Time Out</Label><Input value={timeOut} onChange={e => setTimeOut(e.target.value)} placeholder="--:-- --" className="h-9 text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Time In <span className="text-red-500">*</span></Label><Input type="time" value={timeIn} onChange={e => setTimeIn(e.target.value)} className="h-9 text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Time Out</Label><Input type="time" value={timeOut} onChange={e => setTimeOut(e.target.value)} className="h-9 text-xs" /></div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Chief Complaint <span className="text-red-500">*</span></Label>
@@ -216,9 +233,9 @@ export function NewVisit() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1.5"><Label className="text-xs">Temperature (°C)</Label><Input value={temp} onChange={e => setTemp(e.target.value)} placeholder="36.5" className="h-9 text-xs" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Blood Pressure</Label><Input value={bp} onChange={e => setBp(e.target.value)} placeholder="120/80" className="h-9 text-xs" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Heart Rate (bpm)</Label><Input value={hr} onChange={e => setHr(e.target.value)} placeholder="80" className="h-9 text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Temperature (°C)</Label><Input value={temp} onChange={e => setTemp(e.target.value)} placeholder=" e.g. 36.5" className="h-9 text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Blood Pressure</Label><Input value={bp} onChange={e => setBp(e.target.value)} placeholder="e.g. 120/80" className="h-9 text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Heart Rate (bpm)</Label><Input value={hr} onChange={e => setHr(e.target.value)} placeholder="e.g. 80" className="h-9 text-xs" /></div>
             </div>
           </CardContent>
         </Card>
@@ -239,13 +256,14 @@ export function NewVisit() {
               <div key={i} className={cn("flex flex-col sm:flex-row gap-2 sm:items-end", med.error && "")}>
                 <div className="flex-1">
                   {i === 0 && <Label className="text-[10px] text-slate-400 uppercase mb-1">Medicine</Label>}
-                  <Select value={med.name} onValueChange={v => updateMedicine(i, 'name', v)}>
+                  <Select value={med.id} onValueChange={v => updateMedicine(i, 'id', v)}>
                     <SelectTrigger className={cn("h-9 text-xs", med.error && "border-red-300")}>
                       <SelectValue placeholder="Select medicine..." />
                     </SelectTrigger>
                     <SelectContent>
                       {availableMeds?.map(m => (
-                        <SelectItem key={m.name} value={m.name}>
+                        // Bug fix: use m.id (UUID) as item value, not m.name
+                        <SelectItem key={m.id} value={m.id}>
                           {m.name} <span className="text-slate-400 ml-1">(Stock: {m.stock})</span>
                         </SelectItem>
                       ))}
@@ -313,7 +331,7 @@ export function NewVisit() {
                     <Select value={relationship} onValueChange={setRelationship}>
                       <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
-                        {['Mother','Father','Guardian','Spouse','Sibling','Other'].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                        {['Mother', 'Father', 'Guardian', 'Spouse', 'Sibling', 'Other'].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>

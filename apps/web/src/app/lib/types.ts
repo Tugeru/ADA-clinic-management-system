@@ -66,24 +66,14 @@ export interface Patient {
   updatedAt: string;
 }
 
+// Matches CreateStudentSchema / UpdateStudentSchema on the backend
 export interface PatientFormData {
-  idNumber: string;
-  idType?: string;
   fullName: string;
-  type: PatientType;
-  gender?: Gender;
-  dateOfBirth?: string;
   gradeLevel?: string;
   section?: string;
-  strand?: string;
-  department?: string;
-  position?: string;
-  contactName?: string;
-  contactRelationship?: string;
-  contactNumber?: string;
-  allergies?: string;
-  conditions?: string;
-  remarks?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  knownMedicalConditions?: string;
 }
 
 // ─── Visit ───────────────────────────────────────────────────
@@ -125,18 +115,20 @@ export interface DispensedMedicine {
   quantity: number;
 }
 
+// Matches LogVisitSchema on the backend
 export interface VisitFormData {
   patientId: string;
-  date: string;
-  timeIn: string;
-  timeOut?: string;
+  timeIn: string;           // ISO 8601 datetime
+  timeOut?: string;         // ISO 8601 datetime
   complaint: string;
-  assessment?: string;
+  assessment?: string;      // maps to actionTaken in visitPayload()
   remarks?: string;
+  // Vital signs
   temperature?: string;
   bloodPressure?: string;
   heartRate?: string;
-  medicines: DispensedMedicine[];
+  respiratoryRate?: string;
+  medicines: { medicineId: string; quantity: number }[];
   disposition: DispositionType;
   guardianName?: string;
   relationship?: string;
@@ -178,12 +170,12 @@ export interface StockMovement {
   initialsColor: string;
 }
 
+// Matches StockInSchema on the backend
 export interface StockInFormData {
-  medicineId: number;
+  medicineId: string;     // UUID string
   quantity: number;
-  dateReceived: string;
-  supplier?: string;
-  expiryDate?: string;
+  batchNumber?: string;
+  expirationDate?: string; // YYYY-MM-DD
 }
 
 export interface MedicineFormData {

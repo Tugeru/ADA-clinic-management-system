@@ -1,5 +1,5 @@
 import { RouterProvider } from 'react-router';
-import { router } from './routes';
+import { router } from './routes.tsx';
 import { Toaster } from 'sonner';
 import { QueryProvider } from './lib/query-provider';
 import { AuthProvider } from './lib/auth-context';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
-import { Search, Plus, Eye, Download } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
+import { Search, Plus, Download, MoreHorizontal, Eye, Archive, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -9,9 +9,11 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
-import { useVisits } from '../lib/hooks';
+import { toast } from 'sonner';
+import { useVisits, useDeleteVisit } from '../lib/hooks';
 import { format } from 'date-fns';
 
 const typeColors: Record<string, string> = {
@@ -33,15 +35,57 @@ const dotColors: Record<string, string> = {
 };
 
 export function VisitsList() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [periodFilter, setPeriodFilter] = useState('All Time');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteLabel, setConfirmDeleteLabel] = useState('');
 
   const { data, isLoading } = useVisits({ search, type: typeFilter, period: periodFilter });
+  const deleteMutation = useDeleteVisit();
   const visits = data?.data || [];
+
+  const handleDelete = (id: string, label: string) => {
+    setConfirmDeleteId(id);
+    setConfirmDeleteLabel(label);
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
+    try {
+      await deleteMutation.mutateAsync(confirmDeleteId);
+      toast.success('Visit record permanently deleted');
+    } catch {
+      toast.error('Failed to delete visit record');
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  };
 
   return (
     <div className="space-y-5">
+      {/* Confirm Delete Dialog */}
+      <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Visit Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to permanently delete the visit for <span className="font-semibold text-slate-700">{confirmDeleteLabel}</span>.
+              This action <span className="font-semibold text-red-600">cannot be undone</span>. All dispensed medicine records linked to this visit will also be removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Yes, Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div className="relative flex-1 max-w-md">
@@ -117,8 +161,8 @@ export function VisitsList() {
                           <Avatar className="h-6 w-6">
                             <AvatarFallback className={cn("text-[9px] font-bold",
                               v.patientType === 'Student' ? "bg-blue-100 text-blue-600" :
-                              v.patientType === 'Teacher' ? "bg-purple-100 text-purple-600" :
-                              "bg-orange-100 text-orange-600"
+                                v.patientType === 'Teacher' ? "bg-purple-100 text-purple-600" :
+                                  "bg-orange-100 text-orange-600"
                             )}>
                               {v.patientName.split(',')[0]?.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
@@ -136,15 +180,31 @@ export function VisitsList() {
                           {v.disposition}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right pr-5 py-3">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" asChild className="h-7 w-7">
-                              <Link to={`/visits/${v.id}`}><Eye size={14} /></Link>
+                      <TableCell className="text-right pr-4 py-3">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <MoreHorizontal size={14} />
                             </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>View Details</TooltipContent>
-                        </Tooltip>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem onClick={() => navigate(`/visits/${v.id}`)}>
+                              <Eye size={13} /> View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-amber-600 focus:text-amber-700 focus:bg-amber-50"
+                              onClick={() => toast.info('Visits cannot be archived — delete the record instead.')}
+                            >
+                              <Archive size={13} /> Archive
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-700 focus:bg-red-50"
+                              onClick={() => handleDelete(String(v.id), v.patientName)}
+                            >
+                              <Trash2 size={13} /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -161,8 +221,8 @@ export function VisitsList() {
                       <Avatar className="h-8 w-8">
                         <AvatarFallback className={cn("text-[10px] font-bold",
                           v.patientType === 'Student' ? "bg-blue-100 text-blue-600" :
-                          v.patientType === 'Teacher' ? "bg-purple-100 text-purple-600" :
-                          "bg-orange-100 text-orange-600"
+                            v.patientType === 'Teacher' ? "bg-purple-100 text-purple-600" :
+                              "bg-orange-100 text-orange-600"
                         )}>
                           {v.patientName.split(',')[0]?.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
