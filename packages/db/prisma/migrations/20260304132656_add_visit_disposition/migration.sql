@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "Disposition" AS ENUM ('RETURNED_TO_CLASS', 'RETURNED_TO_WORK', 'SENT_HOME', 'SENT_TO_HOSPITAL');
+
+-- AlterTable
+ALTER TABLE "visits" ADD COLUMN     "disposition" "Disposition" NOT NULL DEFAULT 'RETURNED_TO_CLASS';

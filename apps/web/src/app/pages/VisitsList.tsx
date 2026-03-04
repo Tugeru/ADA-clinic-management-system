@@ -39,10 +39,11 @@ export function VisitsList() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [periodFilter, setPeriodFilter] = useState('All Time');
+  const [dispoFilter, setDispoFilter] = useState('All Dispositions');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteLabel, setConfirmDeleteLabel] = useState('');
 
-  const { data, isLoading } = useVisits({ search, type: typeFilter, period: periodFilter });
+  const { data, isLoading } = useVisits({ search, type: typeFilter, period: periodFilter, disposition: dispoFilter });
   const deleteMutation = useDeleteVisit();
   const allVisits = data?.data || [];
 
@@ -52,6 +53,8 @@ export function VisitsList() {
     if (search && !v.patientName.toLowerCase().includes(search.toLowerCase())) return false;
     // Type filter
     if (typeFilter !== 'All Types' && v.patientType !== typeFilter) return false;
+    // Disposition filter
+    if (dispoFilter !== 'All Dispositions' && v.disposition !== dispoFilter) return false;
     // Period filter
     if (periodFilter !== 'All Time') {
       const visitDate = new Date(v.date);
@@ -138,6 +141,16 @@ export function VisitsList() {
               <SelectItem value="Student">Student</SelectItem>
               <SelectItem value="Teacher">Teacher</SelectItem>
               <SelectItem value="NTP">NTP</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={dispoFilter} onValueChange={setDispoFilter}>
+            <SelectTrigger className="w-[165px] h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All Dispositions">All Dispositions</SelectItem>
+              <SelectItem value="Returned to Class">Returned to Class</SelectItem>
+              <SelectItem value="Returned to Work">Returned to Work</SelectItem>
+              <SelectItem value="Sent Home">Sent Home</SelectItem>
+              <SelectItem value="Sent to Hospital">Sent to Hospital</SelectItem>
             </SelectContent>
           </Select>
         </div>

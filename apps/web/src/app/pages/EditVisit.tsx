@@ -111,6 +111,13 @@ export function EditVisit() {
       payload.bloodPressure = bp || undefined;
       payload.heartRate = hr || undefined;
       payload.respiratoryRate = rr || undefined;
+      // Disposition
+      const dispositionDbMap: Record<string, string> = {
+        returned: visit?.patientType === 'Student' ? 'RETURNED_TO_CLASS' : 'RETURNED_TO_WORK',
+        sentHome: 'SENT_HOME',
+        hospital: 'SENT_TO_HOSPITAL',
+      };
+      (payload as any).disposition = dispositionDbMap[disposition];
 
       await updateMutation.mutateAsync({ id, data: payload });
       toast.success('Visit updated successfully');
