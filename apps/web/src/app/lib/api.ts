@@ -222,9 +222,17 @@ export const analyticsApi = {
     const { data } = await http.get('/reports/consumption', { params: { startDate, endDate } });
     const items = (data.medicines ?? []) as any[];
     return {
-      items: items.map((m: any) => ({ id: m.medicineId, name: m.name, totalDispensed: m.totalDispensed })),
+      items: items.map((m: any) => ({
+        id: m.medicineId,
+        medicineName: m.name ?? 'Unknown',
+        period: `Last ${days} days`,
+        qtyUsed: m.totalDispensed ?? 0,
+        status: (m.totalDispensed ?? 0) > 0 ? 'In Stock' : 'Low Stock',
+        icon: '💊',
+        iconColor: 'bg-teal-50 text-teal-600',
+      })),
       trend: [],
-      totalConsumption: items.reduce((s: number, m: any) => s + m.totalDispensed, 0),
+      totalConsumption: items.reduce((s: number, m: any) => s + (m.totalDispensed ?? 0), 0),
       stockAlerts: 0,
       pendingOrders: 0,
     };
