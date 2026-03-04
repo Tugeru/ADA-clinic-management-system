@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Trash2, Plus, Save, Stethoscope, Pill, CheckCircle, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -10,9 +10,10 @@ import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { useVisit, useUpdateVisit, useDispensableMedicines } from '../lib/hooks';
+import { useVisit, useUpdateVisit, useDeleteVisit, useDispensableMedicines } from '../lib/hooks';
 import { Skeleton } from '../components/ui/skeleton';
 
 type MedRow = { name: string; quantity: number; dosage: string };
@@ -37,9 +38,10 @@ export function EditVisit() {
   const [notifiedPerson, setNotifiedPerson] = useState('');
   const [relationship, setRelationship] = useState('');
   const [releaseTime, setReleaseTime] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Sync from loaded visit
-  useState(() => {
+  // Sync from loaded visit when data arrives
+  useEffect(() => {
     if (visit) {
       setComplaint(visit.complaint);
       setAssessment(visit.assessment || '');
@@ -75,7 +77,7 @@ export function EditVisit() {
       if (visit.releasedToRelationship) setRelationship(visit.releasedToRelationship);
       if (visit.releaseTime) setReleaseTime(visit.releaseTime);
     }
-  });
+  }, [visit]);
 
   const addMedicine = () => setMedicines([...medicines, { name: '', quantity: 1, dosage: '' }]);
   const removeMedicine = (i: number) => setMedicines(medicines.filter((_, idx) => idx !== i));
@@ -86,6 +88,20 @@ export function EditVisit() {
   };
 
   const updateMutation = useUpdateVisit();
+  const deleteMutation = useDeleteVisit();
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      await deleteMutation.mutateAsync(id);
+      toast.success('Visit record permanently deleted');
+      navigate('/visits');
+    } catch {
+      toast.error('Failed to delete visit record');
+    } finally {
+      setShowDeleteConfirm(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!id) return;
@@ -146,7 +162,7 @@ export function EditVisit() {
           <p className="text-[10px] text-slate-500">Consultation #{id} &middot; Last edited 2 mins ago</p>
         </div>
         <Button variant="outline" size="sm" className="text-xs h-8 text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
-          onClick={() => { toast.error('Visit record deleted'); navigate('/visits'); }}>
+          onClick={() => setShowDeleteConfirm(true)}>
           <Trash2 size={13} /> Delete
         </Button>
       </div>
@@ -180,8 +196,8 @@ export function EditVisit() {
                   />
                 </div>
               </div>
-              <div className="space-y-1.5"><Label className="text-xs">Chief Complaint</Label><Input value={complaint || visit?.complaint || ''} onChange={e => setComplaint(e.target.value)} className="h-9 text-xs" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Assessment / Intervention</Label><Textarea value={assessment || visit?.assessment || ''} onChange={e => setAssessment(e.target.value)} rows={3} className="text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Chief Complaint</Label><Input value={complaint} onChange={e => setComplaint(e.target.value)} className="h-9 text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Assessment / Intervention</Label><Textarea value={assessment} onChange={e => setAssessment(e.target.value)} rows={3} className="text-xs" /></div>
               <div className="space-y-1.5"><Label className="text-xs">Remarks</Label><Input value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Additional notes" className="h-9 text-xs" /></div>
             </CardContent>
           </Card>
@@ -280,6 +296,32 @@ export function EditVisit() {
           </Card>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Visit Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to permanently delete this visit for{' '}
+              <span className="font-semibold text-slate-700">{visit?.patientName ?? 'this patient'}</span>.
+              This action{' '}
+              <span className="font-semibold text-red-600">cannot be undone</span>.
+              All dispensed medicine records linked to this visit will also be removed and stock will be restored.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Footer */}
       <Separator />
