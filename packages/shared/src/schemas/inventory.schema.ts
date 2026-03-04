@@ -18,7 +18,7 @@ export const StockInSchema = z.object({
 
 export const AdjustStockSchema = z.object({
     batchId: z.string().uuid(),
-    quantity: z.number().int().positive('Quantity must be at least 1'),
+    quantity: z.number().int().nonnegative('Quantity cannot be negative'),
     notes: z.string().optional(),
 })
 
