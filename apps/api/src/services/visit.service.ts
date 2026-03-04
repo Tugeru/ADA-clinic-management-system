@@ -120,6 +120,7 @@ export async function updateVisit(id: string, data: UpdateVisitInput) {
     return prisma.visit.update({
         where: { id },
         data: {
+            timeIn: data.timeIn ? new Date(data.timeIn) : undefined,
             timeOut: data.timeOut ? new Date(data.timeOut) : undefined,
             remarks: data.remarks,
             releasedToName: data.release?.releasedToName,

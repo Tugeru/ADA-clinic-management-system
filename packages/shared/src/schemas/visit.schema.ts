@@ -23,6 +23,7 @@ export const LogVisitSchema = z.object({
 })
 
 export const UpdateVisitSchema = z.object({
+    timeIn: z.string().datetime().optional(),
     timeOut: z.string().datetime().optional(),
     remarks: z.string().optional(),
     release: ReleaseInfoSchema.optional(),

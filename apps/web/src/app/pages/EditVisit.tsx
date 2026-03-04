@@ -20,12 +20,13 @@ type MedRow = { name: string; quantity: number; dosage: string };
 export function EditVisit() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { data: visit, isLoading } = useVisit(Number(id));
+  const { data: visit, isLoading } = useVisit(id || '');
   const { data: availableMeds } = useDispensableMedicines();
 
   const [complaint, setComplaint] = useState('');
   const [assessment, setAssessment] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [timeIn, setTimeIn] = useState('');
   const [timeOut, setTimeOut] = useState('');
   const [bp, setBp] = useState('120/80');
   const [hr, setHr] = useState('78');
@@ -46,10 +47,11 @@ export function EditVisit() {
       setComplaint(visit.complaint);
       setAssessment(visit.assessment || '');
       setRemarks(visit.nurseRemarks || '');
-      // Pre-fill timeOut if already set (convert "HH:MM AM/PM" → "HH:MM" 24hr)
+      // Pre-fill timeIn from the loaded visit (already HH:MM from mapVisit)
+      if (visit.timeIn) setTimeIn(visit.timeIn);
+      // Pre-fill timeOut if already set
       if (visit.timeOut && visit.timeOut !== '—') {
         try {
-          // visit.timeOut is stored as formatted string; try to parse back
           const d = new Date(`1970-01-01 ${visit.timeOut}`);
           if (!isNaN(d.getTime())) {
             const hh = String(d.getHours()).padStart(2, '0');
@@ -75,17 +77,18 @@ export function EditVisit() {
     if (!id) return;
     try {
       // Build payload — only include timeOut if the user set it
-      const payload: { timeOut?: string; remarks?: string } = {};
+      const payload: { timeIn?: string; timeOut?: string; remarks?: string } = {};
+      const visitDateStr = visit?.date || new Date().toISOString().slice(0, 10);
+      let dateISO: string;
+      try {
+        dateISO = new Date(visitDateStr).toISOString().slice(0, 10);
+      } catch {
+        dateISO = new Date().toISOString().slice(0, 10);
+      }
+      if (timeIn) {
+        payload.timeIn = new Date(`${dateISO}T${timeIn}:00`).toISOString();
+      }
       if (timeOut) {
-        // Convert local HH:mm to ISO 8601 datetime using today's date
-        const visitDateStr = visit?.date || new Date().toISOString().slice(0, 10);
-        // visit.date is like "Mar 04, 2026" — we need YYYY-MM-DD
-        let dateISO: string;
-        try {
-          dateISO = new Date(visitDateStr).toISOString().slice(0, 10);
-        } catch {
-          dateISO = new Date().toISOString().slice(0, 10);
-        }
         payload.timeOut = new Date(`${dateISO}T${timeOut}:00`).toISOString();
       }
       if (remarks) payload.remarks = remarks;
@@ -130,17 +133,24 @@ export function EditVisit() {
               <div className="flex items-center gap-2"><Stethoscope size={15} className="text-teal-600" /><CardTitle className="text-sm font-bold">Visit Details</CardTitle></div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5"><Label className="text-xs">Date</Label><Input value={visit?.date || ''} readOnly className="h-9 text-xs bg-slate-50" /></div>
-                <div className="space-y-1.5"><Label className="text-xs">Time In</Label><Input value={visit?.timeIn || ''} readOnly className="h-9 text-xs bg-slate-50" /></div>
-                <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Time In</Label>
+                  <Input
+                    type="time"
+                    value={timeIn}
+                    onChange={e => setTimeIn(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
                   <Label className="text-xs">Time Out</Label>
                   <Input
                     type="time"
                     value={timeOut}
                     onChange={e => setTimeOut(e.target.value)}
                     className="h-9 text-xs"
-                    placeholder="Set time out"
                   />
                 </div>
               </div>

@@ -191,7 +191,7 @@ export function NewVisit() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5"><Label className="text-xs">Date</Label><Input type="date" value={visitDate} readOnly className="h-9 text-xs bg-slate-50" /></div>
               <div className="space-y-1.5"><Label className="text-xs">Time In <span className="text-red-500">*</span></Label><Input type="time" value={timeIn} onChange={e => setTimeIn(e.target.value)} className="h-9 text-xs" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Time Out</Label><Input value={timeOut} onChange={e => setTimeOut(e.target.value)} placeholder="--:-- --" className="h-9 text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Time Out</Label><Input type="time" value={timeOut} onChange={e => setTimeOut(e.target.value)} className="h-9 text-xs" /></div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Chief Complaint <span className="text-red-500">*</span></Label>
