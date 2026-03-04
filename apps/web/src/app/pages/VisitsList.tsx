@@ -44,7 +44,31 @@ export function VisitsList() {
 
   const { data, isLoading } = useVisits({ search, type: typeFilter, period: periodFilter });
   const deleteMutation = useDeleteVisit();
-  const visits = data?.data || [];
+  const allVisits = data?.data || [];
+
+  // ── Client-side filtering ──────────────────────────────────
+  const visits = allVisits.filter((v) => {
+    // Search by patient name
+    if (search && !v.patientName.toLowerCase().includes(search.toLowerCase())) return false;
+    // Type filter
+    if (typeFilter !== 'All Types' && v.patientType !== typeFilter) return false;
+    // Period filter
+    if (periodFilter !== 'All Time') {
+      const visitDate = new Date(v.date);
+      const now = new Date();
+      if (periodFilter === 'Today') {
+        if (visitDate.toDateString() !== now.toDateString()) return false;
+      } else if (periodFilter === 'This Week') {
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+        if (visitDate < startOfWeek) return false;
+      } else if (periodFilter === 'This Month') {
+        if (visitDate.getMonth() !== now.getMonth() || visitDate.getFullYear() !== now.getFullYear()) return false;
+      }
+    }
+    return true;
+  });
 
   const handleDelete = (id: string, label: string) => {
     setConfirmDeleteId(id);

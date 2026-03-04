@@ -262,7 +262,6 @@ export function EditVisit() {
                   { label: 'BP (mmHg)', value: bp, onChange: setBp },
                   { label: 'HR (bpm)', value: hr, onChange: setHr },
                   { label: 'Temp (°C)', value: temp, onChange: setTemp },
-                  { label: 'RR (bpm)', value: rr, onChange: setRr },
                 ].map((v, i) => (
                   <div key={i} className="space-y-1.5">
                     <Label className="text-[10px] uppercase text-slate-400">{v.label}</Label>

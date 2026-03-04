@@ -138,12 +138,11 @@ export function VisitDetails() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[
                     { label: 'Temperature', value: visit.temperature ? `${visit.temperature}°C` : '—', icon: Thermometer, color: 'text-red-500' },
                     { label: 'Blood Pressure', value: visit.bloodPressure || '—', icon: Activity, color: 'text-blue-500' },
                     { label: 'Heart Rate', value: visit.heartRate ? `${visit.heartRate} bpm` : '—', icon: Heart, color: 'text-pink-500' },
-                    { label: 'Resp. Rate', value: visit.respiratoryRate ? `${visit.respiratoryRate} bpm` : '—', icon: Activity, color: 'text-emerald-500' },
                   ].map((v, i) => (
                     <div key={i} className="bg-slate-50 rounded-lg p-3 text-center border border-slate-100">
                       <v.icon size={16} className={cn("mx-auto mb-1", v.color)} />
