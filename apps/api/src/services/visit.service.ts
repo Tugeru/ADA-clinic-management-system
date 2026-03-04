@@ -145,11 +145,33 @@ export async function updateVisit(id: string, data: UpdateVisitInput) {
 
 export async function deleteVisit(id: string) {
     return prisma.$transaction(async (tx) => {
-        // Delete stock transactions referencing this visit first
+        // 0. Guard — visit must exist
+        const visit = await tx.visit.findUnique({ where: { id } })
+        if (!visit) {
+            throw Object.assign(new Error('Visit not found'), { status: 404 })
+        }
+
+        // 1. Query dispensed medicines to know what to restore
+        const dispensedItems = await tx.visitMedicine.findMany({
+            where: { visitId: id },
+            select: { batchId: true, quantityDispensed: true },
+        })
+
+        // 2. Restore stock to each batch (symmetric reverse of createVisit deduction)
+        for (const item of dispensedItems) {
+            if (item.batchId) {
+                await tx.inventoryBatch.update({
+                    where: { id: item.batchId },
+                    data: { quantityOnHand: { increment: item.quantityDispensed } },
+                })
+            }
+        }
+
+        // 3. Clean up audit trail and junction records
         await tx.stockTransaction.deleteMany({ where: { referenceVisitId: id } })
-        // Delete visit-medicine links
         await tx.visitMedicine.deleteMany({ where: { visitId: id } })
-        // Now delete the visit itself
+
+        // 4. Delete the visit itself
         return tx.visit.delete({ where: { id } })
     })
 }
