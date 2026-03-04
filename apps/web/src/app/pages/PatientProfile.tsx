@@ -120,7 +120,18 @@ export function PatientProfile() {
               <ArchiveIcon size={13} /> Archive
             </Button>
             <Button size="sm" className="gap-1.5 text-xs bg-teal-600 hover:bg-teal-700" asChild>
-              <Link to={`/visits/new?patient=${patient.id}`}>
+              <Link
+                to="/visits/new"
+                state={{
+                  patient: {
+                    id: patient.id,
+                    fullName: patient.fullName,
+                    idNumber: patient.idNumber,
+                    type: patient.type,
+                    context: patient.context,
+                  },
+                }}
+              >
                 <Plus size={13} /> Start Visit
               </Link>
             </Button>

@@ -111,6 +111,13 @@ export function EditVisit() {
       payload.bloodPressure = bp || undefined;
       payload.heartRate = hr || undefined;
       payload.respiratoryRate = rr || undefined;
+      // Disposition
+      const dispositionDbMap: Record<string, string> = {
+        returned: visit?.patientType === 'Student' ? 'RETURNED_TO_CLASS' : 'RETURNED_TO_WORK',
+        sentHome: 'SENT_HOME',
+        hospital: 'SENT_TO_HOSPITAL',
+      };
+      (payload as any).disposition = dispositionDbMap[disposition];
 
       await updateMutation.mutateAsync({ id, data: payload });
       toast.success('Visit updated successfully');
@@ -262,7 +269,6 @@ export function EditVisit() {
                   { label: 'BP (mmHg)', value: bp, onChange: setBp },
                   { label: 'HR (bpm)', value: hr, onChange: setHr },
                   { label: 'Temp (°C)', value: temp, onChange: setTemp },
-                  { label: 'RR (bpm)', value: rr, onChange: setRr },
                 ].map((v, i) => (
                   <div key={i} className="space-y-1.5">
                     <Label className="text-[10px] uppercase text-slate-400">{v.label}</Label>

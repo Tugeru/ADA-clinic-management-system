@@ -50,7 +50,7 @@ export const queryKeys = {
 };
 
 // ─── Patient Hooks ───────────────────────────────────────────
-export function usePatients(params?: { search?: string; type?: string; status?: string }) {
+export function usePatients(params?: { search?: string; includeArchived?: boolean }) {
   return useQuery({
     queryKey: queryKeys.patients.list(params as any),
     queryFn: () => patientApi.getAll(params),

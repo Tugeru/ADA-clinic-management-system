@@ -49,6 +49,7 @@ export async function createVisit(userId: string, data: LogVisitInput) {
                 timeOut: data.timeOut ? new Date(data.timeOut) : undefined,
                 complaint: data.complaint,
                 actionTaken: data.actionTaken,
+                disposition: (data.disposition as any) ?? 'RETURNED_TO_CLASS',
                 remarks: data.remarks,
                 temperature: data.temperature,
                 bloodPressure: data.bloodPressure,
@@ -127,6 +128,7 @@ export async function updateVisit(id: string, data: UpdateVisitInput) {
         data: {
             timeIn: data.timeIn ? new Date(data.timeIn) : undefined,
             timeOut: data.timeOut ? new Date(data.timeOut) : undefined,
+            disposition: (data.disposition as any) ?? undefined,
             remarks: data.remarks,
             temperature: data.temperature,
             bloodPressure: data.bloodPressure,

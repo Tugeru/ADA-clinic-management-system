@@ -20,6 +20,14 @@ enum TransactionType {
   ADJUST
 }
 
+/// Outcome/disposition of a clinic visit.
+enum Disposition {
+  RETURNED_TO_CLASS
+  RETURNED_TO_WORK
+  SENT_HOME
+  SENT_TO_HOSPITAL
+}
+
 // ─── User ──────────────────────────────────────────────────────────────────────
 // Single-role: Clinic In-Charge. Handles authentication.
 
@@ -144,6 +152,7 @@ model Visit {
   timeOut                DateTime? @map("time_out") @db.Timestamptz
   complaint              String
   actionTaken            String    @map("action_taken")
+  disposition            Disposition @default(RETURNED_TO_CLASS)
   remarks                String?
   // Vital signs
   temperature            String?

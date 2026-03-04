@@ -30,13 +30,24 @@ export function PatientsList() {
 
   const { data, isLoading } = usePatients({
     search,
-    type: typeFilter,
-    status: statusFilter === 'All Statuses' ? undefined : statusFilter,
+    includeArchived: statusFilter !== 'Active',
   });
   const archiveMutation = useArchivePatient();
   const deleteMutation = useDeletePatient();
 
-  const patients = data?.data || [];
+  const allPatients = data?.data || [];
+
+  // ── Client-side filtering ──────────────────────────────────
+  const patients = allPatients.filter((p) => {
+    // Search by name
+    if (search && !p.fullName.toLowerCase().includes(search.toLowerCase())) return false;
+    // Type filter
+    if (typeFilter !== 'All Types' && p.type !== typeFilter) return false;
+    // Status filter
+    if (statusFilter === 'Active' && p.status !== 'Active') return false;
+    if (statusFilter === 'Archived' && p.status !== 'Archived') return false;
+    return true;
+  });
 
   const handleArchive = async (id: string, name: string) => {
     try {

@@ -12,12 +12,20 @@ const ReleaseInfoSchema = z.object({
     releaseTime: z.string().datetime().optional(),
 })
 
+export const DispositionEnum = z.enum([
+    'RETURNED_TO_CLASS',
+    'RETURNED_TO_WORK',
+    'SENT_HOME',
+    'SENT_TO_HOSPITAL',
+])
+
 export const LogVisitSchema = z.object({
     studentId: z.string().uuid(),
     timeIn: z.string().datetime(),
     timeOut: z.string().datetime().optional(),
     complaint: z.string().min(1, 'Complaint is required'),
     actionTaken: z.string().min(1, 'Action taken is required'),
+    disposition: DispositionEnum.optional(),
     remarks: z.string().optional(),
     // Vital signs
     temperature: z.string().optional(),
@@ -31,6 +39,7 @@ export const LogVisitSchema = z.object({
 export const UpdateVisitSchema = z.object({
     timeIn: z.string().datetime().optional(),
     timeOut: z.string().datetime().optional(),
+    disposition: DispositionEnum.optional(),
     remarks: z.string().optional(),
     // Vital signs
     temperature: z.string().optional(),

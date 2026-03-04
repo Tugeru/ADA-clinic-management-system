@@ -76,6 +76,7 @@ export const visitApi = {
     const { data } = await http.patch(`/visits/${id}`, {
       timeIn: payload.timeIn,
       timeOut: payload.timeOut,
+      disposition: payload.disposition,
       remarks: payload.remarks,
       temperature: payload.temperature,
       bloodPressure: payload.bloodPressure,
@@ -339,9 +340,23 @@ function mapVisit(v: any): Visit {
     bloodPressure: v.bloodPressure ?? '',
     heartRate: v.heartRate ?? '',
     respiratoryRate: v.respiratoryRate ?? '',
-    // Disposition
-    disposition: v.releasedToName ? `Released to ${v.releasedToName}` : 'Treated and Dismissed',
-    dispositionColor: v.releasedToName ? 'orange' : 'green',
+    // Disposition — mapped from DB enum, with fallback for legacy records
+    disposition: (() => {
+      const d = v.disposition;
+      if (d === 'RETURNED_TO_CLASS') return 'Returned to Class';
+      if (d === 'RETURNED_TO_WORK') return 'Returned to Work';
+      if (d === 'SENT_HOME') return 'Sent Home';
+      if (d === 'SENT_TO_HOSPITAL') return 'Sent to Hospital';
+      // fallback for pre-migration records
+      return v.releasedToName ? `Released to ${v.releasedToName}` : 'Treated and Dismissed';
+    })(),
+    dispositionColor: (() => {
+      const d = v.disposition;
+      if (d === 'SENT_HOME') return 'orange';
+      if (d === 'SENT_TO_HOSPITAL') return 'red';
+      if (!d && v.releasedToName) return 'orange';
+      return 'green';
+    })(),
     // Release info
     releasedTo: v.releasedToName ?? '',
     releasedToRelationship: v.releasedToRelationship ?? '',
@@ -409,6 +424,14 @@ function visitPayload(p: any) {
         medicineId: m.medicineId,
         quantity: Number(m.quantity) || 1,
       })),
+    disposition: (() => {
+      const d = p.disposition as string | undefined;
+      if (d === 'Returned to Class') return 'RETURNED_TO_CLASS';
+      if (d === 'Returned to Work') return 'RETURNED_TO_WORK';
+      if (d === 'Sent Home') return 'SENT_HOME';
+      if (d === 'Sent to Hospital') return 'SENT_TO_HOSPITAL';
+      return undefined;
+    })() || undefined,
     release: p.guardianName ? {
       releasedToName: p.guardianName,
       releasedToRelationship: p.relationship || undefined,

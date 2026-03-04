@@ -39,12 +39,39 @@ export function VisitsList() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [periodFilter, setPeriodFilter] = useState('All Time');
+  const [dispoFilter, setDispoFilter] = useState('All Dispositions');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteLabel, setConfirmDeleteLabel] = useState('');
 
-  const { data, isLoading } = useVisits({ search, type: typeFilter, period: periodFilter });
+  const { data, isLoading } = useVisits({ search, type: typeFilter, period: periodFilter, disposition: dispoFilter });
   const deleteMutation = useDeleteVisit();
-  const visits = data?.data || [];
+  const allVisits = data?.data || [];
+
+  // ── Client-side filtering ──────────────────────────────────
+  const visits = allVisits.filter((v) => {
+    // Search by patient name
+    if (search && !v.patientName.toLowerCase().includes(search.toLowerCase())) return false;
+    // Type filter
+    if (typeFilter !== 'All Types' && v.patientType !== typeFilter) return false;
+    // Disposition filter
+    if (dispoFilter !== 'All Dispositions' && v.disposition !== dispoFilter) return false;
+    // Period filter
+    if (periodFilter !== 'All Time') {
+      const visitDate = new Date(v.date);
+      const now = new Date();
+      if (periodFilter === 'Today') {
+        if (visitDate.toDateString() !== now.toDateString()) return false;
+      } else if (periodFilter === 'This Week') {
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+        if (visitDate < startOfWeek) return false;
+      } else if (periodFilter === 'This Month') {
+        if (visitDate.getMonth() !== now.getMonth() || visitDate.getFullYear() !== now.getFullYear()) return false;
+      }
+    }
+    return true;
+  });
 
   const handleDelete = (id: string, label: string) => {
     setConfirmDeleteId(id);
@@ -114,6 +141,16 @@ export function VisitsList() {
               <SelectItem value="Student">Student</SelectItem>
               <SelectItem value="Teacher">Teacher</SelectItem>
               <SelectItem value="NTP">NTP</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={dispoFilter} onValueChange={setDispoFilter}>
+            <SelectTrigger className="w-[165px] h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All Dispositions">All Dispositions</SelectItem>
+              <SelectItem value="Returned to Class">Returned to Class</SelectItem>
+              <SelectItem value="Returned to Work">Returned to Work</SelectItem>
+              <SelectItem value="Sent Home">Sent Home</SelectItem>
+              <SelectItem value="Sent to Hospital">Sent to Hospital</SelectItem>
             </SelectContent>
           </Select>
         </div>
