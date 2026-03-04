@@ -303,8 +303,11 @@ export function EditVisit() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Visit Record?</AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to permanently delete this visit for <span className="font-semibold text-slate-700">{visit?.patientName}</span>.
-              This action <span className="font-semibold text-red-600">cannot be undone</span>. All dispensed medicine records linked to this visit will also be removed.
+              You are about to permanently delete this visit for{' '}
+              <span className="font-semibold text-slate-700">{visit?.patientName ?? 'this patient'}</span>.
+              This action{' '}
+              <span className="font-semibold text-red-600">cannot be undone</span>.
+              All dispensed medicine records linked to this visit will also be removed and stock will be restored.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
