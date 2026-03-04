@@ -403,8 +403,15 @@ function visitPayload(p: any) {
       })),
     release: p.guardianName ? {
       releasedToName: p.guardianName,
-      releasedToRelationship: p.relationship,
-      releaseTime: p.releaseTime ? new Date(p.releaseTime).toISOString() : new Date().toISOString(),
+      releasedToRelationship: p.relationship || undefined,
+      releaseTime: p.releaseTime
+        ? (() => {
+          // releaseTime is HH:MM — combine with today's date for ISO
+          const today = new Date().toISOString().slice(0, 10);
+          const dt = new Date(`${today}T${p.releaseTime}:00`);
+          return isNaN(dt.getTime()) ? undefined : dt.toISOString();
+        })()
+        : undefined,
     } : undefined,
   };
 }

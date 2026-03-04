@@ -8,8 +8,8 @@ const DispensedMedicineSchema = z.object({
 
 const ReleaseInfoSchema = z.object({
     releasedToName: z.string().min(1),
-    releasedToRelationship: z.string().min(1),
-    releaseTime: z.string().datetime(),
+    releasedToRelationship: z.string().optional(),
+    releaseTime: z.string().datetime().optional(),
 })
 
 export const LogVisitSchema = z.object({
