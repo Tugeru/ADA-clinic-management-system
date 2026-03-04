@@ -105,6 +105,16 @@ export function useArchivePatient() {
   });
 }
 
+export function useDeletePatient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => patientApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.patients.all });
+    },
+  });
+}
+
 export function usePatientVisits(patientId: string, params?: { search?: string; page?: number }) {
   return useQuery({
     queryKey: queryKeys.patients.visits(patientId, params),

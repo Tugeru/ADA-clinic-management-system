@@ -39,4 +39,11 @@ router.patch('/:id/archive', async (req, res, next) => {
     } catch (err) { next(err) }
 })
 
+router.delete('/:id', async (req, res, next) => {
+    try {
+        await svc.deleteStudent(req.params.id)
+        res.status(204).end()
+    } catch (err) { next(err) }
+})
+
 export default router

@@ -43,6 +43,10 @@ export const patientApi = {
     await http.patch(`/students/${id}/archive`);
   },
 
+  async delete(id: string): Promise<void> {
+    await http.delete(`/students/${id}`);
+  },
+
   async search(query: string): Promise<Patient[]> {
     const { data } = await http.get('/students', { params: { search: query } });
     const items: any[] = Array.isArray(data) ? data : data.data ?? [];

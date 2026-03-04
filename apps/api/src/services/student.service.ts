@@ -57,3 +57,7 @@ export async function toggleArchiveStudent(id: string) {
         data: { isArchived: !student.isArchived },
     })
 }
+
+export async function deleteStudent(id: string) {
+    return prisma.student.delete({ where: { id } })
+}
