@@ -119,9 +119,15 @@ export interface DispensedMedicine {
 export interface VisitFormData {
   patientId: string;
   timeIn: string;           // ISO 8601 datetime
+  timeOut?: string;         // ISO 8601 datetime
   complaint: string;
   assessment?: string;      // maps to actionTaken in visitPayload()
   remarks?: string;
+  // Vital signs
+  temperature?: string;
+  bloodPressure?: string;
+  heartRate?: string;
+  respiratoryRate?: string;
   medicines: { medicineId: string; quantity: number }[];
   disposition: DispositionType;
   guardianName?: string;

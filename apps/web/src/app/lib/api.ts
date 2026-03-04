@@ -74,8 +74,13 @@ export const visitApi = {
 
   async update(id: number | string, payload: any): Promise<Visit> {
     const { data } = await http.patch(`/visits/${id}`, {
+      timeIn: payload.timeIn,
       timeOut: payload.timeOut,
       remarks: payload.remarks,
+      temperature: payload.temperature,
+      bloodPressure: payload.bloodPressure,
+      heartRate: payload.heartRate,
+      respiratoryRate: payload.respiratoryRate,
     });
     return mapVisit(data);
   },
@@ -289,7 +294,9 @@ function mapStudent(s: any): Patient {
     strand: s.strand ?? '',
     section: s.section ?? '',
     status: s.isArchived ? 'Archived' : 'Active',
-    context: `${s.gradeLevel ?? ''} - ${s.section ?? ''}`.trim(),
+    context: s.patientType === 'Student'
+      ? `${s.gradeLevel ?? ''} - ${s.section ?? ''}`.trim() || '--'
+      : s.department || s.position || '--',
     gender: s.gender,
     dateOfBirth: s.dateOfBirth?.slice(0, 10),
     age,
@@ -315,11 +322,23 @@ function mapVisit(v: any): Visit {
     timeOut: v.timeOut?.slice(11, 16),
     patientId: v.studentId,
     patientName: v.student?.fullName ?? 'Unknown',
-    patientType: 'Student',
+    patientType: v.student?.patientType ?? 'Student',
     complaint: v.complaint,
     assessment: v.actionTaken ?? v.assessment ?? '',
+    nurseRemarks: v.remarks ?? '',
+    // Vital signs
+    temperature: v.temperature ?? '',
+    bloodPressure: v.bloodPressure ?? '',
+    heartRate: v.heartRate ?? '',
+    respiratoryRate: v.respiratoryRate ?? '',
+    // Disposition
     disposition: v.releasedToName ? `Released to ${v.releasedToName}` : 'Treated and Dismissed',
     dispositionColor: v.releasedToName ? 'orange' : 'green',
+    // Release info
+    releasedTo: v.releasedToName ?? '',
+    releasedToRelationship: v.releasedToRelationship ?? '',
+    releaseTime: v.releaseTime?.slice(11, 16) ?? '',
+    // Medicines
     medicines: (v.visitMedicines ?? []).map((m: any) => ({
       name: m.medicine?.name ?? '',
       quantity: m.quantityDispensed,
@@ -367,9 +386,15 @@ function visitPayload(p: any) {
   return {
     studentId: p.patientId,
     timeIn: p.timeIn ?? new Date().toISOString(),
+    timeOut: p.timeOut || undefined,
     complaint: p.complaint,
     actionTaken: p.assessment ?? p.actionTaken ?? '',
     remarks: p.remarks,
+    // Vital signs
+    temperature: p.temperature || undefined,
+    bloodPressure: p.bloodPressure || undefined,
+    heartRate: p.heartRate || undefined,
+    respiratoryRate: p.respiratoryRate || undefined,
     medicines: (p.medicines ?? [])
       .filter((m: any) => m.medicineId || m.name)
       .map((m: any) => ({

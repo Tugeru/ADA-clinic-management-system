@@ -28,14 +28,11 @@ export function EditVisit() {
   const [remarks, setRemarks] = useState('');
   const [timeIn, setTimeIn] = useState('');
   const [timeOut, setTimeOut] = useState('');
-  const [bp, setBp] = useState('120/80');
-  const [hr, setHr] = useState('78');
-  const [temp, setTemp] = useState('36.6');
-  const [rr, setRr] = useState('18');
-  const [medicines, setMedicines] = useState<MedRow[]>([
-    { name: 'Sumatriptan 50mg', quantity: 6, dosage: '1 tab PRN' },
-    { name: 'Ibuprofen 400mg', quantity: 10, dosage: '1 tab 3x a day' },
-  ]);
+  const [bp, setBp] = useState('');
+  const [hr, setHr] = useState('');
+  const [temp, setTemp] = useState('');
+  const [rr, setRr] = useState('');
+  const [medicines, setMedicines] = useState<MedRow[]>([]);
   const [disposition, setDisposition] = useState<'returned' | 'sentHome' | 'hospital'>('sentHome');
   const [notifiedPerson, setNotifiedPerson] = useState('');
   const [relationship, setRelationship] = useState('');
@@ -51,15 +48,32 @@ export function EditVisit() {
       if (visit.timeIn) setTimeIn(visit.timeIn);
       // Pre-fill timeOut if already set
       if (visit.timeOut && visit.timeOut !== '—') {
-        try {
-          const d = new Date(`1970-01-01 ${visit.timeOut}`);
-          if (!isNaN(d.getTime())) {
-            const hh = String(d.getHours()).padStart(2, '0');
-            const mm = String(d.getMinutes()).padStart(2, '0');
-            setTimeOut(`${hh}:${mm}`);
-          }
-        } catch { /* ignore */ }
+        setTimeOut(visit.timeOut);
       }
+      // Vital signs
+      setBp(visit.bloodPressure || '');
+      setHr(visit.heartRate || '');
+      setTemp(visit.temperature || '');
+      setRr(visit.respiratoryRate || '');
+      // Medicines from visit
+      if (visit.medicines?.length) {
+        setMedicines(visit.medicines.map((m: any) => ({
+          name: m.name,
+          quantity: m.quantity,
+          dosage: '',
+        })));
+      }
+      // Disposition
+      if (visit.disposition) {
+        const d = visit.disposition as string;
+        if (d.includes('Hospital')) setDisposition('hospital');
+        else if (d.includes('Sent Home') || d.includes('Released')) setDisposition('sentHome');
+        else setDisposition('returned');
+      }
+      // Release info
+      if (visit.releasedTo) setNotifiedPerson(visit.releasedTo);
+      if (visit.releasedToRelationship) setRelationship(visit.releasedToRelationship);
+      if (visit.releaseTime) setReleaseTime(visit.releaseTime);
     }
   });
 
@@ -77,7 +91,7 @@ export function EditVisit() {
     if (!id) return;
     try {
       // Build payload — only include timeOut if the user set it
-      const payload: { timeIn?: string; timeOut?: string; remarks?: string } = {};
+      const payload: { timeIn?: string; timeOut?: string; remarks?: string; temperature?: string; bloodPressure?: string; heartRate?: string; respiratoryRate?: string } = {};
       const visitDateStr = visit?.date || new Date().toISOString().slice(0, 10);
       let dateISO: string;
       try {
@@ -92,6 +106,11 @@ export function EditVisit() {
         payload.timeOut = new Date(`${dateISO}T${timeOut}:00`).toISOString();
       }
       if (remarks) payload.remarks = remarks;
+      // Vital signs
+      payload.temperature = temp || undefined;
+      payload.bloodPressure = bp || undefined;
+      payload.heartRate = hr || undefined;
+      payload.respiratoryRate = rr || undefined;
 
       await updateMutation.mutateAsync({ id, data: payload });
       toast.success('Visit updated successfully');

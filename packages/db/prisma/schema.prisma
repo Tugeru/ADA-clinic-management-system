@@ -145,6 +145,12 @@ model Visit {
   complaint              String
   actionTaken            String    @map("action_taken")
   remarks                String?
+  // Vital signs
+  temperature            String?
+  bloodPressure          String?   @map("blood_pressure")
+  heartRate              String?   @map("heart_rate")
+  respiratoryRate        String?   @map("respiratory_rate")
+  // Release info
   releasedToName         String?   @map("released_to_name")
   releasedToRelationship String?   @map("released_to_relationship")
   releaseTime            DateTime? @map("release_time") @db.Timestamptz

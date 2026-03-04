@@ -44,6 +44,7 @@ export function NewVisit() {
   const [temp, setTemp] = useState('');
   const [bp, setBp] = useState('');
   const [hr, setHr] = useState('');
+  const [rr, setRr] = useState('');
 
   // Medicines
   const { data: availableMeds } = useDispensableMedicines();
@@ -92,15 +93,22 @@ export function NewVisit() {
 
     // V-1: build proper ISO 8601 datetime from date + editable timeIn
     const todayISO = new Date(`${visitDate}T${timeIn}:00`).toISOString();
+    const timeOutISO = timeOut ? new Date(`${visitDate}T${timeOut}:00`).toISOString() : undefined;
 
     try {
       const result = await createVisit.mutateAsync({
         patientId: selectedPatient.id,
         timeIn: todayISO,            // ISO 8601 — satisfies z.string().datetime()
+        timeOut: timeOutISO,
         complaint,
         // actionTaken is required on backend — use assessment if filled, else reuse complaint
         assessment: assessment.trim() || complaint,
         remarks,
+        // Vital signs
+        temperature: temp || undefined,
+        bloodPressure: bp || undefined,
+        heartRate: hr || undefined,
+        respiratoryRate: rr || undefined,
         medicines: medicines
           .filter(m => m.id)          // only rows where a medicine UUID was selected
           .map(m => ({ medicineId: m.id, quantity: m.quantity })),
@@ -225,9 +233,9 @@ export function NewVisit() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1.5"><Label className="text-xs">Temperature (°C)</Label><Input value={temp} onChange={e => setTemp(e.target.value)} placeholder="36.5" className="h-9 text-xs" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Blood Pressure</Label><Input value={bp} onChange={e => setBp(e.target.value)} placeholder="120/80" className="h-9 text-xs" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Heart Rate (bpm)</Label><Input value={hr} onChange={e => setHr(e.target.value)} placeholder="80" className="h-9 text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Temperature (°C)</Label><Input value={temp} onChange={e => setTemp(e.target.value)} placeholder=" e.g. 36.5" className="h-9 text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Blood Pressure</Label><Input value={bp} onChange={e => setBp(e.target.value)} placeholder="e.g. 120/80" className="h-9 text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Heart Rate (bpm)</Label><Input value={hr} onChange={e => setHr(e.target.value)} placeholder="e.g. 80" className="h-9 text-xs" /></div>
             </div>
           </CardContent>
         </Card>
