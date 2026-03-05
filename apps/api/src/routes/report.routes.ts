@@ -23,4 +23,11 @@ router.get('/low-stock', async (_req, res, next) => {
     try { res.json(await svc.lowStockReport()) } catch (err) { next(err) }
 })
 
+router.get('/usage-rankings', validateQuery(ReportQuerySchema), async (req, res, next) => {
+    try {
+        const { startDate, endDate } = req.query as { startDate: string; endDate: string }
+        res.json(await svc.usageRankings(startDate, endDate))
+    } catch (err) { next(err) }
+})
+
 export default router
