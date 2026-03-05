@@ -39,6 +39,8 @@ export const LogVisitSchema = z.object({
 export const UpdateVisitSchema = z.object({
     timeIn: z.string().datetime().optional(),
     timeOut: z.string().datetime().optional(),
+    complaint: z.string().min(1, 'Complaint is required').optional(),
+    actionTaken: z.string().min(1, 'Action taken is required').optional(),
     disposition: DispositionEnum.optional(),
     remarks: z.string().optional(),
     // Vital signs

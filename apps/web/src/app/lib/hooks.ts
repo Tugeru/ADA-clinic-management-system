@@ -169,7 +169,7 @@ export function useDeleteVisit() {
 export function useUpdateVisit() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { timeOut?: string; remarks?: string } }) =>
+    mutationFn: ({ id, data }: { id: string; data: Record<string, any> }) =>
       visitApi.update(id, data),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: queryKeys.visits.all });

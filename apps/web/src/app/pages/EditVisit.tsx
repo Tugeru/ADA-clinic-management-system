@@ -107,7 +107,7 @@ export function EditVisit() {
     if (!id) return;
     try {
       // Build payload — only include timeOut if the user set it
-      const payload: { timeIn?: string; timeOut?: string; remarks?: string; temperature?: string; bloodPressure?: string; heartRate?: string; respiratoryRate?: string } = {};
+      const payload: { timeIn?: string; timeOut?: string; complaint?: string; assessment?: string; remarks?: string; temperature?: string; bloodPressure?: string; heartRate?: string; respiratoryRate?: string } = {};
       const visitDateStr = visit?.date || new Date().toISOString().slice(0, 10);
       let dateISO: string;
       try {
@@ -121,6 +121,8 @@ export function EditVisit() {
       if (timeOut) {
         payload.timeOut = new Date(`${dateISO}T${timeOut}:00`).toISOString();
       }
+      if (complaint) payload.complaint = complaint;
+      if (assessment) payload.assessment = assessment;
       if (remarks) payload.remarks = remarks;
       // Vital signs
       payload.temperature = temp || undefined;

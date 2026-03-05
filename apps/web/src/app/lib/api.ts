@@ -76,6 +76,8 @@ export const visitApi = {
     const { data } = await http.patch(`/visits/${id}`, {
       timeIn: payload.timeIn,
       timeOut: payload.timeOut,
+      complaint: payload.complaint,
+      actionTaken: payload.assessment ?? payload.actionTaken,
       disposition: payload.disposition,
       remarks: payload.remarks,
       temperature: payload.temperature,
