@@ -51,3 +51,11 @@ export const UpdateVisitSchema = z.object({
 
 export type LogVisitInput = z.infer<typeof LogVisitSchema>
 export type UpdateVisitInput = z.infer<typeof UpdateVisitSchema>
+
+export const VisitQuerySchema = z.object({
+    studentId: z.string().uuid('Invalid student ID format').optional(),
+    startDate: z.string().date('Invalid start date format').optional(),
+    endDate: z.string().date('Invalid end date format').optional(),
+})
+
+export type VisitQueryInput = z.infer<typeof VisitQuerySchema>
