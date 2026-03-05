@@ -1,6 +1,3 @@
-// Validate environment variables before initializing app
-import './config/env.js'
-
 import { createRoot } from "react-dom/client";
 import App from "./app/App.tsx";
 import "./styles/index.css";
