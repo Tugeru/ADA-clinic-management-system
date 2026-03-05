@@ -86,3 +86,50 @@ export async function lowStockReport() {
         })
         .filter((m) => m.isLowStock || m.expiringBatches.length > 0)
 }
+
+export async function usageRankings(startDate: string, endDate: string) {
+    const records = await prisma.visitMedicine.findMany({
+        where: {
+            visit: {
+                visitDate: {
+                    gte: new Date(startDate),
+                    lte: new Date(endDate),
+                },
+            },
+        },
+        include: {
+            medicine: { select: { name: true, purpose: true } },
+        },
+    })
+
+    const byMedicine = new Map<string, { name: string; description: string; totalDispensed: number }>()
+    for (const r of records) {
+        const existing = byMedicine.get(r.medicineId) ?? {
+            name: r.medicine.name,
+            description: r.medicine.purpose ?? '',
+            totalDispensed: 0,
+        }
+        existing.totalDispensed += r.quantityDispensed
+        byMedicine.set(r.medicineId, existing)
+    }
+
+    const sorted = Array.from(byMedicine.entries())
+        .map(([id, data]) => ({ medicineId: id, ...data }))
+        .sort((a, b) => b.totalDispensed - a.totalDispensed)
+
+    const grandTotal = sorted.reduce((s, m) => s + m.totalDispensed, 0)
+
+    return {
+        dateRange: { startDate, endDate },
+        rankings: sorted.map((m, i) => ({
+            rank: i + 1,
+            medicineId: m.medicineId,
+            name: m.name,
+            description: m.description,
+            qtyDispensed: m.totalDispensed,
+            percentOfTotal: grandTotal > 0
+                ? Math.round((m.totalDispensed / grandTotal) * 1000) / 10
+                : 0,
+        })),
+    }
+}

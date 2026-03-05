@@ -5,7 +5,7 @@
 import { http } from './axios';
 import type {
   Patient, Visit, Medicine, StockMovement,
-  PaginatedResponse, KPI,
+  PaginatedResponse, KPI, MedicineUsageRanking,
 } from './types';
 
 // ─── Auth ───────────────────────────────────────────────────
@@ -214,8 +214,12 @@ export const dashboardApi = {
 
 // ─── Analytics ───────────────────────────────────────────────
 export const analyticsApi = {
-  async getUsageRankings(_period?: string) {
-    return [];
+  async getUsageRankings(period?: string): Promise<MedicineUsageRanking[]> {
+    const endDate = toDateStr(new Date());
+    const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+    const startDate = toDateStr(new Date(Date.now() - days * 86400000));
+    const { data } = await http.get('/reports/usage-rankings', { params: { startDate, endDate } });
+    return (data.rankings ?? []) as MedicineUsageRanking[];
   },
 
   async getConsumptionSummary(period?: string) {
