@@ -1,11 +1,11 @@
 import { Router } from 'express'
-import { validate } from '../middlewares/validate.js'
-import { LogVisitSchema, UpdateVisitSchema } from '@ada/shared'
+import { validate, validateQuery } from '../middlewares/validate.js'
+import { LogVisitSchema, UpdateVisitSchema, VisitQuerySchema } from '@ada/shared'
 import * as svc from '../services/visit.service.js'
 
 const router = Router()
 
-router.get('/', async (req, res, next) => {
+router.get('/', validateQuery(VisitQuerySchema), async (req, res, next) => {
     try {
         const filters = {
             studentId: req.query.studentId as string | undefined,

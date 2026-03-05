@@ -1,26 +1,20 @@
 import { Router } from 'express'
+import { validateQuery } from '../middlewares/validate.js'
+import { ReportQuerySchema } from '@ada/shared'
 import * as svc from '../services/report.service.js'
 
 const router = Router()
 
-router.get('/clinic-summary', async (req, res, next) => {
+router.get('/clinic-summary', validateQuery(ReportQuerySchema), async (req, res, next) => {
     try {
         const { startDate, endDate } = req.query as { startDate: string; endDate: string }
-        if (!startDate || !endDate) {
-            res.status(400).json({ error: 'startDate and endDate query params are required' })
-            return
-        }
         res.json(await svc.clinicSummary(startDate, endDate))
     } catch (err) { next(err) }
 })
 
-router.get('/consumption', async (req, res, next) => {
+router.get('/consumption', validateQuery(ReportQuerySchema), async (req, res, next) => {
     try {
         const { startDate, endDate } = req.query as { startDate: string; endDate: string }
-        if (!startDate || !endDate) {
-            res.status(400).json({ error: 'startDate and endDate query params are required' })
-            return
-        }
         res.json(await svc.consumptionReport(startDate, endDate))
     } catch (err) { next(err) }
 })
