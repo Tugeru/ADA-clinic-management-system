@@ -3,11 +3,16 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "main": "./src/client.ts",
+  "main": "./dist/client.js",
   "exports": {
-    ".": "./src/client.ts"
+    ".": {
+      "types": "./src/client.ts",
+      "source": "./src/client.ts",
+      "import": "./dist/client.js"
+    }
   },
   "scripts": {
+    "build": "tsc",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",

@@ -333,8 +333,11 @@ function mapVisit(v: any): Visit {
   return {
     id: v.id,
     date: v.visitDate?.slice(0, 10) ?? (v.timeIn ? new Date(v.timeIn).toLocaleDateString('en-CA') : ''),
-    timeIn: v.timeIn ? new Date(v.timeIn).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
-    timeOut: v.timeOut ? new Date(v.timeOut).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
+    // Use 24-hour HH:MM format so values are directly compatible with
+    // <input type="time"> in the edit visit form. This also keeps new
+    // and edit flows consistent with NewVisit.tsx.
+    timeIn: v.timeIn ? new Date(v.timeIn).toTimeString().slice(0, 5) : '',
+    timeOut: v.timeOut ? new Date(v.timeOut).toTimeString().slice(0, 5) : '',
     patientId: v.studentId,
     patientName: v.student?.fullName ?? 'Unknown',
     patientType: v.student?.patientType ?? 'Student',

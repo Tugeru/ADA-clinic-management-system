@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "pnpm --filter @ada/web dev",
     "build": "pnpm --filter @ada/web build",
-    "dev:api": "pnpm --filter @ada/api dev",
+    "dev:api": "pnpm --filter @ada/shared build && pnpm --filter @ada/db build && pnpm --filter @ada/api dev",
     "build:all": "pnpm -r build"
   },
   "pnpm": {

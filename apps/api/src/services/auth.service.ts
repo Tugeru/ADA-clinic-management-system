@@ -14,6 +14,9 @@ export async function loginUser(email: string, password: string) {
         throw Object.assign(new Error('Invalid email or password'), { status: 401 })
     }
 
+    // @ts-ignore -- expiresIn accepts StringValue (ms v3 branded type); plain
+    // string is runtime-compatible. ms is a transitive dep of jsonwebtoken and
+    // not directly importable in pnpm's isolated-modules linker.
     const token = jwt.sign(
         { userId: user.id, email: user.email },
         env.JWT_SECRET,
