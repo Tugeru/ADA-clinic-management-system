@@ -2,6 +2,47 @@ import prisma from '../config/db.js'
 import type { LogVisitInput, UpdateVisitInput } from '@ada/shared'
 import { TransactionType } from '@ada/shared'
 
+type BatchAllocation = { batchId: string; quantity: number }
+
+/**
+ * Allocate requested quantity across FEFO-ordered batches for a medicine.
+ * Throws 400 when total available stock across all batches is insufficient.
+ */
+export async function allocateBatchesForMedicine(
+    tx: any,
+    medicineId: string,
+    requestedQty: number
+): Promise<BatchAllocation[]> {
+    const batches = await tx.inventoryBatch.findMany({
+        where: {
+            medicineId,
+            quantityOnHand: { gt: 0 },
+        },
+        // deterministic FEFO: earliest expiry first, then earliest created
+        orderBy: [{ expirationDate: 'asc' }, { createdAt: 'asc' }],
+    })
+
+    let remaining = requestedQty
+    const allocations: BatchAllocation[] = []
+
+    for (const b of batches) {
+        if (remaining <= 0) break
+        const take = Math.min(remaining, b.quantityOnHand)
+        if (take <= 0) continue
+        allocations.push({ batchId: b.id, quantity: take })
+        remaining -= take
+    }
+
+    if (remaining > 0) {
+        throw Object.assign(
+            new Error(`Insufficient stock for medicine ${medicineId}`),
+            { status: 400 }
+        )
+    }
+
+    return allocations
+}
+
 export async function listVisits(filters: {
     studentId?: string
     startDate?: string
@@ -66,55 +107,56 @@ export async function createVisit(userId: string, data: LogVisitInput) {
         // 2. Dispense medicines — FEFO stock deduction
         if (data.medicines?.length) {
             for (const med of data.medicines) {
-                let batch
+                let allocations: BatchAllocation[] = []
 
                 if (med.batchId) {
                     // Use the specified batch
-                    batch = await tx.inventoryBatch.findUniqueOrThrow({
+                    const batch = await tx.inventoryBatch.findUniqueOrThrow({
                         where: { id: med.batchId },
                     })
-                } else {
-                    // FEFO: pick the earliest-expiring batch with enough stock
-                    batch = await tx.inventoryBatch.findFirst({
-                        where: {
-                            medicineId: med.medicineId,
-                            quantityOnHand: { gte: med.quantity },
-                        },
-                        orderBy: { expirationDate: 'asc' },
-                    })
-                    if (!batch) {
+                    if (batch.quantityOnHand < med.quantity) {
                         throw Object.assign(
-                            new Error(`Insufficient stock for medicine ${med.medicineId}`),
+                            new Error(`Insufficient stock for batch ${med.batchId}`),
                             { status: 400 }
                         )
                     }
+                    allocations = [{ batchId: batch.id, quantity: med.quantity }]
+                } else {
+                    // FEFO multi-batch allocation
+                    allocations = await allocateBatchesForMedicine(
+                        tx,
+                        med.medicineId,
+                        med.quantity
+                    )
                 }
 
-                // Deduct stock
-                await tx.inventoryBatch.update({
-                    where: { id: batch.id },
-                    data: { quantityOnHand: { decrement: med.quantity } },
-                })
+                for (const allocation of allocations) {
+                    // Deduct stock
+                    await tx.inventoryBatch.update({
+                        where: { id: allocation.batchId },
+                        data: { quantityOnHand: { decrement: allocation.quantity } },
+                    })
 
-                // Record transaction
-                await tx.stockTransaction.create({
-                    data: {
-                        batchId: batch.id,
-                        txnType: TransactionType.OUT,
-                        quantity: med.quantity,
-                        referenceVisitId: visit.id,
-                    },
-                })
+                    // Record transaction
+                    await tx.stockTransaction.create({
+                        data: {
+                            batchId: allocation.batchId,
+                            txnType: TransactionType.OUT,
+                            quantity: allocation.quantity,
+                            referenceVisitId: visit.id,
+                        },
+                    })
 
-                // Record visit-medicine link
-                await tx.visitMedicine.create({
-                    data: {
-                        visitId: visit.id,
-                        medicineId: med.medicineId,
-                        batchId: batch.id,
-                        quantityDispensed: med.quantity,
-                    },
-                })
+                    // Record visit-medicine link
+                    await tx.visitMedicine.create({
+                        data: {
+                            visitId: visit.id,
+                            medicineId: med.medicineId,
+                            batchId: allocation.batchId,
+                            quantityDispensed: allocation.quantity,
+                        },
+                    })
+                }
             }
         }
 
