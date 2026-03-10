@@ -52,6 +52,8 @@ ada-clinic-management-system/
 └─ pnpm-workspace.yaml
 ```
 
+AI / Cursor project context and conventions live in `.cursor/rules/` and `docs/dev-guidelines/`.
+
 ### `apps/api/src/` structure
 
 ```
