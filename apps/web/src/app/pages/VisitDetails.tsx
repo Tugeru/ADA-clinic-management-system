@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router';
-import { ArrowLeft, Printer, Archive, Edit, Clock, User, AlertCircle, Pill, ClipboardList, UserCheck, Shield, Thermometer, Heart, Activity } from 'lucide-react';
+import { ArrowLeft, Archive, Edit, Clock, User, AlertCircle, Pill, ClipboardList, UserCheck, Shield, Thermometer, Heart, Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -80,7 +80,6 @@ export function VisitDetails() {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" className="text-xs h-8 gap-1.5"><Printer size={13} /> Print</Button>
             <Button variant="outline" size="sm" className="text-xs h-8 gap-1.5"><Archive size={13} /> Archive</Button>
             <Button asChild size="sm" className="bg-teal-600 hover:bg-teal-700 text-xs h-8 gap-1.5">
               <Link to={`/visits/${id}/edit`}><Edit size={13} /> Edit</Link>
