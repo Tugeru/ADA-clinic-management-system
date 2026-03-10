@@ -343,6 +343,17 @@ export function useRestorePatient() {
   });
 }
 
+export function useRestoreMedicine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => archiveApi.restoreMedicine(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.archive.medicines() });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+    },
+  });
+}
+
 // ─── Settings Hooks ──────────────────────────────────────────
 export function useClinicProfile() {
   return useQuery({

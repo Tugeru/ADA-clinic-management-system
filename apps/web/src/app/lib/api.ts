@@ -259,7 +259,30 @@ export const archiveApi = {
   },
 
   async getArchivedMedicines(_params?: any): Promise<PaginatedResponse<any>> {
-    return { data: [], total: 0, page: 1, limit: 10, totalPages: 0 };
+    const { data } = await http.get('/medicines', { params: { includeInactive: true } });
+    const items: any[] = (Array.isArray(data) ? data : data.data ?? []).filter((m: any) => !m.isActive);
+    const mapped = items.map((m: any) => {
+      const totalStock = m.totalStock ?? m.batches?.reduce((s: number, b: any) => s + b.quantityOnHand, 0) ?? 0;
+      return {
+        id: m.id,
+        name: m.name,
+        medId: m.id.slice(0, 8),
+        form: m.purpose ?? 'General',
+        dosage: m.description ?? '',
+        lastStock: totalStock,
+        dateArchived: m.updatedAt
+          ? new Date(m.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : '—',
+        archivedBy: 'Clinic In-Charge',
+        icon: '💊',
+        iconColor: 'bg-slate-50 text-slate-600',
+      };
+    });
+    return { data: mapped, total: mapped.length, page: 1, limit: mapped.length, totalPages: 1 };
+  },
+
+  async restoreMedicine(id: string): Promise<void> {
+    await http.patch(`/medicines/${id}/restore`);
   },
 
   async restorePatient(id: string): Promise<void> {
