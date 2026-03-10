@@ -16,6 +16,13 @@ const typeColors: Record<string, string> = {
   NTP: 'bg-orange-100 text-orange-700',
 };
 
+function formatTime12h(date: string | undefined, time: string | undefined): string {
+  if (!date || !time) return '';
+  const dt = new Date(`${date}T${time}:00`);
+  if (Number.isNaN(dt.getTime())) return '';
+  return dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
 export function VisitDetails() {
   const { id } = useParams();
   const { data: visit, isLoading } = useVisit(id || '');
@@ -41,6 +48,9 @@ export function VisitDetails() {
 
   const dispColor = visit.dispositionColor === 'green' ? 'bg-emerald-100 text-emerald-700' :
     visit.dispositionColor === 'orange' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700';
+
+  const timeInDisplay = formatTime12h(visit.date, visit.timeIn);
+  const timeOutDisplay = visit.timeOut ? formatTime12h(visit.date, visit.timeOut) : '';
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
@@ -93,8 +103,8 @@ export function VisitDetails() {
               <div className="grid grid-cols-3 gap-4 pb-4 border-b border-slate-100">
                 {[
                   { label: 'Date of Visit', value: visit.date },
-                  { label: 'Time In', value: visit.timeIn },
-                  { label: 'Time Out', value: visit.timeOut || '—' },
+                  { label: 'Time In', value: timeInDisplay || '—' },
+                  { label: 'Time Out', value: timeOutDisplay || '—' },
                 ].map((item, i) => (
                   <div key={i}>
                     <p className="text-[9px] text-slate-400 uppercase font-semibold tracking-wider mb-0.5">{item.label}</p>
