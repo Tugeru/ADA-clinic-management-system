@@ -9,7 +9,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { Skeleton } from '../components/ui/skeleton';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { useInventory, useArchiveMedicine, useDeleteMedicine } from '../lib/hooks';
+import { useInventory, useArchiveMedicine, useDeleteMedicine, useMedicine } from '../lib/hooks';
 import { ReduceStockDialog } from '../components/ReduceStockDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { useNavigate } from 'react-router';
@@ -28,7 +28,7 @@ export function Inventory() {
   const deleteMutation = useDeleteMedicine();
 
   // Reduce stock dialog state
-  const [reduceTarget, setReduceTarget] = useState<{ id: string; name: string; stock: number } | null>(null);
+  const [reduceId, setReduceId] = useState<string | null>(null);
 
   const totalItems = medicines?.length || 0;
   const lowStock = medicines?.filter(m => m.status === 'low').length || 0;
@@ -145,7 +145,7 @@ export function Inventory() {
                         className="h-7 w-7 text-slate-400 hover:text-orange-600"
                         title="Reduce Stock"
                         disabled={item.stock === 0}
-                        onClick={() => setReduceTarget({ id: item.id, name: item.name, stock: item.stock })}
+                        onClick={() => setReduceId(item.id)}
                       >
                         <Minus size={13} />
                       </Button>
@@ -188,14 +188,62 @@ export function Inventory() {
         )}
       </Card>
 
-      {/* M-1: Reduce stock dialog — opens from table row without batches (uses first batch) */}
-      {reduceTarget && (
-        <ReduceStockDialog
-          medicine={reduceTarget}
-          batches={[]}  // dialog header, batches loaded via useMedicine in MedicineDetails; for table-level we navigate to details
-          onClose={() => setReduceTarget(null)}
+      {/* M-1: Reduce stock dialog — inventory entry point uses wrapper to load batches lazily */}
+      {reduceId && (
+        <ReduceStockDialogForInventory
+          medicineId={reduceId}
+          onClose={() => setReduceId(null)}
         />
       )}
     </div>
+  );
+}
+
+function ReduceStockDialogForInventory({ medicineId, onClose }: { medicineId: string; onClose: () => void }) {
+  const { data: med, isLoading } = useMedicine(medicineId);
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 text-xs text-slate-500">
+          Loading batches...
+        </div>
+      </div>
+    );
+  }
+
+  if (!med) {
+    onClose();
+    return null;
+  }
+
+  const batches = (med as any).batches ?? [];
+
+  if (!batches.length) {
+    return (
+      <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-3">
+          <p className="text-sm font-medium text-slate-700">No batches available</p>
+          <p className="text-xs text-slate-500">
+            This medicine currently has no batch records. Stock can only be reduced once at least one batch exists.
+          </p>
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" className="text-xs" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const stock = (med as any).totalStock ?? (med as any).stock ?? 0;
+
+  return (
+    <ReduceStockDialog
+      medicine={{ id: med.id as any, name: med.name, stock }}
+      batches={batches}
+      onClose={onClose}
+    />
   );
 }
