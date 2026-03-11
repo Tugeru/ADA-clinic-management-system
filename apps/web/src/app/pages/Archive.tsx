@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { Search, Download, RotateCcw, Trash2, Info, Archive as ArchiveIcon } from 'lucide-react';
+import { Link } from 'react-router';
+import { Search, Download, RotateCcw, Trash2, Info, Archive as ArchiveIcon, Eye } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -207,6 +208,12 @@ function ArchivedPatientsTab() {
                       <TableCell className="text-xs text-slate-500 py-3.5">{dateArchived}</TableCell>
                       <TableCell className="py-3.5 text-center">
                         <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="View details" asChild>
+                            <Link to={`/patients/${p.id}`}>
+                              <span className="sr-only">View details</span>
+                              <Eye size={13} className="text-slate-500" />
+                            </Link>
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"

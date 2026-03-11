@@ -291,8 +291,8 @@ export const archiveApi = {
 
 // ─── Patient visits for profile ─────────────────────────────
 export const patientVisitsApi = {
-  async getByPatientId(patientId: string, _params?: any): Promise<PaginatedResponse<Visit>> {
-    const { data } = await http.get('/visits', { params: { studentId: patientId } });
+  async getByPatientId(patientId: string, params?: { includeArchived?: boolean }): Promise<PaginatedResponse<Visit>> {
+    const { data } = await http.get('/visits', { params: { studentId: patientId, includeArchived: params?.includeArchived } });
     const items: any[] = Array.isArray(data) ? data : data.data ?? [];
     return { data: items.map(mapVisit), total: items.length, page: 1, limit: items.length, totalPages: 1 };
   },

@@ -154,6 +154,7 @@ model Visit {
   actionTaken            String    @map("action_taken")
   disposition            Disposition @default(RETURNED_TO_CLASS)
   remarks                String?
+  isArchived             Boolean   @default(false) @map("is_archived")
   // Vital signs
   temperature            String?
   bloodPressure          String?   @map("blood_pressure")

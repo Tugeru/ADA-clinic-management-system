@@ -101,6 +101,8 @@ export function useArchivePatient() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.patients.all });
       qc.invalidateQueries({ queryKey: queryKeys.archive.patients() });
+      qc.invalidateQueries({ queryKey: queryKeys.visits.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
     },
   });
 }
@@ -121,7 +123,7 @@ export function useDeletePatient() {
   });
 }
 
-export function usePatientVisits(patientId: string, params?: { search?: string; page?: number }) {
+export function usePatientVisits(patientId: string, params?: { search?: string; page?: number; includeArchived?: boolean }) {
   return useQuery({
     queryKey: queryKeys.patients.visits(patientId, params),
     queryFn: () => patientVisitsApi.getByPatientId(patientId, params),

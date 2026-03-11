@@ -51,10 +51,21 @@ export async function updateStudent(id: string, data: UpdateStudentInput) {
 }
 
 export async function toggleArchiveStudent(id: string) {
-    const student = await prisma.student.findUniqueOrThrow({ where: { id } })
-    return prisma.student.update({
-        where: { id },
-        data: { isArchived: !student.isArchived },
+    return prisma.$transaction(async (tx) => {
+        const student = await tx.student.findUniqueOrThrow({ where: { id } })
+        const nextArchived = !student.isArchived
+
+        const updated = await tx.student.update({
+            where: { id },
+            data: { isArchived: nextArchived },
+        })
+
+        await tx.visit.updateMany({
+            where: { studentId: id },
+            data: { isArchived: nextArchived } as any,
+        })
+
+        return updated
     })
 }
 

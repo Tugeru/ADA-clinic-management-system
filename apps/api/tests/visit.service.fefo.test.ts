@@ -10,6 +10,7 @@ import prisma from '../src/config/db.js'
 import { allocateBatchesForMedicine, createVisit } from '../src/services/visit.service.js'
 
 type MockTx = {
+  student: { findUnique: ReturnType<typeof vi.fn> }
   visit: { create: ReturnType<typeof vi.fn> }
   inventoryBatch: {
     findMany: ReturnType<typeof vi.fn>
@@ -22,6 +23,7 @@ type MockTx = {
 
 function makeTx(): MockTx {
   return {
+    student: { findUnique: vi.fn().mockResolvedValue({ isArchived: false }) },
     visit: { create: vi.fn().mockResolvedValue({ id: 'visit-1' }) },
     inventoryBatch: {
       findMany: vi.fn(),
@@ -98,6 +100,17 @@ describe('visit.service FEFO multi-batch dispensing', () => {
     })
     expect(tx.stockTransaction.create).toHaveBeenCalledTimes(1)
     expect(tx.visitMedicine.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws 409 when creating a visit for an archived patient', async () => {
+    const tx = makeTx()
+    tx.student.findUnique.mockResolvedValue({ isArchived: true })
+    mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
+
+    await expect(createVisit('22222222-2222-2222-2222-222222222222', basePayload as any)).rejects.toMatchObject({
+      status: 409,
+      message: 'Cannot create a visit for an archived patient.',
+    })
   })
 
   it('splits deduction across multiple FEFO batches in createVisit', async () => {

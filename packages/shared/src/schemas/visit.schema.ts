@@ -58,6 +58,7 @@ export const VisitQuerySchema = z.object({
     studentId: z.string().uuid('Invalid student ID format').optional(),
     startDate: z.string().date('Invalid start date format').optional(),
     endDate: z.string().date('Invalid end date format').optional(),
+    includeArchived: z.coerce.boolean().optional(),
 })
 
 export type VisitQueryInput = z.infer<typeof VisitQuerySchema>

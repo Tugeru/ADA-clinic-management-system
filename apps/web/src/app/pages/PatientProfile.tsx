@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { ArrowLeft, Edit, Archive as ArchiveIcon, Plus, Search, Eye, AlertTriangle, Calendar, GraduationCap, Filter, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Archive as ArchiveIcon, Plus, Search, Eye, AlertTriangle, Calendar, GraduationCap, Filter, Trash2, RotateCcw } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -22,7 +22,10 @@ export function PatientProfile() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: patient, isLoading } = usePatient(id || '');
-  const { data: visitsData, isLoading: visitsLoading } = usePatientVisits(patient?.id || '', { search: visitSearch });
+  const { data: visitsData, isLoading: visitsLoading } = usePatientVisits(patient?.id || '', {
+    search: visitSearch,
+    includeArchived: patient?.status === 'Archived',
+  });
   const archiveMutation = useArchivePatient();
   const deleteMutation = useDeletePatient();
 
@@ -55,6 +58,7 @@ export function PatientProfile() {
     : '—';
 
   const initials = patient.fullName.split(',')[0]?.substring(0, 2).toUpperCase();
+  const isArchived = patient.status === 'Archived';
 
   const confirmDelete = async () => {
     if (!patient?.id) return;
@@ -122,19 +126,33 @@ export function PatientProfile() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs" asChild>
-              <Link to={`/patients/edit/${patient.id}`}>
-                <Edit size={13} /> Edit Profile
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs text-red-600 border-red-200 hover:bg-red-50"
-              onClick={() => archiveMutation.mutate(patient.id)}
-            >
-              <ArchiveIcon size={13} /> Archive
-            </Button>
+            {!isArchived && (
+              <>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" asChild>
+                  <Link to={`/patients/edit/${patient.id}`}>
+                    <Edit size={13} /> Edit Profile
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                  onClick={() => archiveMutation.mutate(patient.id)}
+                >
+                  <ArchiveIcon size={13} /> Archive
+                </Button>
+              </>
+            )}
+            {isArchived && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs text-teal-600 border-teal-200 hover:bg-teal-50"
+                onClick={() => archiveMutation.mutate(patient.id)}
+              >
+                <RotateCcw size={13} /> Restore
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -143,22 +161,24 @@ export function PatientProfile() {
             >
               <Trash2 size={13} /> Delete
             </Button>
-            <Button size="sm" className="gap-1.5 text-xs bg-teal-600 hover:bg-teal-700" asChild>
-              <Link
-                to="/visits/new"
-                state={{
-                  patient: {
-                    id: patient.id,
-                    fullName: patient.fullName,
-                    idNumber: patient.idNumber,
-                    type: patient.type,
-                    context: patient.context,
-                  },
-                }}
-              >
-                <Plus size={13} /> Start Visit
-              </Link>
-            </Button>
+            {!isArchived && (
+              <Button size="sm" className="gap-1.5 text-xs bg-teal-600 hover:bg-teal-700" asChild>
+                <Link
+                  to="/visits/new"
+                  state={{
+                    patient: {
+                      id: patient.id,
+                      fullName: patient.fullName,
+                      idNumber: patient.idNumber,
+                      type: patient.type,
+                      context: patient.context,
+                    },
+                  }}
+                >
+                  <Plus size={13} /> Start Visit
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </Card>

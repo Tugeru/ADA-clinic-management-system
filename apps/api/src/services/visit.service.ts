@@ -47,9 +47,11 @@ export async function listVisits(filters: {
     studentId?: string
     startDate?: string
     endDate?: string
+    includeArchived?: boolean
 }) {
     return prisma.visit.findMany({
         where: {
+            ...(filters.includeArchived ? {} : { isArchived: false }),
             ...(filters.studentId ? { studentId: filters.studentId } : {}),
             ...(filters.startDate || filters.endDate
                 ? {
@@ -81,6 +83,14 @@ export async function getVisit(id: string) {
  */
 export async function createVisit(userId: string, data: LogVisitInput) {
     return prisma.$transaction(async (tx) => {
+        const student = await tx.student.findUnique({
+            where: { id: data.studentId },
+            select: { isArchived: true },
+        })
+        if (student?.isArchived) {
+            throw Object.assign(new Error('Cannot create a visit for an archived patient.'), { status: 409 })
+        }
+
         // 1. Create visit
         const visit = await tx.visit.create({
             data: {

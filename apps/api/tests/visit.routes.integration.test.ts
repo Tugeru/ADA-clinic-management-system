@@ -13,6 +13,7 @@ import visitRoutes from '../src/routes/visit.routes.js'
 import { errorHandler } from '../src/middlewares/errorHandler.js'
 
 type MockTx = {
+  student: { findUnique: ReturnType<typeof vi.fn> }
   visit: { create: ReturnType<typeof vi.fn> }
   inventoryBatch: {
     findMany: ReturnType<typeof vi.fn>
@@ -25,6 +26,7 @@ type MockTx = {
 
 function makeTx(): MockTx {
   return {
+    student: { findUnique: vi.fn().mockResolvedValue({ isArchived: false }) },
     visit: { create: vi.fn().mockResolvedValue({ id: 'visit-1' }) },
     inventoryBatch: {
       findMany: vi.fn(),

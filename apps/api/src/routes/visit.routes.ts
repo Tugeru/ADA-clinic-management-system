@@ -11,6 +11,7 @@ router.get('/', validateQuery(VisitQuerySchema), async (req, res, next) => {
             studentId: req.query.studentId as string | undefined,
             startDate: req.query.startDate as string | undefined,
             endDate: req.query.endDate as string | undefined,
+            includeArchived: req.query.includeArchived === 'true',
         }
         res.json(await svc.listVisits(filters))
     } catch (err) { next(err) }

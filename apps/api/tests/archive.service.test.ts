@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../src/config/db.js', () => ({
   default: {
+    $transaction: vi.fn(),
     student: {
       findMany: vi.fn(),
       findUniqueOrThrow: vi.fn(),
@@ -20,6 +21,7 @@ import { listStudents, toggleArchiveStudent } from '../src/services/student.serv
 import { listMedicines, deleteMedicine, restoreMedicine } from '../src/services/inventory.service.js'
 
 const db = prisma as unknown as {
+  $transaction: ReturnType<typeof vi.fn>
   student: {
     findMany: ReturnType<typeof vi.fn>
     findUniqueOrThrow: ReturnType<typeof vi.fn>
@@ -89,8 +91,10 @@ describe('Student archive service', () => {
   })
 
   it('toggleArchiveStudent flips isArchived from false to true', async () => {
+    db.$transaction.mockImplementation(async (fn: any) => fn(db))
     db.student.findUniqueOrThrow.mockResolvedValue({ ...activeStudent })
     db.student.update.mockResolvedValue({ ...activeStudent, isArchived: true })
+    ;(db as any).visit = { updateMany: vi.fn().mockResolvedValue({ count: 1 }) }
 
     const result = await toggleArchiveStudent('s1')
 
@@ -98,17 +102,27 @@ describe('Student archive service', () => {
       where: { id: 's1' },
       data: { isArchived: true },
     })
+    expect((db as any).visit.updateMany).toHaveBeenCalledWith({
+      where: { studentId: 's1' },
+      data: { isArchived: true },
+    })
     expect(result.isArchived).toBe(true)
   })
 
   it('toggleArchiveStudent flips isArchived from true to false (restore)', async () => {
+    db.$transaction.mockImplementation(async (fn: any) => fn(db))
     db.student.findUniqueOrThrow.mockResolvedValue({ ...archivedStudent })
     db.student.update.mockResolvedValue({ ...archivedStudent, isArchived: false })
+    ;(db as any).visit = { updateMany: vi.fn().mockResolvedValue({ count: 1 }) }
 
     const result = await toggleArchiveStudent('s2')
 
     expect(db.student.update).toHaveBeenCalledWith({
       where: { id: 's2' },
+      data: { isArchived: false },
+    })
+    expect((db as any).visit.updateMany).toHaveBeenCalledWith({
+      where: { studentId: 's2' },
       data: { isArchived: false },
     })
     expect(result.isArchived).toBe(false)
