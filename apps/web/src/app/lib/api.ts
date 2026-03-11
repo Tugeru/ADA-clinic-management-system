@@ -6,6 +6,7 @@ import { http } from './axios';
 import type {
   Patient, Visit, Medicine, StockMovement,
   PaginatedResponse, KPI, MedicineUsageRanking,
+  DashboardAnalyticsResponse, DashboardAnalyticsParams,
 } from './types';
 
 // ─── Auth ───────────────────────────────────────────────────
@@ -205,9 +206,15 @@ export const dashboardApi = {
     return items.slice(0, 5).map(mapVisit);
   },
 
-  async getChartData() {
-    // Return empty structure — charts will show live data when available
-    return { visitsByDayOfWeek: [], visitsByType: [], monthlyVisitTrend: [], topComplaints: [], mostUsedMedicines: [] };
+  async getChartData(params?: DashboardAnalyticsParams): Promise<DashboardAnalyticsResponse> {
+    const { data } = await http.get('/reports/dashboard-analytics', {
+      params: {
+        rangePreset: params?.rangePreset ?? '30d',
+        trendMonths: params?.trendMonths ?? 6,
+        topMedicinesLimit: params?.topMedicinesLimit ?? 5,
+      },
+    });
+    return data as DashboardAnalyticsResponse;
   },
 };
 

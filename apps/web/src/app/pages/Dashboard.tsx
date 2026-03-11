@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router';
 import {
   Stethoscope, Users, AlertTriangle, Plus, UserPlus, Box,
@@ -8,13 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardAction } from '../compone
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Separator } from '../components/ui/separator';
 import { Skeleton } from '../components/ui/skeleton';
 import { cn } from '../components/ui/utils';
 import { useDashboardKPIs, useRecentVisits, useLowStock, useDashboardCharts } from '../lib/hooks';
+import type { DashboardAnalyticsParams } from '../lib/types';
 
-// Chart.js
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip as ChartTooltip, Legend, Filler } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 
@@ -28,27 +29,55 @@ const kpiColors = [
   { icon: 'text-emerald-500', bg: 'bg-emerald-50' },
 ];
 
+const TYPE_COLORS: Record<string, string> = {
+  Student: '#3b82f6',
+  Teacher: '#a855f7',
+  NTP: '#f97316',
+};
+
+const RANGE_LABELS: Record<string, string> = {
+  '30d': 'Last 30 Days',
+  '90d': 'Last 90 Days',
+  '180d': 'Last 180 Days',
+  '365d': 'Last 365 Days',
+};
+
+const TREND_LABELS: Record<string, string> = {
+  '6': 'Last 6 Months',
+  '12': 'Last 12 Months',
+};
+
+const MED_BAR_COLORS = ['bg-teal-500', 'bg-blue-500', 'bg-emerald-400', 'bg-cyan-500', 'bg-violet-400'];
+
 function formatTime12h(time: string): string {
   if (!time) return '';
-  // timeIn is stored as HH:MM for <input type="time"> compatibility; convert for display only
   const dt = new Date(`1970-01-01T${time}:00`);
   if (Number.isNaN(dt.getTime())) return time;
   return dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
 export function Dashboard() {
+  const [rangePreset, setRangePreset] = useState<DashboardAnalyticsParams['rangePreset']>('30d');
+  const [trendMonths, setTrendMonths] = useState<DashboardAnalyticsParams['trendMonths']>(6);
+
+  const chartParams = useMemo<DashboardAnalyticsParams>(() => ({
+    rangePreset,
+    trendMonths,
+    topMedicinesLimit: 5,
+  }), [rangePreset, trendMonths]);
+
   const { data: kpis, isLoading: kpiLoading } = useDashboardKPIs();
   const { data: recentVisits, isLoading: visitsLoading } = useRecentVisits();
   const { data: lowStock, isLoading: lowStockLoading } = useLowStock();
-  const { data: charts, isLoading: chartsLoading } = useDashboardCharts();
+  const { data: charts, isLoading: chartsLoading } = useDashboardCharts(chartParams);
 
   const weeklyBarData = useMemo(() => {
-    if (!charts) return null;
+    if (!charts?.weeklyVisits?.points?.length) return null;
     return {
-      labels: charts.visitsByDayOfWeek.map(d => d.day),
+      labels: charts.weeklyVisits.points.map(d => d.label),
       datasets: [{
         label: 'Visits',
-        data: charts.visitsByDayOfWeek.map(d => d.visits),
+        data: charts.weeklyVisits.points.map(d => d.count),
         backgroundColor: '#2dd4bf',
         borderRadius: 6,
         barThickness: 28,
@@ -56,26 +85,30 @@ export function Dashboard() {
     };
   }, [charts]);
 
+  const weeklyEmpty = charts?.weeklyVisits?.points?.every(p => p.count === 0);
+
   const doughnutData = useMemo(() => {
-    if (!charts) return null;
+    if (!charts?.visitsByType?.items?.length) return null;
     return {
-      labels: charts.visitsByType.map(d => d.type),
+      labels: charts.visitsByType.items.map(d => d.type),
       datasets: [{
-        data: charts.visitsByType.map(d => d.count),
-        backgroundColor: charts.visitsByType.map(d => d.color),
+        data: charts.visitsByType.items.map(d => d.count),
+        backgroundColor: charts.visitsByType.items.map(d => TYPE_COLORS[d.type] ?? '#94a3b8'),
         borderWidth: 0,
         spacing: 3,
       }],
     };
   }, [charts]);
 
+  const doughnutEmpty = !charts?.visitsByType?.total;
+
   const trendLineData = useMemo(() => {
-    if (!charts) return null;
+    if (!charts?.monthlyVisitTrend?.points?.length) return null;
     return {
-      labels: charts.monthlyVisitTrend.map(d => d.month),
+      labels: charts.monthlyVisitTrend.points.map(d => d.label),
       datasets: [{
         label: 'Total Visits',
-        data: charts.monthlyVisitTrend.map(d => d.visits),
+        data: charts.monthlyVisitTrend.points.map(d => d.count),
         borderColor: '#14b8a6',
         backgroundColor: 'rgba(20,184,166,0.1)',
         fill: true,
@@ -85,6 +118,10 @@ export function Dashboard() {
       }],
     };
   }, [charts]);
+
+  const trendEmpty = charts?.monthlyVisitTrend?.points?.every(p => p.count === 0);
+
+  const medsEmpty = !charts?.mostUsedMedicines?.items?.length;
 
   return (
     <div className="space-y-6">
@@ -142,6 +179,8 @@ export function Dashboard() {
             <CardContent className="pt-0">
               {visitsLoading ? (
                 <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+              ) : !recentVisits?.length ? (
+                <p className="text-xs text-slate-400 text-center py-6">No visits recorded today.</p>
               ) : (
                 <>
                   {/* Desktop */}
@@ -156,7 +195,7 @@ export function Dashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {recentVisits?.map((v) => (
+                        {recentVisits.map((v) => (
                           <TableRow key={v.id} className="border-slate-50">
                             <TableCell className="font-semibold text-slate-800 text-xs py-3">{formatTime12h(v.timeIn)}</TableCell>
                             <TableCell className="py-3">
@@ -186,7 +225,7 @@ export function Dashboard() {
                   </div>
                   {/* Mobile */}
                   <div className="md:hidden space-y-2">
-                    {recentVisits?.map((v) => (
+                    {recentVisits.map((v) => (
                       <div key={v.id} className="border border-slate-100 rounded-lg p-3 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2 min-w-0">
                           <Avatar className="h-7 w-7 flex-shrink-0">
@@ -214,16 +253,47 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
+          {/* Analytics Filter Row */}
+          <div className="flex flex-wrap items-center gap-3">
+            <Select value={rangePreset} onValueChange={(v: string) => setRangePreset(v as DashboardAnalyticsParams['rangePreset'])}>
+              <SelectTrigger className="w-[160px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(RANGE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={String(trendMonths)} onValueChange={(v: string) => setTrendMonths(Number(v) as 6 | 12)}>
+              <SelectTrigger className="w-[160px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(TREND_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Charts Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Weekly Visits Bar Chart */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold text-slate-800">Weekly Visits</CardTitle>
+                <CardAction>
+                  <Badge variant="secondary" className="text-[10px]">Last 7 Days</Badge>
+                </CardAction>
               </CardHeader>
               <CardContent>
-                {chartsLoading || !weeklyBarData ? (
+                {chartsLoading ? (
                   <Skeleton className="h-40 w-full" />
+                ) : weeklyEmpty || !weeklyBarData ? (
+                  <div className="h-40 flex items-center justify-center">
+                    <p className="text-xs text-slate-400">No visits recorded in the last 7 days.</p>
+                  </div>
                 ) : (
                   <Bar data={weeklyBarData} options={{
                     responsive: true,
@@ -241,10 +311,17 @@ export function Dashboard() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold text-slate-800">Visits by Type</CardTitle>
+                <CardAction>
+                  <Badge variant="secondary" className="text-[10px]">{RANGE_LABELS[rangePreset ?? '30d']}</Badge>
+                </CardAction>
               </CardHeader>
               <CardContent className="flex items-center justify-center">
-                {chartsLoading || !doughnutData ? (
+                {chartsLoading ? (
                   <Skeleton className="h-40 w-40 rounded-full" />
+                ) : doughnutEmpty || !doughnutData ? (
+                  <div className="h-40 flex items-center justify-center">
+                    <p className="text-xs text-slate-400">No visits in the selected period.</p>
+                  </div>
                 ) : (
                   <div className="w-full max-w-[180px]">
                     <Doughnut data={doughnutData} options={{
@@ -265,12 +342,16 @@ export function Dashboard() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold text-slate-800">Monthly Visit Trend</CardTitle>
               <CardAction>
-                <Badge variant="secondary" className="text-[10px]">Last 7 Months</Badge>
+                <Badge variant="secondary" className="text-[10px]">{TREND_LABELS[String(trendMonths)]}</Badge>
               </CardAction>
             </CardHeader>
             <CardContent>
-              {chartsLoading || !trendLineData ? (
+              {chartsLoading ? (
                 <Skeleton className="h-48 w-full" />
+              ) : trendEmpty || !trendLineData ? (
+                <div className="h-48 flex items-center justify-center">
+                  <p className="text-xs text-slate-400">No visit trend available for the selected period.</p>
+                </div>
               ) : (
                 <Line data={trendLineData} options={{
                   responsive: true,
@@ -289,24 +370,32 @@ export function Dashboard() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold text-slate-800">Most Used Medicines</CardTitle>
               <CardAction>
-                <Badge variant="secondary" className="text-[10px] italic">Last 30 Days</Badge>
+                <Badge variant="secondary" className="text-[10px] italic">{RANGE_LABELS[rangePreset ?? '30d']}</Badge>
               </CardAction>
             </CardHeader>
             <CardContent className="space-y-4">
-              {charts?.mostUsedMedicines.map((med, i) => (
-                <div key={i}>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="font-bold text-slate-600 uppercase tracking-wide">{med.name}</span>
-                    <span className="font-bold text-slate-800">{med.units} units</span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className={cn("h-full rounded-full", ['bg-teal-500', 'bg-blue-500', 'bg-emerald-400', 'bg-cyan-500', 'bg-violet-400'][i])}
-                      style={{ width: `${med.percent}%` }}
-                    />
-                  </div>
+              {chartsLoading ? (
+                <Skeleton className="h-32 w-full" />
+              ) : medsEmpty ? (
+                <div className="h-20 flex items-center justify-center">
+                  <p className="text-xs text-slate-400">No medicines were dispensed in the selected period.</p>
                 </div>
-              ))}
+              ) : (
+                charts!.mostUsedMedicines.items.map((med, i) => (
+                  <div key={med.medicineId}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="font-bold text-slate-600 uppercase tracking-wide">{med.name}</span>
+                      <span className="font-bold text-slate-800">{med.qtyDispensed} units</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={cn("h-full rounded-full", MED_BAR_COLORS[i % MED_BAR_COLORS.length])}
+                        style={{ width: `${med.percentOfTotal}%` }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>

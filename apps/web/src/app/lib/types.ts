@@ -269,6 +269,62 @@ export interface KPI {
   highlight?: boolean;
 }
 
+// ─── Dashboard Analytics ─────────────────────────────────────
+export interface WeeklyVisitPoint {
+  date: string;
+  label: string;
+  count: number;
+}
+
+export interface VisitTypeBreakdownItem {
+  type: 'Student' | 'Teacher' | 'NTP';
+  count: number;
+  percent: number;
+}
+
+export interface MonthlyVisitTrendPoint {
+  monthKey: string;
+  label: string;
+  count: number;
+}
+
+export interface MostUsedMedicineItem {
+  rank: number;
+  medicineId: string;
+  name: string;
+  description: string;
+  qtyDispensed: number;
+  percentOfTotal: number;
+}
+
+export interface DashboardAnalyticsResponse {
+  weeklyVisits: {
+    dateRange: { startDate: string; endDate: string };
+    points: WeeklyVisitPoint[];
+  };
+  visitsByType: {
+    dateRange: { startDate: string; endDate: string };
+    total: number;
+    items: VisitTypeBreakdownItem[];
+  };
+  monthlyVisitTrend: {
+    dateRange: { startDate: string; endDate: string };
+    months: number;
+    points: MonthlyVisitTrendPoint[];
+  };
+  mostUsedMedicines: {
+    dateRange: { startDate: string; endDate: string };
+    totalDispensedUnits: number;
+    items: MostUsedMedicineItem[];
+  };
+}
+
+export interface DashboardAnalyticsParams {
+  rangePreset?: '30d' | '90d' | '180d' | '365d';
+  trendMonths?: 6 | 12;
+  topMedicinesLimit?: number;
+}
+
 // ─── API Response ────────────────────────────────────────────
 export interface ApiResponse<T> {
   data: T;
