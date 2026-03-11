@@ -123,10 +123,15 @@ export async function createVisit(userId: string, data: LogVisitInput) {
                 let allocations: BatchAllocation[] = []
 
                 if (med.batchId) {
-                    // Use the specified batch
                     const batch = await tx.inventoryBatch.findUniqueOrThrow({
                         where: { id: med.batchId },
                     })
+                    if (batch.medicineId !== med.medicineId) {
+                        throw Object.assign(
+                            new Error(`Batch ${med.batchId} does not belong to medicine ${med.medicineId}`),
+                            { status: 400 }
+                        )
+                    }
                     if (batch.quantityOnHand < med.quantity) {
                         throw Object.assign(
                             new Error(`Insufficient stock for batch ${med.batchId}`),

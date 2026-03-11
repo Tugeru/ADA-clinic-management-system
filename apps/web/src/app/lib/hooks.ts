@@ -160,6 +160,7 @@ export function useCreateVisit() {
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.chartsAll });
       qc.invalidateQueries({ queryKey: ['patients', 'visits'] });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
     },
   });
 }

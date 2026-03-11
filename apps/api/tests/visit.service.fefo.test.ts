@@ -150,7 +150,7 @@ describe('visit.service FEFO multi-batch dispensing', () => {
 
   it('preserves explicit batch behavior and does not split when batchId is provided', async () => {
     const tx = makeTx()
-    tx.inventoryBatch.findUniqueOrThrow.mockResolvedValue({ id: 'b2', quantityOnHand: 5 })
+    tx.inventoryBatch.findUniqueOrThrow.mockResolvedValue({ id: 'b2', medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', quantityOnHand: 5 })
     mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
 
     await createVisit('22222222-2222-2222-2222-222222222222', {
@@ -174,7 +174,7 @@ describe('visit.service FEFO multi-batch dispensing', () => {
 
   it('throws 400 for explicit batch when requested quantity exceeds that batch stock', async () => {
     const tx = makeTx()
-    tx.inventoryBatch.findUniqueOrThrow.mockResolvedValue({ id: 'b2', quantityOnHand: 2 })
+    tx.inventoryBatch.findUniqueOrThrow.mockResolvedValue({ id: 'b2', medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', quantityOnHand: 2 })
     mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
 
     await expect(
@@ -196,5 +196,67 @@ describe('visit.service FEFO multi-batch dispensing', () => {
     expect(tx.inventoryBatch.update).not.toHaveBeenCalled()
     expect(tx.stockTransaction.create).not.toHaveBeenCalled()
     expect(tx.visitMedicine.create).not.toHaveBeenCalled()
+  })
+
+  it('throws 400 when batchId does not belong to the specified medicineId', async () => {
+    const tx = makeTx()
+    tx.inventoryBatch.findUniqueOrThrow.mockResolvedValue({
+      id: 'b2',
+      medicineId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      quantityOnHand: 10,
+    })
+    mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
+
+    await expect(
+      createVisit('22222222-2222-2222-2222-222222222222', {
+        ...basePayload,
+        medicines: [
+          {
+            medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            batchId: 'b2',
+            quantity: 3,
+          },
+        ],
+      })
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'Batch b2 does not belong to medicine aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    })
+
+    expect(tx.inventoryBatch.update).not.toHaveBeenCalled()
+    expect(tx.stockTransaction.create).not.toHaveBeenCalled()
+    expect(tx.visitMedicine.create).not.toHaveBeenCalled()
+  })
+
+  it('records OUT stock transaction with correct referenceVisitId for each allocation', async () => {
+    const tx = makeTx()
+    tx.inventoryBatch.findMany.mockResolvedValue([
+      { id: 'b1', quantityOnHand: 3 },
+      { id: 'b2', quantityOnHand: 10 },
+    ])
+    mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
+
+    await createVisit('22222222-2222-2222-2222-222222222222', {
+      ...basePayload,
+      medicines: [{ medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', quantity: 5 }],
+    })
+
+    expect(tx.stockTransaction.create).toHaveBeenCalledTimes(2)
+    expect(tx.stockTransaction.create.mock.calls[0][0]).toEqual({
+      data: {
+        batchId: 'b1',
+        txnType: 'OUT',
+        quantity: 3,
+        referenceVisitId: 'visit-1',
+      },
+    })
+    expect(tx.stockTransaction.create.mock.calls[1][0]).toEqual({
+      data: {
+        batchId: 'b2',
+        txnType: 'OUT',
+        quantity: 2,
+        referenceVisitId: 'visit-1',
+      },
+    })
   })
 })
