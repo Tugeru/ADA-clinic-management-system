@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "pnpm --filter @ada/shared build",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "pretest": "pnpm --filter @ada/shared build",
     "test": "vitest run",
     "test:watch": "vitest"
   },

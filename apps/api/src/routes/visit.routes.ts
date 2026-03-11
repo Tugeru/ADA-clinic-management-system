@@ -7,11 +7,13 @@ const router = Router()
 
 router.get('/', validateQuery(VisitQuerySchema), async (req, res, next) => {
     try {
+        const q = req.query as any
         const filters = {
-            studentId: req.query.studentId as string | undefined,
-            startDate: req.query.startDate as string | undefined,
-            endDate: req.query.endDate as string | undefined,
-            includeArchived: req.query.includeArchived === 'true',
+            studentId: q.studentId as string | undefined,
+            startDate: q.startDate as string | undefined,
+            endDate: q.endDate as string | undefined,
+            // VisitQuerySchema coerces this to boolean via z.coerce.boolean()
+            includeArchived: q.includeArchived === true,
         }
         res.json(await svc.listVisits(filters))
     } catch (err) { next(err) }

@@ -85,9 +85,12 @@ export async function createVisit(userId: string, data: LogVisitInput) {
     return prisma.$transaction(async (tx) => {
         const student = await tx.student.findUnique({
             where: { id: data.studentId },
-            select: { isArchived: true },
+            select: { id: true, isArchived: true },
         })
-        if (student?.isArchived) {
+        if (!student) {
+            throw Object.assign(new Error('Student not found'), { status: 404 })
+        }
+        if (student.isArchived) {
             throw Object.assign(new Error('Cannot create a visit for an archived patient.'), { status: 409 })
         }
 
