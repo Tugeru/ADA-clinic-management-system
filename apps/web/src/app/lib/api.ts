@@ -193,7 +193,7 @@ export const dashboardApi = {
     const medItems: any[] = Array.isArray(medicines.data) ? medicines.data : medicines.data.data ?? [];
     return [
       { title: "TODAY'S VISITS", value: String(visitItems.length), change: '', changeType: 'positive', changeText: 'today' },
-      { title: 'ACTIVE STUDENTS', value: String(studentItems.filter((s: any) => !s.isArchived).length), change: '', changeType: 'positive', changeText: 'active' },
+      { title: 'ACTIVE PATIENTS', value: String(studentItems.filter((s: any) => !s.isArchived).length), change: '', changeType: 'positive', changeText: 'active' },
       { title: 'LOW STOCK ITEMS', value: String(lowItems.length), subtitle: 'Needs Attention', subtitleColor: 'text-orange-500', highlight: lowItems.length > 0 },
       { title: 'TOTAL MEDICINES', value: String(medItems.length), subtitle: 'In Catalog', subtitleColor: 'text-emerald-500' },
     ];
