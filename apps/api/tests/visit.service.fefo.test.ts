@@ -113,6 +113,17 @@ describe('visit.service FEFO multi-batch dispensing', () => {
     })
   })
 
+  it('throws 404 when student does not exist', async () => {
+    const tx = makeTx()
+    tx.student.findUnique.mockResolvedValue(null as any)
+    mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
+
+    await expect(createVisit('22222222-2222-2222-2222-222222222222', basePayload as any)).rejects.toMatchObject({
+      status: 404,
+      message: 'Student not found',
+    })
+  })
+
   it('splits deduction across multiple FEFO batches in createVisit', async () => {
     const tx = makeTx()
     tx.inventoryBatch.findMany.mockResolvedValue([
