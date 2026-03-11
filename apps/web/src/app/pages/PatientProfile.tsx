@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { ArrowLeft, Edit, Archive as ArchiveIcon, Plus, Search, Eye, AlertTriangle, Calendar, GraduationCap, Filter, Trash2 } from 'lucide-react';
 import { Card } from '../components/ui/card';
@@ -8,12 +9,10 @@ import { Input } from '../components/ui/input';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Skeleton } from '../components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
+import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { cn } from '../components/ui/utils';
 import { usePatient, usePatientVisits, useArchivePatient, useDeletePatient } from '../lib/hooks';
-import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import { toast } from 'sonner';
-
-const STUDENT_AVATAR = 'https://images.unsplash.com/photo-1647934786533-f3c15896410b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMGFzaWFuJTIwbWFsZSUyMHN0dWRlbnQlMjBwb3J0cmFpdHxlbnwxfHx8fDE3NzIzMzI5NjV8MA&ixlib=rb-4.1.0&q=80&w=400';
 
 export function PatientProfile() {
   const { id } = useParams<{ id: string }>();
@@ -55,6 +54,8 @@ export function PatientProfile() {
     ? new Date(patient.dateOfBirth).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '—';
 
+  const initials = patient.fullName.split(',')[0]?.substring(0, 2).toUpperCase();
+
   const confirmDelete = async () => {
     if (!patient?.id) return;
     try {
@@ -84,13 +85,11 @@ export function PatientProfile() {
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-5">
           <div className="flex items-start gap-5">
             {/* Avatar */}
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden bg-slate-200 flex-shrink-0">
-              <ImageWithFallback
-                src={STUDENT_AVATAR}
-                alt={patient.fullName}
-                className="w-full h-full object-cover"
-              />
-            </div>
+            <Avatar className="h-20 w-20 md:h-24 md:w-24 rounded-lg">
+              <AvatarFallback className="bg-slate-200 text-slate-600 text-xl md:text-2xl font-bold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
 
             {/* Info */}
             <div className="space-y-2">
@@ -349,7 +348,7 @@ function VisitHistoryTab({
             <Input
               placeholder="Search visits..."
               value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value)}
               className="pl-8 h-9 text-xs w-48"
             />
           </div>
