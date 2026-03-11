@@ -7,38 +7,87 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { useCreateMedicine, useInventory } from '../lib/hooks';
+import { useCreateMedicine, useStockIn, useInventory } from '../lib/hooks';
 import type { MedicineType } from '../lib/types';
 import { toast } from 'sonner';
 
 const medicineTypes: MedicineType[] = ['Tablet', 'Capsule', 'Liquid', 'Injection', 'Topical', 'Effervescent', 'Inhaler'];
 
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function AddMedicine() {
   const navigate = useNavigate();
   const createMutation = useCreateMedicine();
+  const stockInMutation = useStockIn();
   const { data: existing } = useInventory();
 
   const [name, setName] = useState('');
-  const [unit, setUnit] = useState('');
-  const [dosage, setDosage] = useState('');
   const [type, setType] = useState<string>('');
   const [threshold, setThreshold] = useState('');
   const [notes, setNotes] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [amount, setAmount] = useState('');
+
+  const [expiryError, setExpiryError] = useState('');
+  const [amountError, setAmountError] = useState('');
 
   const nameExists = existing?.some(m => m.name.toLowerCase() === name.toLowerCase()) || false;
+  const isPending = createMutation.isPending || stockInMutation.isPending;
+
+  const validate = (): boolean => {
+    let valid = true;
+
+    if (!expiryDate) {
+      setExpiryError('Expiry date is required.');
+      valid = false;
+    } else if (expiryDate < todayStr()) {
+      setExpiryError('Expiry date must be today or a future date.');
+      valid = false;
+    } else {
+      setExpiryError('');
+    }
+
+    const parsedAmount = Number(amount);
+    if (!amount) {
+      setAmountError('Amount is required.');
+      valid = false;
+    } else if (!Number.isInteger(parsedAmount) || parsedAmount < 1) {
+      setAmountError('Amount must be at least 1.');
+      valid = false;
+    } else {
+      setAmountError('');
+    }
+
+    return valid;
+  };
 
   const handleSubmit = async () => {
     if (!name || nameExists) return;
+    if (!validate()) return;
+
     try {
-      await createMutation.mutateAsync({
+      const created = await createMutation.mutateAsync({
         name,
-        unit,
-        dosage,
+        unit: '',
+        dosage: '',
         type: (type as MedicineType) || '',
         threshold: Number(threshold) || 0,
         notes: notes || undefined,
       });
-      toast.success('Medicine added successfully!');
+
+      try {
+        await stockInMutation.mutateAsync({
+          medicineId: String(created.id),
+          quantity: Number(amount),
+          expirationDate: expiryDate,
+        });
+        toast.success('Medicine added with initial stock!');
+      } catch {
+        toast.error('Medicine was added, but initial stock-in failed. You can retry from the Inventory page.');
+      }
+
       navigate('/inventory');
     } catch {
       toast.error('Failed to add medicine.');
@@ -47,7 +96,6 @@ export function AddMedicine() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Back Navigation */}
       <button
         onClick={() => navigate('/inventory')}
         className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors mb-4"
@@ -56,7 +104,6 @@ export function AddMedicine() {
         <span>Back to Inventory</span>
       </button>
 
-      {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-slate-900">Add New Medicine</h2>
       </div>
@@ -79,25 +126,43 @@ export function AddMedicine() {
             )}
           </div>
 
-          {/* Unit + Dosage */}
+          {/* Expiry Date + Amount */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-sm font-medium text-slate-700">Unit</Label>
+              <Label className="text-sm font-medium text-slate-700">
+                Expiry Date <span className="text-red-500">*</span>
+              </Label>
               <Input
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                placeholder="e.g., tablet, ml"
-                className="mt-1.5 h-11"
+                type="date"
+                value={expiryDate}
+                onChange={(e) => { setExpiryDate(e.target.value); setExpiryError(''); }}
+                min={todayStr()}
+                className={`mt-1.5 h-11 ${expiryError ? 'border-red-500 focus-visible:ring-red-200' : ''}`}
               />
+              {expiryError ? (
+                <p className="text-xs text-red-500 mt-1">{expiryError}</p>
+              ) : (
+                <p className="text-[10px] text-slate-400 mt-1">Date this batch expires (on box/blister).</p>
+              )}
             </div>
             <div>
-              <Label className="text-sm font-medium text-slate-700">Dosage</Label>
+              <Label className="text-sm font-medium text-slate-700">
+                Amount of Medicine <span className="text-red-500">*</span>
+              </Label>
               <Input
-                value={dosage}
-                onChange={(e) => setDosage(e.target.value)}
-                placeholder="e.g., 500mg, 10ml"
-                className="mt-1.5 h-11"
+                type="number"
+                value={amount}
+                onChange={(e) => { setAmount(e.target.value); setAmountError(''); }}
+                placeholder="e.g. 100"
+                min={1}
+                step={1}
+                className={`mt-1.5 h-11 ${amountError ? 'border-red-500 focus-visible:ring-red-200' : ''}`}
               />
+              {amountError ? (
+                <p className="text-xs text-red-500 mt-1">{amountError}</p>
+              ) : (
+                <p className="text-[10px] text-slate-400 mt-1">Initial quantity to stock in (units).</p>
+              )}
             </div>
           </div>
 
@@ -151,9 +216,9 @@ export function AddMedicine() {
           <Button
             className="bg-teal-600 hover:bg-teal-700 gap-2 text-sm px-6"
             onClick={handleSubmit}
-            disabled={!name || nameExists || createMutation.isPending}
+            disabled={!name || nameExists || isPending}
           >
-            <Package2 size={14} /> Save Medicine
+            <Package2 size={14} /> {isPending ? 'Saving...' : 'Save Medicine'}
           </Button>
         </div>
       </Card>
