@@ -113,6 +113,18 @@ export function VisitsList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-1">
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">Visit Logs</h2>
+          <p className="text-slate-500 text-xs">Review and manage clinic visit records efficiently.</p>
+        </div>
+        <Button asChild className="bg-teal-600 hover:bg-teal-700 text-xs h-9 whitespace-nowrap sm:hidden">
+          <Link to="/visits/new"><Plus size={14} /> New Visit</Link>
+        </Button>
+      </div>
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div className="relative flex-1 max-w-md">
@@ -124,39 +136,41 @@ export function VisitsList() {
             className="pl-8 h-9 text-xs"
           />
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Select value={periodFilter} onValueChange={setPeriodFilter}>
-            <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Today">Today</SelectItem>
-              <SelectItem value="This Week">This Week</SelectItem>
-              <SelectItem value="This Month">This Month</SelectItem>
-              <SelectItem value="All Time">All Time</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All Types">All Types</SelectItem>
-              <SelectItem value="Student">Student</SelectItem>
-              <SelectItem value="Teacher">Teacher</SelectItem>
-              <SelectItem value="NTP">NTP</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={dispoFilter} onValueChange={setDispoFilter}>
-            <SelectTrigger className="w-[165px] h-9 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All Dispositions">All Dispositions</SelectItem>
-              <SelectItem value="Returned to Class">Returned to Class</SelectItem>
-              <SelectItem value="Returned to Work">Returned to Work</SelectItem>
-              <SelectItem value="Sent Home">Sent Home</SelectItem>
-              <SelectItem value="Sent to Hospital">Sent to Hospital</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto sm:justify-end sm:flex-nowrap">
+          <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+            <Select value={periodFilter} onValueChange={setPeriodFilter}>
+              <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Today">Today</SelectItem>
+                <SelectItem value="This Week">This Week</SelectItem>
+                <SelectItem value="This Month">This Month</SelectItem>
+                <SelectItem value="All Time">All Time</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All Types">All Types</SelectItem>
+                <SelectItem value="Student">Student</SelectItem>
+                <SelectItem value="Teacher">Teacher</SelectItem>
+                <SelectItem value="NTP">NTP</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={dispoFilter} onValueChange={setDispoFilter}>
+              <SelectTrigger className="w-[165px] h-9 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All Dispositions">All Dispositions</SelectItem>
+                <SelectItem value="Returned to Class">Returned to Class</SelectItem>
+                <SelectItem value="Returned to Work">Returned to Work</SelectItem>
+                <SelectItem value="Sent Home">Sent Home</SelectItem>
+                <SelectItem value="Sent to Hospital">Sent to Hospital</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button asChild className="bg-teal-600 hover:bg-teal-700 text-xs h-9 whitespace-nowrap">
+            <Link to="/visits/new"><Plus size={14} /> New Visit</Link>
+          </Button>
         </div>
-        <Button asChild className="bg-teal-600 hover:bg-teal-700 text-xs h-9 whitespace-nowrap">
-          <Link to="/visits/new"><Plus size={14} /> New Visit</Link>
-        </Button>
       </div>
 
       {/* Table */}
