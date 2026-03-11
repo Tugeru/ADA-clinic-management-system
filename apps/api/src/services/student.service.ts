@@ -59,5 +59,24 @@ export async function toggleArchiveStudent(id: string) {
 }
 
 export async function deleteStudent(id: string) {
-    return prisma.student.delete({ where: { id } })
+    return prisma.$transaction(async (tx) => {
+        const student = await tx.student.findUnique({ where: { id }, select: { id: true } })
+        if (!student) {
+            throw Object.assign(new Error('Student not found'), { status: 404 })
+        }
+
+        const visits = await tx.visit.findMany({ where: { studentId: id }, select: { id: true } })
+        const visitIds = visits.map((v) => v.id)
+
+        if (visitIds.length > 0) {
+            await tx.stockTransaction.updateMany({
+                where: { referenceVisitId: { in: visitIds } },
+                data: { referenceVisitId: null },
+            })
+
+            await tx.visit.deleteMany({ where: { id: { in: visitIds } } })
+        }
+
+        return tx.student.delete({ where: { id } })
+    })
 }

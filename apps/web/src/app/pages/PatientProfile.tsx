@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { ArrowLeft, Edit, Archive as ArchiveIcon, Plus, Search, Eye, AlertTriangle, Calendar, GraduationCap, Filter } from 'lucide-react';
+import { ArrowLeft, Edit, Archive as ArchiveIcon, Plus, Search, Eye, AlertTriangle, Calendar, GraduationCap, Filter, Trash2 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Skeleton } from '../components/ui/skeleton';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
-import { usePatient, usePatientVisits, useArchivePatient } from '../lib/hooks';
+import { usePatient, usePatientVisits, useArchivePatient, useDeletePatient } from '../lib/hooks';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { toast } from 'sonner';
 
 const STUDENT_AVATAR = 'https://images.unsplash.com/photo-1647934786533-f3c15896410b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMGFzaWFuJTIwbWFsZSUyMHN0dWRlbnQlMjBwb3J0cmFpdHxlbnwxfHx8fDE3NzIzMzI5NjV8MA&ixlib=rb-4.1.0&q=80&w=400';
 
@@ -18,10 +20,12 @@ export function PatientProfile() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'information' | 'visits'>('information');
   const [visitSearch, setVisitSearch] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: patient, isLoading } = usePatient(id || '');
   const { data: visitsData, isLoading: visitsLoading } = usePatientVisits(patient?.id || '', { search: visitSearch });
   const archiveMutation = useArchivePatient();
+  const deleteMutation = useDeletePatient();
 
   const visits = visitsData?.data || [];
   const totalVisits = visitsData?.total || 0;
@@ -50,6 +54,19 @@ export function PatientProfile() {
   const dobFormatted = patient.dateOfBirth
     ? new Date(patient.dateOfBirth).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '—';
+
+  const confirmDelete = async () => {
+    if (!patient?.id) return;
+    try {
+      await deleteMutation.mutateAsync(patient.id);
+      toast.success(`${patient.fullName} permanently deleted`);
+      navigate('/patients');
+    } catch {
+      toast.error('Failed to delete patient.');
+    } finally {
+      setShowDeleteConfirm(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -119,6 +136,14 @@ export function PatientProfile() {
             >
               <ArchiveIcon size={13} /> Archive
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs text-red-600 border-red-200 hover:bg-red-50"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <Trash2 size={13} /> Delete
+            </Button>
             <Button size="sm" className="gap-1.5 text-xs bg-teal-600 hover:bg-teal-700" asChild>
               <Link
                 to="/visits/new"
@@ -138,6 +163,31 @@ export function PatientProfile() {
           </div>
         </div>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Patient Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to permanently delete <span className="font-semibold text-slate-700">{patient.fullName}</span>.
+              This action <span className="font-semibold text-red-600">cannot be undone</span>.
+              <br /><br />
+              <span className="font-semibold text-red-600">This will also delete all visit records</span> under this patient profile.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Tabs */}
       <div className="border-b border-slate-200">

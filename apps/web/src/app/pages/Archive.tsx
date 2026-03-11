@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { Search, Download, RotateCcw, Trash2, Info, Archive as ArchiveIcon } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -8,8 +9,9 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
-import { useArchivedPatients, useArchivedMedicines, useRestorePatient, useRestoreMedicine } from '../lib/hooks';
+import { useArchivedPatients, useArchivedMedicines, useRestorePatient, useRestoreMedicine, useDeletePatient } from '../lib/hooks';
 import { toast } from 'sonner';
 
 type ArchiveTab = 'patients' | 'medicines';
@@ -69,9 +71,11 @@ function ArchivedPatientsTab() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [gradeFilter, setGradeFilter] = useState('All');
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; fullName: string } | null>(null);
 
   const { data, isLoading } = useArchivedPatients();
   const restoreMutation = useRestorePatient();
+  const deleteMutation = useDeletePatient();
   const allPatients = data?.data || [];
 
   const filtered = allPatients.filter((p: any) => {
@@ -86,13 +90,48 @@ function ArchivedPatientsTab() {
 
   return (
     <div className="space-y-4">
+      {/* Confirm Delete Dialog */}
+      <AlertDialog open={!!confirmDelete} onOpenChange={(open: boolean) => { if (!open) setConfirmDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Patient Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to permanently delete <span className="font-semibold text-slate-700">{confirmDelete?.fullName}</span>.
+              This action <span className="font-semibold text-red-600">cannot be undone</span>.
+              <br /><br />
+              <span className="font-semibold text-red-600">This will also delete all visit records</span> under this patient profile.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!confirmDelete) return;
+                try {
+                  await deleteMutation.mutateAsync(confirmDelete.id);
+                  toast.success(`${confirmDelete.fullName} permanently deleted`);
+                } catch {
+                  toast.error('Failed to delete patient.');
+                } finally {
+                  setConfirmDelete(null);
+                }
+              }}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
         <h3 className="text-xl font-bold text-slate-900">Archived Patients</h3>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <Input placeholder="Search by Name or ID" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-9 text-xs w-48" />
+            <Input placeholder="Search by Name or ID" value={search} onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)} className="pl-8 h-9 text-xs w-48" />
           </div>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue /></SelectTrigger>
@@ -107,7 +146,6 @@ function ArchivedPatientsTab() {
             <SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue placeholder="Department / Grade" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="All">Department / Grade</SelectItem>
-              <SelectItem value="Grade 10">Grade 10</SelectItem>
               <SelectItem value="Grade 11">Grade 11</SelectItem>
               <SelectItem value="Grade 12">Grade 12</SelectItem>
             </SelectContent>
@@ -184,8 +222,15 @@ function ArchivedPatientsTab() {
                           >
                             <RotateCcw size={13} className="text-slate-500" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete permanently" disabled>
-                            <Trash2 size={13} className="text-red-400 opacity-40" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            title="Delete permanently"
+                            disabled={deleteMutation.isPending}
+                            onClick={() => setConfirmDelete({ id: p.id, fullName: p.fullName })}
+                          >
+                            <Trash2 size={13} className="text-red-500" />
                           </Button>
                         </div>
                       </TableCell>
@@ -234,7 +279,7 @@ function ArchivedMedicinesTab() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 max-w-xs">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <Input placeholder="Search by medicine name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-9 text-xs" />
+          <Input placeholder="Search by medicine name..." value={search} onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)} className="pl-8 h-9 text-xs" />
         </div>
 
         {/* Info Banner */}

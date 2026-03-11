@@ -109,8 +109,14 @@ export function useDeletePatient() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => patientApi.delete(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: queryKeys.patients.all });
+      qc.invalidateQueries({ queryKey: queryKeys.archive.patients() });
+      qc.invalidateQueries({ queryKey: queryKeys.patients.detail(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.patients.visits(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.visits.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.kpis });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
     },
   });
 }

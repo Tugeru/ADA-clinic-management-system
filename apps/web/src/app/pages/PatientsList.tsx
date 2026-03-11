@@ -69,7 +69,7 @@ export function PatientsList() {
       await deleteMutation.mutateAsync(confirmDeleteId);
       toast.success(`${confirmDeleteName} permanently deleted`);
     } catch {
-      toast.error('Cannot delete — patient has visit records. Archive instead.');
+      toast.error('Failed to delete patient.');
     } finally {
       setConfirmDeleteId(null);
     }
@@ -84,9 +84,11 @@ export function PatientsList() {
             <AlertDialogTitle>Delete Patient Record?</AlertDialogTitle>
             <AlertDialogDescription>
               You are about to permanently delete <span className="font-semibold text-slate-700">{confirmDeleteName}</span>.
-              This action <span className="font-semibold text-red-600">cannot be undone</span>. All data for this patient will be removed.
+              This action <span className="font-semibold text-red-600">cannot be undone</span>.
               <br /><br />
-              If this patient has visit records, deletion will fail — use <span className="font-semibold">Archive</span> instead.
+              <span className="font-semibold text-red-600">This will also delete all visit records</span> under this patient profile.
+              <br /><br />
+              All related data for this patient will be removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
