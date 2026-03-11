@@ -201,7 +201,9 @@ export function useDispensableMedicines() {
   });
 }
 
-export function useStockMovements(params?: { period?: string; medicine?: string; type?: string }) {
+export function useStockMovements(params?: {
+  startDate?: string; endDate?: string; medicineId?: string; type?: string; page?: number; limit?: number;
+}) {
   return useQuery({
     queryKey: queryKeys.inventory.movements(params as any),
     queryFn: () => inventoryApi.getStockMovements(params),

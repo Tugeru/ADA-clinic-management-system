@@ -5,6 +5,22 @@ import * as svc from '../services/inventory.service.js'
 
 const router = Router()
 
+// ─── Stock movements ledger ────────────────────────────────────────────────────
+
+router.get('/movements', async (req, res, next) => {
+    try {
+        const { startDate, endDate, medicineId, type, page, limit } = req.query as Record<string, string | undefined>
+        res.json(await svc.listStockMovements({
+            startDate,
+            endDate,
+            medicineId,
+            type,
+            page: page ? Number(page) : undefined,
+            limit: limit ? Number(limit) : undefined,
+        }))
+    } catch (err) { next(err) }
+})
+
 // ─── Medicine catalog ──────────────────────────────────────────────────────────
 
 router.get('/', async (req, res, next) => {
