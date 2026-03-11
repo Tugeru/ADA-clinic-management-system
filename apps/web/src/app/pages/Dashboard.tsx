@@ -28,6 +28,14 @@ const kpiColors = [
   { icon: 'text-emerald-500', bg: 'bg-emerald-50' },
 ];
 
+function formatTime12h(time: string): string {
+  if (!time) return '';
+  // timeIn is stored as HH:MM for <input type="time"> compatibility; convert for display only
+  const dt = new Date(`1970-01-01T${time}:00`);
+  if (Number.isNaN(dt.getTime())) return time;
+  return dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
 export function Dashboard() {
   const { data: kpis, isLoading: kpiLoading } = useDashboardKPIs();
   const { data: recentVisits, isLoading: visitsLoading } = useRecentVisits();
@@ -150,7 +158,7 @@ export function Dashboard() {
                       <TableBody>
                         {recentVisits?.map((v) => (
                           <TableRow key={v.id} className="border-slate-50">
-                            <TableCell className="font-semibold text-slate-800 text-xs py-3">{v.timeIn}</TableCell>
+                            <TableCell className="font-semibold text-slate-800 text-xs py-3">{formatTime12h(v.timeIn)}</TableCell>
                             <TableCell className="py-3">
                               <div className="flex items-center gap-2">
                                 <Avatar className="h-6 w-6">
@@ -188,7 +196,7 @@ export function Dashboard() {
                           </Avatar>
                           <div className="min-w-0">
                             <p className="text-xs font-semibold text-slate-800 truncate">{v.patientName}</p>
-                            <p className="text-[10px] text-slate-400">{v.timeIn} &middot; {v.complaint.substring(0, 20)}...</p>
+                            <p className="text-[10px] text-slate-400">{formatTime12h(v.timeIn)} &middot; {v.complaint.substring(0, 20)}...</p>
                           </div>
                         </div>
                         <Badge variant="outline" className={cn("text-[8px] flex-shrink-0",
