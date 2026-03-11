@@ -105,6 +105,85 @@ export async function stockIn(data: StockInInput) {
     })
 }
 
+// ─── Stock movements ledger ────────────────────────────────────────────────────
+
+export async function listStockMovements(filters: {
+    startDate?: string
+    endDate?: string
+    medicineId?: string
+    type?: string
+    page?: number
+    limit?: number
+}) {
+    const page = filters.page ?? 1
+    const limit = Math.min(filters.limit ?? 20, 100)
+    const skip = (page - 1) * limit
+
+    const where: any = {}
+
+    if (filters.startDate || filters.endDate) {
+        where.createdAt = {}
+        if (filters.startDate) where.createdAt.gte = new Date(filters.startDate)
+        if (filters.endDate) {
+            const end = new Date(filters.endDate)
+            end.setHours(23, 59, 59, 999)
+            where.createdAt.lte = end
+        }
+    }
+
+    if (filters.medicineId) {
+        where.batch = { medicineId: filters.medicineId }
+    }
+
+    if (filters.type && filters.type !== 'ALL') {
+        where.txnType = filters.type
+    }
+
+    const [records, total] = await Promise.all([
+        prisma.stockTransaction.findMany({
+            where,
+            include: {
+                batch: {
+                    include: {
+                        medicine: { select: { id: true, name: true, purpose: true } },
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+        }),
+        prisma.stockTransaction.count({ where }),
+    ])
+
+    return {
+        data: records.map((r) => ({
+            id: r.id,
+            date: r.createdAt.toISOString(),
+            medicineId: r.batch.medicine.id,
+            medicineName: r.batch.medicine.name,
+            medicineSku: r.batch.medicine.id.slice(0, 8),
+            medicineType: r.batch.medicine.purpose ?? 'Medicine',
+            batchNumber: r.batch.batchNumber,
+            movementType: r.txnType,
+            qtyIn: r.txnType === 'IN' ? r.quantity : undefined,
+            qtyOut: r.txnType === 'OUT' ? r.quantity : undefined,
+            reference: r.txnType === 'ADJUST'
+                ? 'Adjustment'
+                : r.txnType === 'IN'
+                    ? 'Stock In'
+                    : 'Dispense',
+            notes: r.notes,
+            initials: 'CI',
+            initialsColor: 'bg-teal-100 text-teal-700',
+        })),
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+    }
+}
+
 export async function adjustStock(data: AdjustStockInput) {
     return prisma.$transaction(async (tx) => {
         const batch = await tx.inventoryBatch.update({

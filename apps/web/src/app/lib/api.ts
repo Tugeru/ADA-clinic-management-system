@@ -148,12 +148,11 @@ export const inventoryApi = {
     return mapMedicine(data);
   },
 
-  async getStockMovements(_params?: any): Promise<PaginatedResponse<StockMovement>> {
-    // Use reports/consumption as a proxy
-    const today = toDateStr(new Date());
-    const sixtyAgo = toDateStr(new Date(Date.now() - 60 * 86400000));
-    const { data } = await http.get('/reports/consumption', { params: { startDate: sixtyAgo, endDate: today } });
-    return { data: data.medicines ?? [], total: 0, page: 1, limit: 20, totalPages: 1 };
+  async getStockMovements(params?: {
+    startDate?: string; endDate?: string; medicineId?: string; type?: string; page?: number; limit?: number;
+  }): Promise<PaginatedResponse<StockMovement>> {
+    const { data } = await http.get('/medicines/movements', { params });
+    return data;
   },
 
   // M-2: get single medicine with batches

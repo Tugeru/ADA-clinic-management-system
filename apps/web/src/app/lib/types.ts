@@ -156,16 +156,18 @@ export interface Medicine {
 }
 
 export interface StockMovement {
-  id: number;
+  id: string;
   date: string;
-  medicineId: number;
+  medicineId: string;
   medicineName: string;
   medicineSku?: string;
   medicineType?: string;
+  batchNumber?: string | null;
   movementType: MovementType;
   qtyIn?: number;
   qtyOut?: number;
   reference: string;
+  notes?: string | null;
   initials: string;
   initialsColor: string;
 }
