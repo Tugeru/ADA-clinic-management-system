@@ -19,22 +19,42 @@ export const DispositionEnum = z.enum([
     'SENT_TO_HOSPITAL',
 ])
 
-export const LogVisitSchema = z.object({
-    studentId: z.string().uuid(),
-    timeIn: z.string().datetime(),
-    timeOut: z.string().datetime().optional(),
-    complaint: z.string().min(1, 'Complaint is required'),
-    actionTaken: z.string().min(1, 'Action taken is required'),
-    disposition: DispositionEnum.optional(),
-    remarks: z.string().optional(),
-    // Vital signs
-    temperature: z.string().optional(),
-    bloodPressure: z.string().optional(),
-    heartRate: z.string().optional(),
-    respiratoryRate: z.string().optional(),
-    medicines: z.array(DispensedMedicineSchema).optional(),
-    release: ReleaseInfoSchema.optional(),
-})
+export const LogVisitSchema = z
+    .object({
+        studentId: z.string().uuid(),
+        timeIn: z.string().datetime(),
+        timeOut: z.string().datetime().optional(),
+        complaint: z.string().min(1, 'Complaint is required'),
+        actionTaken: z.string().min(1, 'Action taken is required'),
+        disposition: DispositionEnum.optional(),
+        remarks: z.string().optional(),
+        // Vital signs
+        temperature: z.string().optional(),
+        bloodPressure: z.string().optional(),
+        heartRate: z.string().optional(),
+        respiratoryRate: z.string().optional(),
+        medicines: z.array(DispensedMedicineSchema).optional(),
+        release: ReleaseInfoSchema.optional(),
+    })
+    .refine(
+        (data) =>
+            !data.timeOut ||
+            new Date(data.timeOut).getTime() >= new Date(data.timeIn).getTime(),
+        {
+            path: ['timeOut'],
+            message: 'timeOut must be on or after timeIn',
+        }
+    )
+    .refine(
+        (data) =>
+            !data.release?.releaseTime ||
+            new Date(data.release.releaseTime).getTime() >=
+                new Date(data.timeIn).getTime(),
+        {
+            path: ['release', 'releaseTime'],
+            message: 'releaseTime must be on or after timeIn',
+        }
+    )
 
 export const UpdateVisitSchema = z.object({
     timeIn: z.string().datetime().optional(),
@@ -54,11 +74,22 @@ export const UpdateVisitSchema = z.object({
 export type LogVisitInput = z.infer<typeof LogVisitSchema>
 export type UpdateVisitInput = z.infer<typeof UpdateVisitSchema>
 
-export const VisitQuerySchema = z.object({
-    studentId: z.string().uuid('Invalid student ID format').optional(),
-    startDate: z.string().date('Invalid start date format').optional(),
-    endDate: z.string().date('Invalid end date format').optional(),
-    includeArchived: z.coerce.boolean().optional(),
-})
+export const VisitQuerySchema = z
+    .object({
+        studentId: z.string().uuid('Invalid student ID format').optional(),
+        startDate: z.string().date('Invalid start date format').optional(),
+        endDate: z.string().date('Invalid end date format').optional(),
+        includeArchived: z.coerce.boolean().optional(),
+    })
+    .refine(
+        (data) =>
+            !data.startDate ||
+            !data.endDate ||
+            data.startDate <= data.endDate,
+        {
+            path: ['endDate'],
+            message: 'endDate must be on or after startDate',
+        }
+    )
 
 export type VisitQueryInput = z.infer<typeof VisitQuerySchema>

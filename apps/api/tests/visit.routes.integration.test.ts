@@ -110,4 +110,23 @@ describe('POST /api/visits integration (FEFO multi-batch)', () => {
     expect(res.body).toMatchObject({ error: 'Insufficient stock for medicine aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' })
     expect(tx.inventoryBatch.update).not.toHaveBeenCalled()
   })
+
+  it('rejects visits where timeOut is before timeIn', async () => {
+    const app = makeApp()
+
+    const res = await request(app)
+      .post('/api/visits')
+      .send({
+        ...baseBody,
+        timeOut: '2026-03-10T07:00:00.000Z',
+      })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('Validation failed')
+    expect(res.body.details).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: 'timeOut' }),
+      ]),
+    )
+  })
 })

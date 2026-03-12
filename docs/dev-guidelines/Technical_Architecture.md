@@ -270,6 +270,7 @@ CREATE TABLE stock_transactions (
 ### Authentication
 - Require login for all protected routes.
 - Use JWT access tokens; apply expiry and rotation strategy as needed.
+- Expose `POST /api/auth/logout` for the frontend to end the current session; in the MVP this is a stateless endpoint that relies on the client discarding the JWT.
 
 ### Password hashing
 - Hash passwords using bcrypt.
