@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { patientApi, visitApi, inventoryApi, dashboardApi, analyticsApi, archiveApi, patientVisitsApi, clinicProfileApi, auditLogApi } from './api';
-import type { PatientFormData, VisitFormData, StockInFormData, MedicineFormData, ClinicProfile, AuditAction, AuditEntity, DashboardAnalyticsParams } from './types';
+import type { PatientFormData, VisitFormData, StockInFormData, MedicineFormData, ClinicProfile, AuditAction, AuditEntity } from './types';
 
 // ─── Query Keys ──────────────────────────────────────────────
 export const queryKeys = {
@@ -32,8 +32,7 @@ export const queryKeys = {
   dashboard: {
     kpis: ['dashboard', 'kpis'] as const,
     recentVisits: ['dashboard', 'recentVisits'] as const,
-    charts: (params?: DashboardAnalyticsParams) => ['dashboard', 'charts', params] as const,
-    chartsAll: ['dashboard', 'charts'] as const,
+    charts: ['dashboard', 'charts'] as const,
   },
   analytics: {
     usageRankings: (period?: string) => ['analytics', 'usageRankings', period] as const,
@@ -104,7 +103,6 @@ export function useArchivePatient() {
       qc.invalidateQueries({ queryKey: queryKeys.archive.patients() });
       qc.invalidateQueries({ queryKey: queryKeys.visits.all });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard.chartsAll });
     },
   });
 }
@@ -121,7 +119,6 @@ export function useDeletePatient() {
       qc.invalidateQueries({ queryKey: queryKeys.visits.all });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.kpis });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard.chartsAll });
     },
   });
 }
@@ -158,9 +155,8 @@ export function useCreateVisit() {
       qc.invalidateQueries({ queryKey: queryKeys.visits.all });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.kpis });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard.chartsAll });
+      // Bug 2 fix: also refresh patient profile visit history
       qc.invalidateQueries({ queryKey: ['patients', 'visits'] });
-      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
     },
   });
 }
@@ -173,7 +169,6 @@ export function useDeleteVisit() {
       qc.invalidateQueries({ queryKey: queryKeys.visits.all });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.kpis });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard.chartsAll });
       qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
     },
   });
@@ -188,7 +183,6 @@ export function useUpdateVisit() {
       qc.invalidateQueries({ queryKey: queryKeys.visits.all });
       qc.invalidateQueries({ queryKey: queryKeys.visits.detail(variables.id) });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard.chartsAll });
     },
   });
 }
@@ -304,10 +298,10 @@ export function useRecentVisits() {
   });
 }
 
-export function useDashboardCharts(params?: DashboardAnalyticsParams) {
+export function useDashboardCharts() {
   return useQuery({
-    queryKey: queryKeys.dashboard.charts(params),
-    queryFn: () => dashboardApi.getChartData(params),
+    queryKey: queryKeys.dashboard.charts,
+    queryFn: () => dashboardApi.getChartData(),
   });
 }
 
