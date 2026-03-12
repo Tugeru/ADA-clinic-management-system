@@ -149,11 +149,22 @@ export async function createVisit(userId: string, data: LogVisitInput) {
                 }
 
                 for (const allocation of allocations) {
-                    // Deduct stock
-                    await tx.inventoryBatch.update({
-                        where: { id: allocation.batchId },
+                    // Deduct stock with a guard against concurrent updates that
+                    // would drive quantityOnHand below zero.
+                    const result = await tx.inventoryBatch.updateMany({
+                        where: {
+                            id: allocation.batchId,
+                            quantityOnHand: { gte: allocation.quantity },
+                        },
                         data: { quantityOnHand: { decrement: allocation.quantity } },
                     })
+
+                    if (result.count === 0) {
+                        throw Object.assign(
+                            new Error('Concurrent stock update conflict. Please refresh and try again.'),
+                            { status: 409 }
+                        )
+                    }
 
                     // Record transaction
                     await tx.stockTransaction.create({

@@ -6,9 +6,9 @@ import { Badge } from '../components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Skeleton } from '../components/ui/skeleton';
 import { cn } from '../components/ui/utils';
-import { useUsageRankings, useConsumptionSummary } from '../lib/hooks';
+import { useUsageRankings, useConsumptionSummary, useDashboardKPIs, useLowStock } from '../lib/hooks';
 
-type AnalyticsView = 'usage' | 'consumption';
+type AnalyticsView = 'summary' | 'usage' | 'consumption';
 type TimePeriod = '7d' | '30d' | '90d' | 'custom';
 
 const periodLabels: Record<TimePeriod, string> = {
@@ -25,20 +25,29 @@ const rankBadgeColors: Record<number, string> = {
 };
 
 export function Analytics() {
-  const [view, setView] = useState<AnalyticsView>('usage');
+  const [view, setView] = useState<AnalyticsView>('summary');
   const [period, setPeriod] = useState<TimePeriod>('30d');
   const [consumptionPeriod, setConsumptionPeriod] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
   const { data: rankings, isLoading: rankingsLoading } = useUsageRankings(period);
   const { data: consumption, isLoading: consumptionLoading } = useConsumptionSummary(period);
+  const { data: kpis, isLoading: kpiLoading } = useDashboardKPIs();
+  const { data: lowStock, isLoading: lowStockLoading } = useLowStock();
 
   const totalDispensed = rankings?.reduce((sum, r) => sum + r.qtyDispensed, 0) || 0;
   const maxDispensed = rankings?.[0]?.qtyDispensed || 1;
 
   return (
     <div className="space-y-6">
-      {/* View Toggle */}
+      {/* Reports Tabs */}
       <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
+        <button
+          onClick={() => setView('summary')}
+          className={cn("text-sm font-medium pb-2 relative", view === 'summary' ? "text-teal-600" : "text-slate-500 hover:text-slate-700")}
+        >
+          Clinic Summary
+          {view === 'summary' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-600 rounded-full" />}
+        </button>
         <button
           onClick={() => setView('usage')}
           className={cn("text-sm font-medium pb-2 relative", view === 'usage' ? "text-teal-600" : "text-slate-500 hover:text-slate-700")}
@@ -55,7 +64,16 @@ export function Analytics() {
         </button>
       </div>
 
-      {view === 'usage' ? (
+      {view === 'summary' && (
+        <SummaryView
+          kpis={kpis || []}
+          lowStock={lowStock || []}
+          kpiLoading={kpiLoading}
+          lowStockLoading={lowStockLoading}
+        />
+      )}
+
+      {view === 'usage' && (
         <UsageRankingsView
           rankings={rankings || []}
           isLoading={rankingsLoading}
@@ -64,7 +82,9 @@ export function Analytics() {
           totalDispensed={totalDispensed}
           maxDispensed={maxDispensed}
         />
-      ) : (
+      )}
+
+      {view === 'consumption' && (
         <ConsumptionSummaryView
           consumption={consumption}
           isLoading={consumptionLoading}
@@ -72,6 +92,108 @@ export function Analytics() {
           onViewModeChange={setConsumptionPeriod}
         />
       )}
+    </div>
+  );
+}
+
+function SummaryView({
+  kpis,
+  lowStock,
+  kpiLoading,
+  lowStockLoading,
+}: {
+  kpis: any[];
+  lowStock: any[];
+  kpiLoading: boolean;
+  lowStockLoading: boolean;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Clinic Summary</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            High-level overview of clinic activity and critical inventory alerts.
+          </p>
+        </div>
+      </div>
+
+      {/* KPI Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpiLoading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="p-5">
+                <Skeleton className="h-14 w-full" />
+              </Card>
+            ))
+          : kpis?.map((kpi, idx) => (
+              <Card key={idx} className="p-5 flex flex-col gap-1.5">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                  {kpi.title}
+                </p>
+                <p className="text-2xl font-bold text-slate-800">{kpi.value}</p>
+                {kpi.subtitle && (
+                  <p className={cn("text-[11px]", kpi.subtitleColor)}>
+                    {kpi.subtitle}
+                  </p>
+                )}
+              </Card>
+            ))}
+      </div>
+
+      {/* Low Stock Table */}
+      <Card className="mt-2">
+        <div className="p-5 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-800">Low Stock & Expiring Medicines</h3>
+          <Badge variant="secondary" className="text-[10px]">
+            {lowStock?.length || 0} items
+          </Badge>
+        </div>
+        <div className="px-5 pb-5">
+          {lowStockLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : !lowStock?.length ? (
+            <p className="text-xs text-slate-400 text-center py-6">
+              No low-stock or expiring medicines detected.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50/80">
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">
+                    Medicine
+                  </TableHead>
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9 text-center">
+                    Stock
+                  </TableHead>
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9 text-center">
+                    Threshold
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lowStock.map((item: any) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="py-3 text-xs font-medium text-slate-800">
+                      {item.name}
+                    </TableCell>
+                    <TableCell className="text-center py-3 text-xs">
+                      {item.stock}
+                    </TableCell>
+                    <TableCell className="text-center py-3 text-xs">
+                      {item.threshold}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

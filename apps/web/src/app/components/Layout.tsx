@@ -164,7 +164,7 @@ export function Layout() {
                 <p className="text-muted-foreground font-normal">{user?.email}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => logout()} className="text-red-600 focus:text-red-600">
+              <DropdownMenuItem onClick={() => { void logout(); }} className="text-red-600 focus:text-red-600">
                 <LogOut size={14} />
                 Sign Out
               </DropdownMenuItem>

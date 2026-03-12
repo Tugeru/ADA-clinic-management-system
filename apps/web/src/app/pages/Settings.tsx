@@ -114,7 +114,7 @@ function AccountSecurityTab() {
 
   const handleSignOut = () => {
     setShowSignOutModal(false);
-    logout();
+    void logout();
     toast.success('Signed out successfully');
   };
 

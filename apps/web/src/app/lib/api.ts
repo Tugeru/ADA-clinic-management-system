@@ -15,6 +15,15 @@ export const authApi = {
     const { data } = await http.post('/auth/login', { email, password });
     return data as { token: string; user: { id: string; email: string; fullName: string } };
   },
+
+  async logout(): Promise<void> {
+    try {
+      await http.post('/auth/logout');
+    } catch {
+      // Swallow errors here; the caller is responsible for clearing local
+      // auth state so a failed network call does not block logout.
+    }
+  },
 };
 
 // ─── Patients / Students ────────────────────────────────────
