@@ -20,6 +20,7 @@ export function PatientProfile() {
   const [activeTab, setActiveTab] = useState<'information' | 'visits'>('information');
   const [visitSearch, setVisitSearch] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
 
   const { data: patient, isLoading } = usePatient(id || '');
   const { data: visitsData, isLoading: visitsLoading } = usePatientVisits(patient?.id || '', {
@@ -59,6 +60,19 @@ export function PatientProfile() {
 
   const initials = patient.fullName.split(',')[0]?.substring(0, 2).toUpperCase();
   const isArchived = patient.status === 'Archived';
+
+  const confirmArchive = async () => {
+    if (!patient?.id) return;
+    try {
+      await archiveMutation.mutateAsync(patient.id);
+      toast.success(`${patient.fullName} has been archived`);
+      navigate('/patients');
+    } catch {
+      toast.error('Failed to archive patient.');
+    } finally {
+      setShowArchiveConfirm(false);
+    }
+  };
 
   const confirmDelete = async () => {
     if (!patient?.id) return;
@@ -137,7 +151,7 @@ export function PatientProfile() {
                   variant="outline"
                   size="sm"
                   className="gap-1.5 text-xs text-red-600 border-red-200 hover:bg-red-50"
-                  onClick={() => archiveMutation.mutate(patient.id)}
+                  onClick={() => setShowArchiveConfirm(true)}
                 >
                   <ArchiveIcon size={13} /> Archive
                 </Button>
@@ -203,6 +217,29 @@ export function PatientProfile() {
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={showArchiveConfirm} onOpenChange={setShowArchiveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive Patient Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to archive <span className="font-semibold text-slate-700">{patient.fullName}</span>.
+              Archived records will no longer appear in the active patients list but can be restored later from the Archive page.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmArchive}
+              disabled={archiveMutation.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {archiveMutation.isPending ? 'Archiving...' : 'Yes, Archive'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
