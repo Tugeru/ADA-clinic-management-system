@@ -339,7 +339,7 @@ export function NewVisit() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Release Time</Label>
-                    <Input value={releaseTime} onChange={e => setReleaseTime(e.target.value)} placeholder="10:30 AM" className="h-9 text-xs" />
+                    <Input type="time" value={releaseTime} onChange={e => setReleaseTime(e.target.value)} className="h-9 text-xs" />
                   </div>
                 </div>
               </div>

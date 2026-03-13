@@ -7,17 +7,11 @@ import { ZodSchema, ZodError } from 'zod'
  */
 export function validate(schema: ZodSchema) {
     return (req: Request, res: Response, next: NextFunction): void => {
-        // #region agent log
-        fetch('http://127.0.0.1:7509/ingest/695587bf-59e9-44b5-a429-50833ad8f15a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1fe8af'},body:JSON.stringify({sessionId:'1fe8af',location:'validate.ts:entry',message:'validate incoming body',data:{url:req.originalUrl,method:req.method,body:req.body},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
-        // #endregion
         try {
             req.body = schema.parse(req.body)
             next()
         } catch (err) {
             if (err instanceof ZodError) {
-                // #region agent log
-                fetch('http://127.0.0.1:7509/ingest/695587bf-59e9-44b5-a429-50833ad8f15a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1fe8af'},body:JSON.stringify({sessionId:'1fe8af',location:'validate.ts:zodError',message:'Zod validation failed',data:{url:req.originalUrl,errors:err.errors,bodyKeys:Object.keys(req.body||{})},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
-                // #endregion
                 res.status(400).json({
                     error: 'Validation failed',
                     details: err.errors.map((e) => ({

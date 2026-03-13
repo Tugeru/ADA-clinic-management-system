@@ -78,11 +78,7 @@ export const visitApi = {
   },
 
   async create(payload: any): Promise<Visit> {
-    // #region agent log
-    const _dbg = visitPayload(payload);
-    fetch('http://127.0.0.1:7509/ingest/695587bf-59e9-44b5-a429-50833ad8f15a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1fe8af'},body:JSON.stringify({sessionId:'1fe8af',location:'api.ts:create',message:'visit payload sent to backend',data:{rawInput:payload,transformed:_dbg},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
-    const { data } = await http.post('/visits', _dbg);
-    // #endregion
+    const { data } = await http.post('/visits', visitPayload(payload));
     return mapVisit(data);
   },
 
