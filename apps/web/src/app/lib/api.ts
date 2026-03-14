@@ -179,7 +179,13 @@ export const inventoryApi = {
 
   // M-2: archive medicine (set isActive = false)
   async archiveMedicine(id: string): Promise<void> {
-    await http.patch(`/medicines/${id}`, { isActive: false });
+    // #region agent log
+    fetch('http://127.0.0.1:7509/ingest/695587bf-59e9-44b5-a429-50833ad8f15a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1fe8af'},body:JSON.stringify({sessionId:'1fe8af',location:'api.ts:archiveMedicine',message:'archive request sending',data:{id,payload:{isActive:false}},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
+    // #endregion
+    const resp = await http.patch(`/medicines/${id}`, { isActive: false });
+    // #region agent log
+    fetch('http://127.0.0.1:7509/ingest/695587bf-59e9-44b5-a429-50833ad8f15a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1fe8af'},body:JSON.stringify({sessionId:'1fe8af',location:'api.ts:archiveMedicine:response',message:'archive response received',data:{id,status:resp.status,responseIsActive:resp.data?.isActive},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
+    // #endregion
   },
 
   // M-2: permanently delete medicine
@@ -275,6 +281,9 @@ export const archiveApi = {
 
   async getArchivedMedicines(_params?: any): Promise<PaginatedResponse<any>> {
     const { data } = await http.get('/medicines', { params: { includeInactive: true } });
+    // #region agent log
+    fetch('http://127.0.0.1:7509/ingest/695587bf-59e9-44b5-a429-50833ad8f15a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1fe8af'},body:JSON.stringify({sessionId:'1fe8af',location:'api.ts:getArchivedMedicines',message:'raw medicines from backend',data:{total:Array.isArray(data)?data.length:(data.data??[]).length,sampleIsActive:(Array.isArray(data)?data:data.data??[]).slice(0,5).map((m:any)=>({id:m.id,name:m.name,isActive:m.isActive}))},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     const items: any[] = (Array.isArray(data) ? data : data.data ?? []).filter((m: any) => !m.isActive);
     const mapped = items.map((m: any) => {
       const totalStock = m.totalStock ?? m.batches?.reduce((s: number, b: any) => s + b.quantityOnHand, 0) ?? 0;

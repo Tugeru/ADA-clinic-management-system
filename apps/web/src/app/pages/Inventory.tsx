@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useInventory, useArchiveMedicine, useDeleteMedicine, useMedicine } from '../lib/hooks';
 import { ReduceStockDialog } from '../components/ReduceStockDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { useNavigate } from 'react-router';
 
 const statusStyles: Record<string, string> = {
@@ -30,6 +31,12 @@ export function Inventory() {
   // Reduce stock dialog state
   const [reduceId, setReduceId] = useState<string | null>(null);
 
+  // Confirmation modal state
+  const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
+  const [confirmArchiveName, setConfirmArchiveName] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteName, setConfirmDeleteName] = useState('');
+
   const totalItems = medicines?.length || 0;
   const lowStock = medicines?.filter(m => m.status === 'low').length || 0;
   const critical = medicines?.filter(m => m.status === 'critical').length || 0;
@@ -41,27 +48,88 @@ export function Inventory() {
     { label: 'Expiring Soon', value: '5', color: 'text-yellow-600' },
   ];
 
-  const handleArchive = async (id: string, name: string) => {
+  const handleArchive = (id: string, name: string) => {
+    setConfirmArchiveId(id);
+    setConfirmArchiveName(name);
+  };
+
+  const confirmArchive = async () => {
+    if (!confirmArchiveId) return;
     try {
-      await archiveMutation.mutateAsync(id);
-      toast.success(`${name} archived`);
+      await archiveMutation.mutateAsync(confirmArchiveId);
+      toast.success(`${confirmArchiveName} archived`);
     } catch {
       toast.error('Failed to archive medicine');
+    } finally {
+      setConfirmArchiveId(null);
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+  const handleDelete = (id: string, name: string) => {
+    setConfirmDeleteId(id);
+    setConfirmDeleteName(name);
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
     try {
-      await deleteMutation.mutateAsync(id);
-      toast.success(`${name} deleted`);
+      await deleteMutation.mutateAsync(confirmDeleteId);
+      toast.success(`${confirmDeleteName} deleted`);
     } catch {
       toast.error('Failed to delete medicine — it may have stock on hand');
+    } finally {
+      setConfirmDeleteId(null);
     }
   };
 
   return (
     <div className="space-y-5">
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={!!confirmArchiveId} onOpenChange={(open) => { if (!open) setConfirmArchiveId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive Medicine?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to archive <span className="font-semibold text-slate-700">{confirmArchiveName}</span>.
+              Archived medicines will no longer appear in the active inventory but can be restored later from the Archive page.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmArchive}
+              disabled={archiveMutation.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {archiveMutation.isPending ? 'Archiving...' : 'Yes, Archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Medicine?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to permanently delete <span className="font-semibold text-slate-700">{confirmDeleteName}</span>.
+              This action <span className="font-semibold text-red-600">cannot be undone</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-800">Medicine Inventory</h2>
