@@ -28,6 +28,23 @@ enum Disposition {
   SENT_TO_HOSPITAL
 }
 
+// ─── Reference Data ─────────────────────────────────────────────────────────
+// Lookup values for constrained fields (grades, strands, sections, school years).
+
+model ReferenceData {
+  id        String   @id @default(uuid()) @db.Uuid
+  category  String
+  value     String
+  label     String
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([category, value])
+  @@map("reference_data")
+}
+
 // ─── User ──────────────────────────────────────────────────────────────────────
 // Single-role: Clinic In-Charge. Handles authentication.
 
@@ -58,6 +75,7 @@ model Student {
   gradeLevel             String?   @map("grade_level")
   strand                 String?
   section                String?
+  schoolYear             String?   @map("school_year")
   // Teacher/NTP-specific
   department             String?
   position               String?

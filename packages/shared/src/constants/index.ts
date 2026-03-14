@@ -19,3 +19,14 @@ export const MAX_PAGE_SIZE = 100
 
 /** Expiration warning window (days before expiration) */
 export const EXPIRY_WARNING_DAYS = 30
+
+/** Reference data categories for constrained lookup fields */
+export const ReferenceCategory = {
+    GRADE_LEVEL: 'GRADE_LEVEL',
+    STRAND: 'STRAND',
+    SECTION: 'SECTION',
+    SCHOOL_YEAR: 'SCHOOL_YEAR',
+} as const
+
+export type ReferenceCategory =
+    (typeof ReferenceCategory)[keyof typeof ReferenceCategory]
