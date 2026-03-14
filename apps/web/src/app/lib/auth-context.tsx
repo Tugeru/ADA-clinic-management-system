@@ -4,6 +4,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { authApi } from './api';
+import { toast } from 'sonner';
 
 interface AuthUser {
   id: string;
@@ -43,10 +44,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ user, token, isAuthenticated: true });
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    setState({ user: null, token: null, isAuthenticated: false });
+  const logout = useCallback(async () => {
+    // Best-effort call to backend logout; UI state is cleared regardless.
+    try {
+      await authApi.logout();
+    } catch {
+      toast.error('Unable to reach server while signing out. Local session cleared.');
+    } finally {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      setState({ user: null, token: null, isAuthenticated: false });
+    }
   }, []);
 
   const hasRole = useCallback((_roles: string[]) => state.isAuthenticated, [state.isAuthenticated]);

@@ -15,7 +15,7 @@ type MockTx = {
   inventoryBatch: {
     findMany: ReturnType<typeof vi.fn>
     findUniqueOrThrow: ReturnType<typeof vi.fn>
-    update: ReturnType<typeof vi.fn>
+    updateMany: ReturnType<typeof vi.fn>
   }
   stockTransaction: { create: ReturnType<typeof vi.fn> }
   visitMedicine: { create: ReturnType<typeof vi.fn> }
@@ -28,7 +28,7 @@ function makeTx(): MockTx {
     inventoryBatch: {
       findMany: vi.fn(),
       findUniqueOrThrow: vi.fn(),
-      update: vi.fn().mockResolvedValue({}),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     stockTransaction: { create: vi.fn().mockResolvedValue({}) },
     visitMedicine: { create: vi.fn().mockResolvedValue({}) },
@@ -93,9 +93,9 @@ describe('visit.service FEFO multi-batch dispensing', () => {
       medicines: [{ medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', quantity: 5 }],
     })
 
-    expect(tx.inventoryBatch.update).toHaveBeenCalledTimes(1)
-    expect(tx.inventoryBatch.update).toHaveBeenCalledWith({
-      where: { id: 'b1' },
+    expect(tx.inventoryBatch.updateMany).toHaveBeenCalledTimes(1)
+    expect(tx.inventoryBatch.updateMany).toHaveBeenCalledWith({
+      where: { id: 'b1', quantityOnHand: { gte: 5 } },
       data: { quantityOnHand: { decrement: 5 } },
     })
     expect(tx.stockTransaction.create).toHaveBeenCalledTimes(1)
@@ -138,11 +138,11 @@ describe('visit.service FEFO multi-batch dispensing', () => {
       medicines: [{ medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', quantity: 12 }],
     })
 
-    expect(tx.inventoryBatch.update).toHaveBeenCalledTimes(3)
-    expect(tx.inventoryBatch.update.mock.calls).toEqual([
-      [{ where: { id: 'b1' }, data: { quantityOnHand: { decrement: 5 } } }],
-      [{ where: { id: 'b2' }, data: { quantityOnHand: { decrement: 4 } } }],
-      [{ where: { id: 'b3' }, data: { quantityOnHand: { decrement: 3 } } }],
+    expect(tx.inventoryBatch.updateMany).toHaveBeenCalledTimes(3)
+    expect(tx.inventoryBatch.updateMany.mock.calls).toEqual([
+      [{ where: { id: 'b1', quantityOnHand: { gte: 5 } }, data: { quantityOnHand: { decrement: 5 } } }],
+      [{ where: { id: 'b2', quantityOnHand: { gte: 4 } }, data: { quantityOnHand: { decrement: 4 } } }],
+      [{ where: { id: 'b3', quantityOnHand: { gte: 3 } }, data: { quantityOnHand: { decrement: 3 } } }],
     ])
     expect(tx.stockTransaction.create).toHaveBeenCalledTimes(3)
     expect(tx.visitMedicine.create).toHaveBeenCalledTimes(3)
@@ -165,9 +165,9 @@ describe('visit.service FEFO multi-batch dispensing', () => {
     })
 
     expect(tx.inventoryBatch.findMany).not.toHaveBeenCalled()
-    expect(tx.inventoryBatch.update).toHaveBeenCalledTimes(1)
-    expect(tx.inventoryBatch.update).toHaveBeenCalledWith({
-      where: { id: 'b2' },
+    expect(tx.inventoryBatch.updateMany).toHaveBeenCalledTimes(1)
+    expect(tx.inventoryBatch.updateMany).toHaveBeenCalledWith({
+      where: { id: 'b2', quantityOnHand: { gte: 3 } },
       data: { quantityOnHand: { decrement: 3 } },
     })
   })
@@ -193,7 +193,7 @@ describe('visit.service FEFO multi-batch dispensing', () => {
       message: 'Insufficient stock for batch b2',
     })
 
-    expect(tx.inventoryBatch.update).not.toHaveBeenCalled()
+    expect(tx.inventoryBatch.updateMany).not.toHaveBeenCalled()
     expect(tx.stockTransaction.create).not.toHaveBeenCalled()
     expect(tx.visitMedicine.create).not.toHaveBeenCalled()
   })
@@ -223,7 +223,7 @@ describe('visit.service FEFO multi-batch dispensing', () => {
       message: 'Batch b2 does not belong to medicine aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     })
 
-    expect(tx.inventoryBatch.update).not.toHaveBeenCalled()
+    expect(tx.inventoryBatch.updateMany).not.toHaveBeenCalled()
     expect(tx.stockTransaction.create).not.toHaveBeenCalled()
     expect(tx.visitMedicine.create).not.toHaveBeenCalled()
   })
@@ -258,5 +258,27 @@ describe('visit.service FEFO multi-batch dispensing', () => {
         referenceVisitId: 'visit-1',
       },
     })
+  })
+
+  it('throws 409 when a concurrent update prevents safe stock deduction', async () => {
+    const tx = makeTx()
+    tx.inventoryBatch.findMany.mockResolvedValue([
+      { id: 'b1', quantityOnHand: 3 },
+    ])
+    tx.inventoryBatch.updateMany.mockResolvedValueOnce({ count: 0 })
+    mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
+
+    await expect(
+      createVisit('22222222-2222-2222-2222-222222222222', {
+        ...basePayload,
+        medicines: [{ medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', quantity: 3 }],
+      })
+    ).rejects.toMatchObject({
+      status: 409,
+      message: 'Concurrent stock update conflict. Please refresh and try again.',
+    })
+
+    expect(tx.stockTransaction.create).not.toHaveBeenCalled()
+    expect(tx.visitMedicine.create).not.toHaveBeenCalled()
   })
 })

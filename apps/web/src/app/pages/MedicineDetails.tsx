@@ -9,6 +9,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
 import { Skeleton } from '../components/ui/skeleton';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
 import { useMedicine, useArchiveMedicine, useDeleteMedicine } from '../lib/hooks';
@@ -28,9 +29,10 @@ export function MedicineDetails() {
     const archiveMutation = useArchiveMedicine();
     const deleteMutation = useDeleteMedicine();
     const [showReduceDialog, setShowReduceDialog] = useState(false);
-    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-    const handleArchive = async () => {
+    const confirmArchive = async () => {
         if (!id) return;
         try {
             await archiveMutation.mutateAsync(id);
@@ -38,18 +40,21 @@ export function MedicineDetails() {
             navigate('/inventory');
         } catch {
             toast.error('Failed to archive medicine');
+        } finally {
+            setShowArchiveConfirm(false);
         }
     };
 
-    const handleDelete = async () => {
+    const confirmDelete = async () => {
         if (!id) return;
-        if (!confirmDelete) { setConfirmDelete(true); return; }
         try {
             await deleteMutation.mutateAsync(id);
             toast.success(`${med?.name} deleted`);
             navigate('/inventory');
         } catch {
             toast.error('Failed to delete medicine — it may have stock movements');
+        } finally {
+            setShowDeleteConfirm(false);
         }
     };
 
@@ -179,6 +184,52 @@ export function MedicineDetails() {
                 </CardContent>
             </Card>
 
+            {/* Archive Confirmation Dialog */}
+            <AlertDialog open={showArchiveConfirm} onOpenChange={setShowArchiveConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Archive Medicine?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You are about to archive <span className="font-semibold text-slate-700">{med?.name}</span>.
+                            Archived medicines will no longer appear in the active inventory but can be restored later from the Archive page.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmArchive}
+                            disabled={archiveMutation.isPending}
+                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                        >
+                            {archiveMutation.isPending ? 'Archiving...' : 'Yes, Archive'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Medicine?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You are about to permanently delete <span className="font-semibold text-slate-700">{med?.name}</span>.
+                            This action <span className="font-semibold text-red-600">cannot be undone</span>.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmDelete}
+                            disabled={deleteMutation.isPending}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Permanently'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Actions */}
             <Separator />
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -203,25 +254,17 @@ export function MedicineDetails() {
                         variant="outline"
                         size="sm"
                         className="text-xs gap-1.5 text-amber-600 border-amber-200 hover:bg-amber-50"
-                        onClick={handleArchive}
-                        disabled={archiveMutation.isPending}
+                        onClick={() => setShowArchiveConfirm(true)}
                     >
                         <Archive size={13} /> Archive
                     </Button>
                     <Button
                         variant="outline"
                         size="sm"
-                        className={cn(
-                            'text-xs gap-1.5',
-                            confirmDelete
-                                ? 'text-white bg-red-600 border-red-600 hover:bg-red-700'
-                                : 'text-red-600 border-red-200 hover:bg-red-50',
-                        )}
-                        onClick={handleDelete}
-                        disabled={deleteMutation.isPending}
+                        className="text-xs gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+                        onClick={() => setShowDeleteConfirm(true)}
                     >
-                        <Trash2 size={13} />
-                        {confirmDelete ? 'Confirm Delete' : 'Delete'}
+                        <Trash2 size={13} /> Delete
                     </Button>
                 </div>
             </div>

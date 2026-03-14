@@ -28,3 +28,11 @@ export async function loginUser(email: string, password: string) {
         user: { id: user.id, fullName: user.fullName, email: user.email },
     }
 }
+
+export async function logoutUser(userId: string, email: string) {
+    // JWT auth is stateless for the MVP; this hook exists so that
+    // future implementations can record audit events or token
+    // invalidation without changing route handlers.
+    void userId
+    void email
+}

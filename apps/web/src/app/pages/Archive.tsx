@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
-import { useArchivedPatients, useArchivedMedicines, useRestorePatient, useRestoreMedicine, useDeletePatient } from '../lib/hooks';
+import { useArchivedPatients, useArchivedMedicines, useRestorePatient, useRestoreMedicine, useDeletePatient, useDeleteMedicine } from '../lib/hooks';
 import { toast } from 'sonner';
 
 type ArchiveTab = 'patients' | 'medicines';
@@ -262,9 +262,11 @@ function ArchivedPatientsTab() {
 // ═══ MEDICINES TAB ═══════════════════════════════════════════
 function ArchivedMedicinesTab() {
   const [search, setSearch] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
 
   const { data, isLoading } = useArchivedMedicines();
   const restoreMutation = useRestoreMedicine();
+  const deleteMutation = useDeleteMedicine();
   const allMedicines: any[] = data?.data || [];
 
   const filtered = allMedicines.filter((m: any) => {
@@ -295,6 +297,39 @@ function ArchivedMedicinesTab() {
           Archived medicines remain visible in stock history reports for audit purposes.
         </div>
       </div>
+
+      {/* Confirm Delete Dialog */}
+      <AlertDialog open={!!confirmDelete} onOpenChange={(open: boolean) => { if (!open) setConfirmDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Medicine?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to permanently delete <span className="font-semibold text-slate-700">{confirmDelete?.name}</span>.
+              This action <span className="font-semibold text-red-600">cannot be undone</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!confirmDelete) return;
+                try {
+                  await deleteMutation.mutateAsync(confirmDelete.id);
+                  toast.success(`${confirmDelete.name} permanently deleted`);
+                } catch {
+                  toast.error('Failed to delete medicine — it may have stock movements.');
+                } finally {
+                  setConfirmDelete(null);
+                }
+              }}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Table */}
       <Card className="gap-0">
@@ -361,8 +396,15 @@ function ArchivedMedicinesTab() {
                         >
                           <RotateCcw size={13} className="text-slate-500" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete permanently" disabled>
-                          <Trash2 size={13} className="text-red-400 opacity-40" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="Delete permanently"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => setConfirmDelete({ id: m.id, name: m.name })}
+                        >
+                          <Trash2 size={13} className="text-red-500" />
                         </Button>
                       </div>
                     </TableCell>

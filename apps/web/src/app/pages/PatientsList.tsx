@@ -27,6 +27,8 @@ export function PatientsList() {
   const [statusFilter, setStatusFilter] = useState('Active');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteName, setConfirmDeleteName] = useState('');
+  const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
+  const [confirmArchiveName, setConfirmArchiveName] = useState('');
 
   const { data, isLoading } = usePatients({
     search,
@@ -49,12 +51,20 @@ export function PatientsList() {
     return true;
   });
 
-  const handleArchive = async (id: string, name: string) => {
+  const handleArchive = (id: string, name: string) => {
+    setConfirmArchiveId(id);
+    setConfirmArchiveName(name);
+  };
+
+  const confirmArchive = async () => {
+    if (!confirmArchiveId) return;
     try {
-      await archiveMutation.mutateAsync(id);
-      toast.success(`${name} archived`);
+      await archiveMutation.mutateAsync(confirmArchiveId);
+      toast.success(`${confirmArchiveName} archived`);
     } catch {
       toast.error('Failed to archive patient');
+    } finally {
+      setConfirmArchiveId(null);
     }
   };
 
@@ -102,6 +112,30 @@ export function PatientsList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Confirm Archive Dialog */}
+      <AlertDialog open={!!confirmArchiveId} onOpenChange={(open) => { if (!open) setConfirmArchiveId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive Patient Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to archive <span className="font-semibold text-slate-700">{confirmArchiveName}</span>.
+              Archived records will no longer appear in the active patients list but can be restored later from the Archive page.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmArchive}
+              disabled={archiveMutation.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {archiveMutation.isPending ? 'Archiving...' : 'Yes, Archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

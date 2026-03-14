@@ -7,7 +7,9 @@ export const CreateMedicineSchema = z.object({
     reorderThreshold: z.number().int().min(0).default(0),
 })
 
-export const UpdateMedicineSchema = CreateMedicineSchema.partial()
+export const UpdateMedicineSchema = CreateMedicineSchema.partial().extend({
+    isActive: z.boolean().optional(),
+})
 
 export const StockInSchema = z.object({
     medicineId: z.string().uuid(),

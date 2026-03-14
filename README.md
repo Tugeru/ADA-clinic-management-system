@@ -202,6 +202,7 @@ All routes except `POST /api/auth/login` require `Authorization: Bearer <token>`
 |---|---|---|---|---|
 | Health | GET | `/api/health` | ❌ | Server health check |
 | Auth | POST | `/api/auth/login` | ❌ | Login and receive JWT |
+| Auth | POST | `/api/auth/logout` | ✅ | Stateless logout (client discards JWT) |
 | Students | GET | `/api/students` | ✅ | List / search students |
 | Students | POST | `/api/students` | ✅ | Create student |
 | Students | GET | `/api/students/:id` | ✅ | Get student details |
@@ -214,8 +215,8 @@ All routes except `POST /api/auth/login` require `Authorization: Bearer <token>`
 | Inventory | GET | `/api/medicines` | ✅ | List medicines with stock totals |
 | Inventory | POST | `/api/medicines` | ✅ | Add medicine to catalog |
 | Inventory | PATCH | `/api/medicines/:id` | ✅ | Update medicine details |
-| Inventory | POST | `/api/inventory/stock-in` | ✅ | Add stock batch |
-| Inventory | POST | `/api/inventory/adjust` | ✅ | Adjust batch quantity |
+| Inventory | POST | `/api/inventory/stock-in` | ✅ | Add stock batch (transactional) |
+| Inventory | POST | `/api/inventory/adjust` | ✅ | Adjust batch quantity (transactional) |
 | Reports | GET | `/api/reports/clinic-summary` | ✅ | Visit summary by date range |
 | Reports | GET | `/api/reports/consumption` | ✅ | Medicine consumption by date range |
 | Reports | GET | `/api/reports/low-stock` | ✅ | Low-stock and expiring medicines |
@@ -282,7 +283,28 @@ In production, **always** set:
 pnpm --filter @ada/db exec prisma migrate deploy
 ```
 
-> ⚠️ **Frontend is not yet deployed.** The `apps/web` implementation is in progress.
+> ⚠️ In production, deploy the API and web app separately and point `VITE_API_BASE_URL` to the API URL.
+
+---
+
+## Testing
+
+### Backend (Vitest)
+
+The API includes unit, integration, and API-level end-to-end tests (visit FEFO allocation, stock rollback, inventory stock-in/adjust, reports, auth routes):
+
+```bash
+pnpm --filter @ada/api test
+```
+
+### Frontend E2E (Playwright)
+
+The React app has Playwright-based E2E tests that exercise login/logout, core clinic flows (add patient, log visit with medicines, inventory updates), and analytics/reports using mocked API responses:
+
+```bash
+cd apps/web
+pnpm test:e2e
+```
 
 ---
 

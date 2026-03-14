@@ -18,7 +18,7 @@ type MockTx = {
   inventoryBatch: {
     findMany: ReturnType<typeof vi.fn>
     findUniqueOrThrow: ReturnType<typeof vi.fn>
-    update: ReturnType<typeof vi.fn>
+    updateMany: ReturnType<typeof vi.fn>
   }
   stockTransaction: { create: ReturnType<typeof vi.fn> }
   visitMedicine: { create: ReturnType<typeof vi.fn> }
@@ -31,7 +31,7 @@ function makeTx(): MockTx {
     inventoryBatch: {
       findMany: vi.fn(),
       findUniqueOrThrow: vi.fn(),
-      update: vi.fn().mockResolvedValue({}),
+      updateMany: vi.fn().mockResolvedValue({ count: 3 }),
     },
     stockTransaction: { create: vi.fn().mockResolvedValue({}) },
     visitMedicine: { create: vi.fn().mockResolvedValue({}) },
@@ -85,7 +85,7 @@ describe('POST /api/visits integration (FEFO multi-batch)', () => {
     expect(res.status).toBe(201)
     expect(res.body).toMatchObject({ id: 'visit-1' })
 
-    expect(tx.inventoryBatch.update).toHaveBeenCalledTimes(3)
+    expect(tx.inventoryBatch.updateMany).toHaveBeenCalledTimes(3)
     expect(tx.stockTransaction.create).toHaveBeenCalledTimes(3)
     expect(tx.visitMedicine.create).toHaveBeenCalledTimes(3)
   })
@@ -108,6 +108,25 @@ describe('POST /api/visits integration (FEFO multi-batch)', () => {
 
     expect(res.status).toBe(400)
     expect(res.body).toMatchObject({ error: 'Insufficient stock for medicine aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' })
-    expect(tx.inventoryBatch.update).not.toHaveBeenCalled()
+    expect(tx.inventoryBatch.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('rejects visits where timeOut is before timeIn', async () => {
+    const app = makeApp()
+
+    const res = await request(app)
+      .post('/api/visits')
+      .send({
+        ...baseBody,
+        timeOut: '2026-03-10T07:00:00.000Z',
+      })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('Validation failed')
+    expect(res.body.details).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: 'timeOut' }),
+      ]),
+    )
   })
 })
