@@ -8,8 +8,9 @@ const router = Router()
 router.get('/', async (req, res, next) => {
     try {
         const category = req.query.category as string | undefined
+        const parentValue = req.query.parentValue as string | undefined
         if (category) {
-            res.json(await svc.listByCategory(category))
+            res.json(await svc.listByCategory(category, parentValue))
         } else {
             res.json(await svc.listAll())
         }

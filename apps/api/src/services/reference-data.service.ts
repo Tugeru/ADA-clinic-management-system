@@ -1,9 +1,9 @@
 import prisma from '../config/db.js'
 import type { CreateReferenceDataInput, UpdateReferenceDataInput } from '@ada/shared'
 
-export async function listByCategory(category: string) {
+export async function listByCategory(category: string, parentValue?: string) {
     return prisma.referenceData.findMany({
-        where: { category, isActive: true },
+        where: { category, isActive: true, ...(parentValue ? { parentValue } : {}) },
         orderBy: { sortOrder: 'asc' },
     })
 }
