@@ -21,7 +21,8 @@ export default defineConfig({
   assetsInclude: ['**/*.svg', '**/*.csv'],
 
   server: {
-    allowedHosts: ['.trycloudflare.com'],
+    host: true,
+    allowedHosts: ['.trycloudflare.com', '.ngrok-free.app', '.ngrok.io'],
     proxy: {
       '/api': 'http://localhost:3000',
     },
