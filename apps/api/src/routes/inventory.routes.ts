@@ -43,9 +43,6 @@ router.post('/', validate(CreateMedicineSchema), async (req, res, next) => {
 })
 
 router.patch('/:id', validate(UpdateMedicineSchema), async (req, res, next) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7509/ingest/695587bf-59e9-44b5-a429-50833ad8f15a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1fe8af'},body:JSON.stringify({sessionId:'1fe8af',location:'inventory.routes.ts:PATCH',message:'PATCH body after validation',data:{id:req.params.id,body:req.body},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     try { res.json(await svc.updateMedicine(req.params.id, req.body)) } catch (err) { next(err) }
 })
 
