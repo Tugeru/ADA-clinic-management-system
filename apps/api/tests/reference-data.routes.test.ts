@@ -9,7 +9,7 @@ const mockItems = [
 
 const mockSections = [
   { id: 'id-s1', category: 'SECTION', value: 'Masikhay', label: 'Masikhay', parentValue: 'Grade 11', sortOrder: 1, isActive: true },
-  { id: 'id-s2', category: 'SECTION', value: 'FAITH', label: 'FAITH', parentValue: 'Grade 12', sortOrder: 1, isActive: true },
+  { id: 'id-s2', category: 'SECTION', value: 'Faith', label: 'Faith', parentValue: 'Grade 12', sortOrder: 1, isActive: true },
 ]
 
 const listByCategory = vi.fn()

@@ -16,8 +16,8 @@ const SECTIONS_G11 = [
 ];
 
 const SECTIONS_G12 = [
-  { id: 'se-3', category: 'SECTION', value: 'FAITH', label: 'FAITH', parentValue: 'Grade 12', sortOrder: 1, isActive: true },
-  { id: 'se-4', category: 'SECTION', value: 'INTEGRITY', label: 'INTEGRITY', parentValue: 'Grade 12', sortOrder: 2, isActive: true },
+  { id: 'se-3', category: 'SECTION', value: 'Faith', label: 'Faith', parentValue: 'Grade 12', sortOrder: 1, isActive: true },
+  { id: 'se-4', category: 'SECTION', value: 'Integrity', label: 'Integrity', parentValue: 'Grade 12', sortOrder: 2, isActive: true },
 ];
 
 const SCHOOL_YEARS = [
@@ -94,7 +94,7 @@ function setupMockRoutes(page: any) {
             },
             {
               id: 'stu-2', fullName: 'Maria Santos', patientType: 'Student',
-              gradeLevel: 'Grade 12', strand: 'ABM', section: 'FAITH', schoolYear: '2025-2026',
+              gradeLevel: 'Grade 12', strand: 'ABM', section: 'Faith', schoolYear: '2025-2026',
               gender: 'Female', dateOfBirth: '2007-06-10', isArchived: false,
               createdAt: '2026-01-01', updatedAt: '2026-01-01',
             },

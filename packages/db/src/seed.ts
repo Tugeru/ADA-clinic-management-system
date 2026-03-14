@@ -21,7 +21,7 @@ const BATCHES = [
 
 const STUDENTS = [
   { fullName: 'Juan dela Cruz', gradeLevel: 'Grade 11', strand: 'STEM', section: 'Masikhay', schoolYear: '2025-2026', dateOfBirth: new Date('2007-03-15'), gender: 'Male' },
-  { fullName: 'Maria Santos', gradeLevel: 'Grade 12', strand: 'HUMSS', section: 'FAITH', schoolYear: '2025-2026', dateOfBirth: new Date('2006-08-22'), gender: 'Female' },
+  { fullName: 'Maria Santos', gradeLevel: 'Grade 12', strand: 'HUMSS', section: 'Faith', schoolYear: '2025-2026', dateOfBirth: new Date('2006-08-22'), gender: 'Female' },
   { fullName: 'Carlo Reyes', gradeLevel: 'Grade 11', strand: 'ABM', section: 'Matatag', schoolYear: '2025-2026', dateOfBirth: new Date('2007-11-05'), gender: 'Male' },
 ]
 
@@ -47,13 +47,13 @@ const REFERENCE_DATA = [
   { category: 'SECTION', value: 'Masidlak', label: 'Masidlak', parentValue: 'Grade 11', sortOrder: 7 },
   { category: 'SECTION', value: 'Sandiwa', label: 'Sandiwa', parentValue: 'Grade 11', sortOrder: 8 },
   // Sections — Grade 12
-  { category: 'SECTION', value: 'FAITH', label: 'FAITH', parentValue: 'Grade 12', sortOrder: 1 },
-  { category: 'SECTION', value: 'INTEGRITY', label: 'INTEGRITY', parentValue: 'Grade 12', sortOrder: 2 },
-  { category: 'SECTION', value: 'HOPE', label: 'HOPE', parentValue: 'Grade 12', sortOrder: 3 },
-  { category: 'SECTION', value: 'WISDOM', label: 'WISDOM', parentValue: 'Grade 12', sortOrder: 4 },
-  { category: 'SECTION', value: 'LOYALTY', label: 'LOYALTY', parentValue: 'Grade 12', sortOrder: 5 },
-  { category: 'SECTION', value: 'HUMILITY', label: 'HUMILITY', parentValue: 'Grade 12', sortOrder: 6 },
-  { category: 'SECTION', value: 'EMPATHY', label: 'EMPATHY', parentValue: 'Grade 12', sortOrder: 7 },
+  { category: 'SECTION', value: 'Faith', label: 'Faith', parentValue: 'Grade 12', sortOrder: 1 },
+  { category: 'SECTION', value: 'Integrity', label: 'Integrity', parentValue: 'Grade 12', sortOrder: 2 },
+  { category: 'SECTION', value: 'Hope', label: 'Hope', parentValue: 'Grade 12', sortOrder: 3 },
+  { category: 'SECTION', value: 'Wisdom', label: 'Wisdom', parentValue: 'Grade 12', sortOrder: 4 },
+  { category: 'SECTION', value: 'Loyalty', label: 'Loyalty', parentValue: 'Grade 12', sortOrder: 5 },
+  { category: 'SECTION', value: 'Humility', label: 'Humility', parentValue: 'Grade 12', sortOrder: 6 },
+  { category: 'SECTION', value: 'Empathy', label: 'Empathy', parentValue: 'Grade 12', sortOrder: 7 },
   // School Years
   { category: 'SCHOOL_YEAR', value: '2024-2025', label: '2024-2025', sortOrder: 1 },
   { category: 'SCHOOL_YEAR', value: '2025-2026', label: '2025-2026', sortOrder: 2 },
