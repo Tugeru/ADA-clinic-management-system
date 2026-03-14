@@ -334,6 +334,20 @@ export const referenceDataApi = {
     const { data } = await http.get('/reference-data', { params });
     return data as ReferenceDataItem[];
   },
+
+  async create(payload: { category: string; value: string; label: string; parentValue?: string; sortOrder?: number; isActive?: boolean }): Promise<ReferenceDataItem> {
+    const { data } = await http.post('/reference-data', payload);
+    return data as ReferenceDataItem;
+  },
+
+  async update(id: string, payload: Partial<{ value: string; label: string; parentValue?: string; sortOrder: number; isActive: boolean }>): Promise<ReferenceDataItem> {
+    const { data } = await http.patch(`/reference-data/${id}`, payload);
+    return data as ReferenceDataItem;
+  },
+
+  async remove(id: string): Promise<void> {
+    await http.delete(`/reference-data/${id}`);
+  },
 };
 
 // ─── Mappers ─────────────────────────────────────────────────

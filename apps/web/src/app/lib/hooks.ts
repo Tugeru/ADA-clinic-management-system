@@ -401,3 +401,35 @@ export function useReferenceData(category: string, parentValue?: string) {
     enabled: !!category,
   });
 }
+
+export function useCreateReferenceData() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { category: string; value: string; label: string; parentValue?: string; sortOrder?: number; isActive?: boolean }) =>
+      referenceDataApi.create(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['referenceData'] });
+    },
+  });
+}
+
+export function useUpdateReferenceData() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<{ value: string; label: string; parentValue?: string; sortOrder: number; isActive: boolean }> }) =>
+      referenceDataApi.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['referenceData'] });
+    },
+  });
+}
+
+export function useDeleteReferenceData() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => referenceDataApi.remove(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['referenceData'] });
+    },
+  });
+}
