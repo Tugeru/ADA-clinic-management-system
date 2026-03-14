@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import {
   Eye, EyeOff, LogOut, Monitor, Save, X, Download,
   ShieldCheck, Building2, ScrollText, ChevronLeft, ChevronRight,
-  Plus, Pencil, Archive, RotateCcw, PackagePlus, PackageMinus
+  Plus, Pencil, Archive, RotateCcw, PackagePlus, PackageMinus,
+  GraduationCap, Trash2, Check,
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -15,15 +16,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '../components/ui/dialog';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction
+} from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
 import { useAuth } from '../lib/auth-context';
-import { useClinicProfile, useUpdateClinicProfile, useAuditLog } from '../lib/hooks';
+import { useClinicProfile, useUpdateClinicProfile, useAuditLog, useReferenceData, useCreateReferenceData, useUpdateReferenceData, useDeleteReferenceData } from '../lib/hooks';
 import { toast } from 'sonner';
+import type { ReferenceDataItem } from '../lib/types';
 
 // ─── Tab definitions ─────────────────────────────────────────
 const tabs = [
   { id: 'account', label: 'Account & Security', icon: ShieldCheck },
   { id: 'clinic', label: 'Clinic Profile', icon: Building2 },
+  { id: 'reference', label: 'Academic Fields', icon: GraduationCap },
   { id: 'audit', label: 'Audit Log', icon: ScrollText },
 ] as const;
 
@@ -68,6 +74,7 @@ export function Settings() {
       {/* Tab Content */}
       {activeTab === 'account' && <AccountSecurityTab />}
       {activeTab === 'clinic' && <ClinicProfileTab />}
+      {activeTab === 'reference' && <ReferenceDataTab />}
       {activeTab === 'audit' && <AuditLogTab />}
     </div>
   );
@@ -444,7 +451,300 @@ function ClinicProfileTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 3) Audit Log Tab
+// 3) Reference Data Tab
+// ═══════════════════════════════════════════════════════════════
+const refCategories = [
+  { id: 'GRADE_LEVEL', label: 'Grade Levels', hasParent: false },
+  { id: 'STRAND', label: 'Strands', hasParent: false },
+  { id: 'SECTION', label: 'Sections', hasParent: true, parentCategory: 'GRADE_LEVEL', parentLabel: 'Grade Level' },
+  { id: 'SCHOOL_YEAR', label: 'School Years', hasParent: false },
+] as const;
+
+function ReferenceDataTab() {
+  const [activeCategory, setActiveCategory] = useState<string>('GRADE_LEVEL');
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-lg bg-teal-50 flex items-center justify-center">
+            <GraduationCap size={18} className="text-teal-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Academic Fields</h3>
+            <p className="text-xs text-slate-500">Manage the lookup values used in student registration and filters</p>
+          </div>
+        </div>
+
+        <div className="flex gap-1 border-b border-slate-200 overflow-x-auto">
+          {refCategories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className={cn(
+                'px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 -mb-px transition-colors',
+                activeCategory === cat.id
+                  ? 'border-teal-600 text-teal-700'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              )}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      <RefCategoryPanel
+        key={activeCategory}
+        category={activeCategory}
+        config={refCategories.find((c) => c.id === activeCategory)!}
+      />
+    </div>
+  );
+}
+
+function RefCategoryPanel({ category, config }: { category: string; config: typeof refCategories[number] }) {
+  const { data: items = [], isLoading } = useReferenceData(category);
+  const { data: parentItems = [] } = useReferenceData(
+    config.hasParent ? (config as any).parentCategory : '',
+  );
+  const createMutation = useCreateReferenceData();
+  const updateMutation = useUpdateReferenceData();
+  const deleteMutation = useDeleteReferenceData();
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [newValue, setNewValue] = useState('');
+  const [newLabel, setNewLabel] = useState('');
+  const [newParent, setNewParent] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [editSort, setEditSort] = useState(0);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteName, setDeleteName] = useState('');
+
+  const handleAdd = async () => {
+    if (!newValue.trim() || !newLabel.trim()) return;
+    if (config.hasParent && !newParent) {
+      toast.error(`Please select a ${(config as any).parentLabel}`);
+      return;
+    }
+    try {
+      await createMutation.mutateAsync({
+        category,
+        value: newValue.trim(),
+        label: newLabel.trim(),
+        parentValue: config.hasParent ? newParent : undefined,
+        sortOrder: items.length + 1,
+      });
+      setNewValue('');
+      setNewLabel('');
+      setNewParent('');
+      setShowAdd(false);
+      toast.success('Entry added');
+    } catch (err: any) {
+      const msg = err?.response?.data?.errors?.[0]?.message ?? err?.response?.data?.error ?? 'Failed to add entry';
+      toast.error(msg);
+    }
+  };
+
+  const handleStartEdit = (item: ReferenceDataItem) => {
+    setEditingId(item.id);
+    setEditLabel(item.label);
+    setEditSort(item.sortOrder);
+  };
+
+  const handleSaveEdit = async (item: ReferenceDataItem) => {
+    try {
+      await updateMutation.mutateAsync({
+        id: item.id,
+        data: { label: editLabel.trim(), sortOrder: editSort },
+      });
+      setEditingId(null);
+      toast.success('Entry updated');
+    } catch {
+      toast.error('Failed to update entry');
+    }
+  };
+
+  const handleToggleActive = async (item: ReferenceDataItem) => {
+    try {
+      await updateMutation.mutateAsync({
+        id: item.id,
+        data: { isActive: !item.isActive },
+      });
+      toast.success(item.isActive ? 'Entry deactivated' : 'Entry activated');
+    } catch {
+      toast.error('Failed to toggle status');
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteMutation.mutateAsync(deleteId);
+      toast.success(`${deleteName} deleted`);
+    } catch {
+      toast.error('Failed to delete entry');
+    } finally {
+      setDeleteId(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="p-5 space-y-3">
+        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Permanently delete <span className="font-semibold text-slate-700">{deleteName}</span>?
+              This cannot be undone. Existing patient records using this value will not be affected,
+              but it will no longer appear in dropdown options.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Card className="overflow-hidden">
+        <div className="px-4 py-3 border-b bg-slate-50/50 flex items-center justify-between">
+          <p className="text-xs text-slate-500">{items.length} entries</p>
+          <Button size="sm" className="h-7 text-xs bg-teal-600 hover:bg-teal-700 gap-1" onClick={() => setShowAdd(true)}>
+            <Plus size={12} /> Add Entry
+          </Button>
+        </div>
+
+        {showAdd && (
+          <div className="px-4 py-3 border-b bg-teal-50/30 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <Input
+                value={newValue}
+                onChange={(e) => { setNewValue(e.target.value); if (!editingId) setNewLabel(e.target.value); }}
+                placeholder="Value (stored)"
+                className="h-8 text-xs"
+              />
+              <Input
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                placeholder="Label (displayed)"
+                className="h-8 text-xs"
+              />
+              {config.hasParent ? (
+                <Select value={newParent} onValueChange={setNewParent}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder={(config as any).parentLabel} /></SelectTrigger>
+                  <SelectContent>
+                    {parentItems.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div />
+              )}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setShowAdd(false); setNewValue(''); setNewLabel(''); setNewParent(''); }}>
+                Cancel
+              </Button>
+              <Button size="sm" className="h-7 text-xs bg-teal-600 hover:bg-teal-700" onClick={handleAdd} disabled={createMutation.isPending}>
+                {createMutation.isPending ? 'Adding...' : 'Add'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-slate-50/80">
+              <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-8 pl-4">Value</TableHead>
+              <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-8">Label</TableHead>
+              {config.hasParent && (
+                <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-8">{(config as any).parentLabel}</TableHead>
+              )}
+              <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-8 w-16">Order</TableHead>
+              <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-8 w-20">Status</TableHead>
+              <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-8 text-right pr-4 w-28">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={config.hasParent ? 6 : 5} className="text-center py-8 text-xs text-slate-400">
+                  No entries yet. Click "Add Entry" to create one.
+                </TableCell>
+              </TableRow>
+            ) : (
+              items.map((item) => (
+                <TableRow key={item.id} className={cn(!item.isActive && 'opacity-50')}>
+                  <TableCell className="text-xs font-mono text-slate-700 pl-4 py-2">{item.value}</TableCell>
+                  <TableCell className="text-xs text-slate-600 py-2">
+                    {editingId === item.id ? (
+                      <Input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="h-7 text-xs w-full max-w-[180px]" />
+                    ) : item.label}
+                  </TableCell>
+                  {config.hasParent && (
+                    <TableCell className="text-xs text-slate-500 py-2">{item.parentValue || '--'}</TableCell>
+                  )}
+                  <TableCell className="text-xs text-slate-500 py-2">
+                    {editingId === item.id ? (
+                      <Input type="number" value={editSort} onChange={(e) => setEditSort(Number(e.target.value))} className="h-7 text-xs w-14" />
+                    ) : item.sortOrder}
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <button onClick={() => handleToggleActive(item)} className="cursor-pointer">
+                      <Badge variant="outline" className={cn("text-[9px]",
+                        item.isActive ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"
+                      )}>
+                        {item.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </button>
+                  </TableCell>
+                  <TableCell className="text-right pr-4 py-2">
+                    <div className="flex items-center justify-end gap-1">
+                      {editingId === item.id ? (
+                        <>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingId(null)}>
+                            <X size={12} />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-teal-600" onClick={() => handleSaveEdit(item)}>
+                            <Check size={12} />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleStartEdit(item)}>
+                            <Pencil size={11} />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-700" onClick={() => { setDeleteId(item.id); setDeleteName(item.label); }}>
+                            <Trash2 size={11} />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 4) Audit Log Tab
 // ═══════════════════════════════════════════════════════════════
 const actionTypes = ['All Actions', 'Create', 'Edit', 'Archive', 'Restore', 'Stock-in', 'Stock-out'];
 const entityTypes = ['All Entities', 'Patient', 'Visit', 'Medicine'];

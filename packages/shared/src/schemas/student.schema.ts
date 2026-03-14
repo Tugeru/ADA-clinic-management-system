@@ -8,6 +8,7 @@ export const CreateStudentSchema = z.object({
     gradeLevel: z.string().optional(),
     strand: z.string().optional(),
     section: z.string().optional(),
+    schoolYear: z.string().optional(),
     // Teacher/NTP-specific
     department: z.string().optional(),
     position: z.string().optional(),

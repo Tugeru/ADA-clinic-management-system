@@ -45,6 +45,7 @@ export interface Patient {
   gradeLevel?: string;
   section?: string;
   strand?: string;
+  schoolYear?: string;
 
   // Teacher/NTP-specific
   department?: string;
@@ -71,9 +72,22 @@ export interface PatientFormData {
   fullName: string;
   gradeLevel?: string;
   section?: string;
+  strand?: string;
+  schoolYear?: string;
   dateOfBirth?: string;
   gender?: string;
   knownMedicalConditions?: string;
+}
+
+// ─── Reference Data ─────────────────────────────────────────
+export interface ReferenceDataItem {
+  id: string;
+  category: string;
+  value: string;
+  label: string;
+  parentValue?: string | null;
+  sortOrder: number;
+  isActive: boolean;
 }
 
 // ─── Visit ───────────────────────────────────────────────────

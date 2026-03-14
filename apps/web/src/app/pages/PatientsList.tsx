@@ -13,7 +13,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { usePatients, useArchivePatient, useDeletePatient } from '../lib/hooks';
+import { usePatients, useArchivePatient, useDeletePatient, useReferenceData } from '../lib/hooks';
+import { Combobox } from '../components/ui/combobox';
 
 const typeColors: Record<string, string> = {
   Student: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -25,6 +26,10 @@ export function PatientsList() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [statusFilter, setStatusFilter] = useState('Active');
+  const [gradeFilter, setGradeFilter] = useState('');
+  const [strandFilter, setStrandFilter] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('');
+  const [schoolYearFilter, setSchoolYearFilter] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteName, setConfirmDeleteName] = useState('');
   const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
@@ -37,17 +42,33 @@ export function PatientsList() {
   const archiveMutation = useArchivePatient();
   const deleteMutation = useDeletePatient();
 
+  const { data: gradeLevels = [] } = useReferenceData('GRADE_LEVEL');
+  const { data: strands = [] } = useReferenceData('STRAND');
+  const { data: sections = [] } = useReferenceData('SECTION', gradeFilter || undefined);
+  const { data: schoolYears = [] } = useReferenceData('SCHOOL_YEAR');
+
+  const gradeOptions = gradeLevels.map((r) => ({ value: r.value, label: r.label }));
+  const strandOptions = strands.map((r) => ({ value: r.value, label: r.label }));
+  const sectionOptions = sections.map((r) => ({ value: r.value, label: r.label }));
+  const schoolYearOptions = schoolYears.map((r) => ({ value: r.value, label: r.label }));
+
+  const handleGradeFilterChange = (v: string) => {
+    setGradeFilter(v);
+    setSectionFilter('');
+  };
+
   const allPatients = data?.data || [];
 
   // ── Client-side filtering ──────────────────────────────────
   const patients = allPatients.filter((p) => {
-    // Search by name
     if (search && !p.fullName.toLowerCase().includes(search.toLowerCase())) return false;
-    // Type filter
     if (typeFilter !== 'All Types' && p.type !== typeFilter) return false;
-    // Status filter
     if (statusFilter === 'Active' && p.status !== 'Active') return false;
     if (statusFilter === 'Archived' && p.status !== 'Archived') return false;
+    if (gradeFilter && p.gradeLevel !== gradeFilter) return false;
+    if (strandFilter && p.strand !== strandFilter) return false;
+    if (sectionFilter && p.section !== sectionFilter) return false;
+    if (schoolYearFilter && p.schoolYear !== schoolYearFilter) return false;
     return true;
   });
 
@@ -149,34 +170,79 @@ export function PatientsList() {
 
       {/* Filters */}
       <Card className="p-4 gap-0">
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <Input
-              placeholder="Search by Name or ID number"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 h-9 text-xs"
-            />
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Search by Name or ID number"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 h-9 text-xs"
+              />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All Types">All Types</SelectItem>
+                  <SelectItem value="Student">Student</SelectItem>
+                  <SelectItem value="Teacher">Teacher</SelectItem>
+                  <SelectItem value="NTP">NTP</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px] h-9 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active Only</SelectItem>
+                  <SelectItem value="Archived">Archived Only</SelectItem>
+                  <SelectItem value="All Statuses">All Statuses</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All Types">All Types</SelectItem>
-                <SelectItem value="Student">Student</SelectItem>
-                <SelectItem value="Teacher">Teacher</SelectItem>
-                <SelectItem value="NTP">NTP</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px] h-9 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Active">Active Only</SelectItem>
-                <SelectItem value="Archived">Archived Only</SelectItem>
-                <SelectItem value="All Statuses">All Statuses</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="w-[140px]">
+              <Combobox
+                options={gradeOptions}
+                value={gradeFilter}
+                onValueChange={handleGradeFilterChange}
+                placeholder="Grade Level"
+                searchPlaceholder="Search grade..."
+                emptyMessage="No grades found."
+              />
+            </div>
+            <div className="w-[130px]">
+              <Combobox
+                options={strandOptions}
+                value={strandFilter}
+                onValueChange={setStrandFilter}
+                placeholder="Strand"
+                searchPlaceholder="Search strand..."
+                emptyMessage="No strands found."
+              />
+            </div>
+            <div className="w-[150px]">
+              <Combobox
+                options={sectionOptions}
+                value={sectionFilter}
+                onValueChange={setSectionFilter}
+                placeholder="Section"
+                searchPlaceholder="Search section..."
+                emptyMessage={gradeFilter ? "No sections found." : "Select a grade first."}
+                disabled={!gradeFilter}
+              />
+            </div>
+            <div className="w-[140px]">
+              <Combobox
+                options={schoolYearOptions}
+                value={schoolYearFilter}
+                onValueChange={setSchoolYearFilter}
+                placeholder="School Year"
+                searchPlaceholder="Search year..."
+                emptyMessage="No school years found."
+              />
+            </div>
           </div>
         </div>
       </Card>
@@ -197,7 +263,10 @@ export function PatientsList() {
                     <TableHead className="text-[10px] uppercase font-semibold text-slate-500 pl-6 h-9">ID Number</TableHead>
                     <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Full Name</TableHead>
                     <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Type</TableHead>
-                    <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Context</TableHead>
+                    <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Grade</TableHead>
+                    <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Strand</TableHead>
+                    <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Section</TableHead>
+                    <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">School Year</TableHead>
                     <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Status</TableHead>
                     <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9 text-right pr-6">Actions</TableHead>
                   </TableRow>
@@ -224,7 +293,22 @@ export function PatientsList() {
                           {p.type}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-slate-600 py-3">{p.context}</TableCell>
+                      {p.type === 'Student' ? (
+                        <>
+                          <TableCell className="text-xs text-slate-600 py-3">{p.gradeLevel || '--'}</TableCell>
+                          <TableCell className="text-xs text-slate-600 py-3">{p.strand || '--'}</TableCell>
+                          <TableCell className="text-xs text-slate-600 py-3">{p.section || '--'}</TableCell>
+                          <TableCell className="text-xs text-slate-600 py-3">{p.schoolYear || '--'}</TableCell>
+                        </>
+                      ) : (
+                        <>
+                          <TableCell colSpan={4} className="text-xs text-slate-600 py-3">
+                            {p.department || p.position
+                              ? [p.department, p.position].filter(Boolean).join(' · ')
+                              : '--'}
+                          </TableCell>
+                        </>
+                      )}
                       <TableCell className="py-3">
                         <Badge variant="outline" className={cn("text-[9px]",
                           p.status === 'Active' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"
@@ -286,8 +370,21 @@ export function PatientsList() {
                     </div>
                     <Badge variant="outline" className={cn("text-[9px]", typeColors[p.type])}>{p.type}</Badge>
                   </div>
+                  {p.type === 'Student' ? (
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+                      <div><span className="text-slate-400">Grade:</span> <span className="text-slate-600">{p.gradeLevel || '--'}</span></div>
+                      <div><span className="text-slate-400">Strand:</span> <span className="text-slate-600">{p.strand || '--'}</span></div>
+                      <div><span className="text-slate-400">Section:</span> <span className="text-slate-600">{p.section || '--'}</span></div>
+                      <div><span className="text-slate-400">SY:</span> <span className="text-slate-600">{p.schoolYear || '--'}</span></div>
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-slate-500">
+                      {p.department || p.position
+                        ? [p.department, p.position].filter(Boolean).join(' · ')
+                        : '--'}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-slate-500">{p.context}</span>
                     <Badge variant="outline" className={cn("text-[9px]",
                       p.status === 'Active' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"
                     )}>

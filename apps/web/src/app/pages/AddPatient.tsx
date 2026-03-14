@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router';
 import {
@@ -12,9 +12,10 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Separator } from '../components/ui/separator';
+import { Combobox } from '../components/ui/combobox';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { useCreatePatient, useUpdatePatient, usePatient } from '../lib/hooks';
+import { useCreatePatient, useUpdatePatient, usePatient, useReferenceData } from '../lib/hooks';
 
 type PatientType = 'Student' | 'Teacher' | 'Non-Teaching Personnel';
 
@@ -33,25 +34,43 @@ export function AddPatient() {
   const [patientType, setPatientType] = useState<PatientType>('Student');
   const [gradeLevel, setGradeLevel] = useState('');
   const [strand, setStrand] = useState('');
+  const [section, setSection] = useState('');
+  const [schoolYear, setSchoolYear] = useState('');
   const [gender, setGender] = useState('');
   const [contactRelationship, setContactRelationship] = useState('');
+
+  // Track whether grade change was user-initiated vs. edit prefill
+  const isEditPrefilling = useRef(false);
+
+  // Reference data for comboboxes
+  const { data: gradeLevels = [] } = useReferenceData('GRADE_LEVEL');
+  const { data: strands = [] } = useReferenceData('STRAND');
+  const { data: sections = [] } = useReferenceData('SECTION', gradeLevel || undefined);
+  const { data: schoolYears = [] } = useReferenceData('SCHOOL_YEAR');
+
+  const gradeLevelOptions = gradeLevels.map((r) => ({ value: r.value, label: r.label }));
+  const strandOptions = strands.map((r) => ({ value: r.value, label: r.label }));
+  const sectionOptions = sections.map((r) => ({ value: r.value, label: r.label }));
+  const schoolYearOptions = schoolYears.map((r) => ({ value: r.value, label: r.label }));
 
   // Fetch existing patient for edit prefill
   const { data: existingPatient } = usePatient(id ?? '');
 
   useEffect(() => {
     if (isEdit && existingPatient) {
+      isEditPrefilling.current = true;
       const ep = existingPatient as any;
       const type: PatientType = ep.type ?? ep.patientType ?? 'Student';
       setPatientType(type);
       setGradeLevel(ep.gradeLevel ?? '');
       setStrand(ep.strand ?? '');
+      setSection(ep.section ?? '');
+      setSchoolYear(ep.schoolYear ?? '');
       setGender(ep.gender ?? '');
       setContactRelationship(ep.contactRelationship ?? '');
       reset({
         fullName: ep.fullName,
         dateOfBirth: ep.dateOfBirth?.slice(0, 10) ?? '',
-        section: ep.section ?? '',
         department: ep.department ?? '',
         position: ep.position ?? '',
         knownMedicalConditions: ep.knownMedicalConditions ?? '',
@@ -60,6 +79,8 @@ export function AddPatient() {
       });
       if (ep.gradeLevel) setValue('gradeLevel', ep.gradeLevel);
       if (ep.gender) setValue('gender', ep.gender);
+      // Allow dependent clearing logic after prefill is done
+      requestAnimationFrame(() => { isEditPrefilling.current = false; });
     }
   }, [existingPatient, isEdit, reset, setValue]);
 
@@ -70,7 +91,8 @@ export function AddPatient() {
       // Student fields
       gradeLevel: gradeLevel || undefined,
       strand: strand || undefined,
-      section: data.section || undefined,
+      section: section || undefined,
+      schoolYear: schoolYear || undefined,
       // Teacher/NTP fields
       department: data.department || undefined,
       position: data.position || undefined,
@@ -117,7 +139,7 @@ export function AddPatient() {
           <button
             key={t}
             type="button"
-            onClick={() => { setPatientType(t); setGradeLevel(''); }}
+            onClick={() => { setPatientType(t); setGradeLevel(''); setStrand(''); setSection(''); setSchoolYear(''); }}
             className={cn(
               'px-4 py-2 rounded-lg text-xs font-semibold border transition-colors',
               patientType === t
@@ -181,29 +203,55 @@ export function AddPatient() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Grade Level</Label>
-                    <Select value={gradeLevel} onValueChange={(v) => { setGradeLevel(v); setValue('gradeLevel', v); }}>
-                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select Grade" /></SelectTrigger>
-                      <SelectContent>
-                        {['Grade 11', 'Grade 12'].map(g => (
-                          <SelectItem key={g} value={g}>{g}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={gradeLevelOptions}
+                      value={gradeLevel}
+                      onValueChange={(v) => {
+                        const changed = v !== gradeLevel;
+                        setGradeLevel(v);
+                        setValue('gradeLevel', v);
+                        if (changed && !isEditPrefilling.current) {
+                          setSection('');
+                        }
+                      }}
+                      placeholder="Select Grade"
+                      searchPlaceholder="Search grade..."
+                      emptyMessage="No grade levels found."
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Strand</Label>
-                    <Select value={strand} onValueChange={(v) => { setStrand(v); setValue('strand', v); }}>
-                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select Strand" /></SelectTrigger>
-                      <SelectContent>
-                        {['STEM', 'ABM', 'HUMSS', 'GAS', 'TVL', 'Sports', 'Arts & Design'].map(s => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={strandOptions}
+                      value={strand}
+                      onValueChange={(v) => { setStrand(v); setValue('strand', v); }}
+                      placeholder="Select Strand"
+                      searchPlaceholder="Search strand..."
+                      emptyMessage="No strands found."
+                    />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Section / Class</Label>
-                    <Input {...register('section')} placeholder="e.g. STEM-A" className="h-9 text-xs" />
+                    <Label className="text-xs">Section</Label>
+                    <Combobox
+                      options={sectionOptions}
+                      value={section}
+                      onValueChange={setSection}
+                      placeholder={gradeLevel ? "Select Section" : "Select a grade first"}
+                      searchPlaceholder="Search section..."
+                      emptyMessage="No sections found."
+                      disabled={!gradeLevel}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">School Year</Label>
+                    <Combobox
+                      options={schoolYearOptions}
+                      value={schoolYear}
+                      onValueChange={setSchoolYear}
+                      placeholder="Select School Year"
+                      searchPlaceholder="Search year..."
+                      emptyMessage="No school years found."
+                    />
                   </div>
                 </div>
               </section>

@@ -27,12 +27,12 @@ export async function createStudent(data: CreateStudentInput) {
             gradeLevel: data.gradeLevel,
             strand: data.strand,
             section: data.section,
+            schoolYear: data.schoolYear,
             department: data.department,
             position: data.position,
             dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
             gender: data.gender,
             knownMedicalConditions: data.knownMedicalConditions,
-            // P-4: Emergency contact
             contactName: data.contactName,
             contactRelationship: data.contactRelationship,
             contactNumber: data.contactNumber,

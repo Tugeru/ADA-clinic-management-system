@@ -20,9 +20,44 @@ const BATCHES = [
 ]
 
 const STUDENTS = [
-  { fullName: 'Juan dela Cruz', gradeLevel: 'Grade 11', section: 'STEM-A', dateOfBirth: new Date('2007-03-15'), gender: 'Male' },
-  { fullName: 'Maria Santos', gradeLevel: 'Grade 12', section: 'HUMSS-B', dateOfBirth: new Date('2006-08-22'), gender: 'Female' },
-  { fullName: 'Carlo Reyes', gradeLevel: 'Grade 11', section: 'ABM-A', dateOfBirth: new Date('2007-11-05'), gender: 'Male' },
+  { fullName: 'Juan dela Cruz', gradeLevel: 'Grade 11', strand: 'STEM', section: 'Masikhay', schoolYear: '2025-2026', dateOfBirth: new Date('2007-03-15'), gender: 'Male' },
+  { fullName: 'Maria Santos', gradeLevel: 'Grade 12', strand: 'HUMSS', section: 'Faith', schoolYear: '2025-2026', dateOfBirth: new Date('2006-08-22'), gender: 'Female' },
+  { fullName: 'Carlo Reyes', gradeLevel: 'Grade 11', strand: 'ABM', section: 'Matatag', schoolYear: '2025-2026', dateOfBirth: new Date('2007-11-05'), gender: 'Male' },
+]
+
+const REFERENCE_DATA = [
+  // Grade Levels (Senior High School only)
+  { category: 'GRADE_LEVEL', value: 'Grade 11', label: 'Grade 11', sortOrder: 1 },
+  { category: 'GRADE_LEVEL', value: 'Grade 12', label: 'Grade 12', sortOrder: 2 },
+  // Strands
+  { category: 'STRAND', value: 'STEM', label: 'STEM', sortOrder: 1 },
+  { category: 'STRAND', value: 'ABM', label: 'ABM', sortOrder: 2 },
+  { category: 'STRAND', value: 'HUMSS', label: 'HUMSS', sortOrder: 3 },
+  { category: 'STRAND', value: 'GAS', label: 'GAS', sortOrder: 4 },
+  { category: 'STRAND', value: 'TVL', label: 'TVL', sortOrder: 5 },
+  { category: 'STRAND', value: 'Sports', label: 'Sports', sortOrder: 6 },
+  { category: 'STRAND', value: 'Arts & Design', label: 'Arts & Design', sortOrder: 7 },
+  // Sections — Grade 11
+  { category: 'SECTION', value: 'Masikhay', label: 'Masikhay', parentValue: 'Grade 11', sortOrder: 1 },
+  { category: 'SECTION', value: 'Marangal', label: 'Marangal', parentValue: 'Grade 11', sortOrder: 2 },
+  { category: 'SECTION', value: 'Matatag', label: 'Matatag', parentValue: 'Grade 11', sortOrder: 3 },
+  { category: 'SECTION', value: 'Sandigan', label: 'Sandigan', parentValue: 'Grade 11', sortOrder: 4 },
+  { category: 'SECTION', value: 'Sinagtala', label: 'Sinagtala', parentValue: 'Grade 11', sortOrder: 5 },
+  { category: 'SECTION', value: 'Maragtas', label: 'Maragtas', parentValue: 'Grade 11', sortOrder: 6 },
+  { category: 'SECTION', value: 'Masidlak', label: 'Masidlak', parentValue: 'Grade 11', sortOrder: 7 },
+  { category: 'SECTION', value: 'Sandiwa', label: 'Sandiwa', parentValue: 'Grade 11', sortOrder: 8 },
+  // Sections — Grade 12
+  { category: 'SECTION', value: 'Faith', label: 'Faith', parentValue: 'Grade 12', sortOrder: 1 },
+  { category: 'SECTION', value: 'Integrity', label: 'Integrity', parentValue: 'Grade 12', sortOrder: 2 },
+  { category: 'SECTION', value: 'Hope', label: 'Hope', parentValue: 'Grade 12', sortOrder: 3 },
+  { category: 'SECTION', value: 'Wisdom', label: 'Wisdom', parentValue: 'Grade 12', sortOrder: 4 },
+  { category: 'SECTION', value: 'Loyalty', label: 'Loyalty', parentValue: 'Grade 12', sortOrder: 5 },
+  { category: 'SECTION', value: 'Humility', label: 'Humility', parentValue: 'Grade 12', sortOrder: 6 },
+  { category: 'SECTION', value: 'Empathy', label: 'Empathy', parentValue: 'Grade 12', sortOrder: 7 },
+  // School Years
+  { category: 'SCHOOL_YEAR', value: '2024-2025', label: '2024-2025', sortOrder: 1 },
+  { category: 'SCHOOL_YEAR', value: '2025-2026', label: '2025-2026', sortOrder: 2 },
+  { category: 'SCHOOL_YEAR', value: '2026-2027', label: '2026-2027', sortOrder: 3 },
 ]
 
 // ─── Seed function ─────────────────────────────────────────────────────────────
@@ -83,7 +118,25 @@ async function main() {
     console.log(`✅ Batch: ${inventoryBatch.batchNumber} → qty ${inventoryBatch.quantityOnHand}, exp ${inventoryBatch.expirationDate?.toISOString().slice(0, 10)}`)
   }
 
-  // SD-5: Seed students
+  // SD-5: Seed reference data (grade levels, strands, sections, school years)
+  const validValues = REFERENCE_DATA.map(r => `${r.category}::${r.value}`)
+  const existing = await prisma.referenceData.findMany()
+  for (const row of existing) {
+    if (!validValues.includes(`${row.category}::${row.value}`)) {
+      await prisma.referenceData.delete({ where: { id: row.id } })
+      console.log(`  🗑 Removed stale reference: ${row.category} / ${row.value}`)
+    }
+  }
+  for (const ref of REFERENCE_DATA) {
+    await prisma.referenceData.upsert({
+      where: { category_value: { category: ref.category, value: ref.value } },
+      update: { label: ref.label, sortOrder: ref.sortOrder, parentValue: (ref as any).parentValue ?? null },
+      create: ref,
+    })
+  }
+  console.log(`✅ Reference data: ${REFERENCE_DATA.length} entries seeded`)
+
+  // SD-6: Seed students
   for (const student of STUDENTS) {
     const existing = await prisma.student.findFirst({ where: { fullName: student.fullName } })
     const seeded = existing ?? await prisma.student.create({ data: student })

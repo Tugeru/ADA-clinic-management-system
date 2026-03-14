@@ -1,4 +1,8 @@
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { PlaywrightTestConfig } from '@playwright/test';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const config: PlaywrightTestConfig = {
   testDir: './tests/e2e',
