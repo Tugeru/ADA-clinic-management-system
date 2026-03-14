@@ -7,6 +7,7 @@ import type {
   Patient, Visit, Medicine, StockMovement,
   PaginatedResponse, KPI, MedicineUsageRanking,
   DashboardAnalyticsResponse, DashboardAnalyticsParams,
+  ReferenceDataItem,
 } from './types';
 
 // ─── Auth ───────────────────────────────────────────────────
@@ -325,6 +326,16 @@ export const auditLogApi = {
   },
 };
 
+// ─── Reference Data ──────────────────────────────────────────
+export const referenceDataApi = {
+  async listByCategory(category: string, parentValue?: string): Promise<ReferenceDataItem[]> {
+    const params: Record<string, string> = { category };
+    if (parentValue) params.parentValue = parentValue;
+    const { data } = await http.get('/reference-data', { params });
+    return data as ReferenceDataItem[];
+  },
+};
+
 // ─── Mappers ─────────────────────────────────────────────────
 function mapStudent(s: any): Patient {
   // P-3: compute age from dateOfBirth
@@ -346,6 +357,7 @@ function mapStudent(s: any): Patient {
     gradeLevel: s.gradeLevel ?? '',
     strand: s.strand ?? '',
     section: s.section ?? '',
+    schoolYear: s.schoolYear ?? '',
     status: s.isArchived ? 'Archived' : 'Active',
     context: s.patientType === 'Student'
       ? `${s.gradeLevel ?? ''} - ${s.section ?? ''}`.trim() || '--'
@@ -440,6 +452,7 @@ function studentPayload(p: any) {
     gradeLevel: p.gradeLevel || undefined,
     strand: p.strand || undefined,
     section: p.section || undefined,
+    schoolYear: p.schoolYear || undefined,
     department: p.department || undefined,
     position: p.position || undefined,
     dateOfBirth: p.dateOfBirth || undefined,

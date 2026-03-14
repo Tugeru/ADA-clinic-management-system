@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { patientApi, visitApi, inventoryApi, dashboardApi, analyticsApi, archiveApi, patientVisitsApi, clinicProfileApi, auditLogApi } from './api';
+import { patientApi, visitApi, inventoryApi, dashboardApi, analyticsApi, archiveApi, patientVisitsApi, clinicProfileApi, auditLogApi, referenceDataApi } from './api';
 import type { PatientFormData, VisitFormData, StockInFormData, MedicineFormData, ClinicProfile, AuditAction, AuditEntity } from './types';
 
 // ─── Query Keys ──────────────────────────────────────────────
@@ -46,6 +46,10 @@ export const queryKeys = {
   settings: {
     clinicProfile: ['settings', 'clinicProfile'] as const,
     auditLog: (params?: Record<string, any>) => ['settings', 'auditLog', params] as const,
+  },
+  referenceData: {
+    byCategory: (category: string, parentValue?: string) =>
+      ['referenceData', category, parentValue] as const,
   },
 };
 
@@ -386,5 +390,14 @@ export function useAuditLog(params?: { action?: string; entity?: string; page?: 
   return useQuery({
     queryKey: queryKeys.settings.auditLog(params),
     queryFn: () => auditLogApi.getAuditLog(params as any),
+  });
+}
+
+// ─── Reference Data Hooks ────────────────────────────────────
+export function useReferenceData(category: string, parentValue?: string) {
+  return useQuery({
+    queryKey: queryKeys.referenceData.byCategory(category, parentValue),
+    queryFn: () => referenceDataApi.listByCategory(category, parentValue),
+    enabled: !!category,
   });
 }
