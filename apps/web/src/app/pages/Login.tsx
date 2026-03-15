@@ -86,7 +86,7 @@ export function LoginPage() {
                         </div>
 
                         {error && (
-                            <div className="p-3 rounded-lg bg-red-900/40 border border-red-700 text-red-300 text-sm" data-testid="login-error">
+                            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm" data-testid="login-error">
                                 {error}
                             </div>
                         )}
