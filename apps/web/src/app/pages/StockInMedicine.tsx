@@ -16,7 +16,7 @@ export function StockInMedicine() {
 
   // medicineId stores the UUID string directly from medicine.id
   const [medicineId, setMedicineId] = useState('');
-  const [quantity, setQuantity] = useState('100');
+  const [quantity, setQuantity] = useState('1');
   const [batchNumber, setBatchNumber] = useState('');
   const [expirationDate, setExpirationDate] = useState('');
 
