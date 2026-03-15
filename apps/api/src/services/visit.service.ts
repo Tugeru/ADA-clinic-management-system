@@ -1,5 +1,6 @@
 import prisma from '../config/db.js'
 import type { LogVisitInput, UpdateVisitInput } from '@ada/shared'
+import type { BatchResult } from '@ada/shared'
 import { TransactionType } from '@ada/shared'
 
 type BatchAllocation = { batchId: string; quantity: number }
@@ -247,4 +248,23 @@ export async function deleteVisit(id: string) {
         // 4. Delete the visit itself
         return tx.visit.delete({ where: { id } })
     })
+}
+
+export async function deleteVisits(ids: string[]): Promise<BatchResult> {
+    const succeeded: string[] = []
+    const failed: { id: string; error: string }[] = []
+    for (const id of ids) {
+        try {
+            await deleteVisit(id)
+            succeeded.push(id)
+        } catch (err: any) {
+            const message = err?.message ?? 'Unknown error'
+            const status = err?.status
+            failed.push({
+                id,
+                error: status === 404 ? 'Visit not found' : message,
+            })
+        }
+    }
+    return { succeeded, failed }
 }

@@ -1,5 +1,6 @@
 import prisma from '../config/db.js'
 import { TransactionType, EXPIRY_WARNING_DAYS } from '@ada/shared'
+import type { BatchResult } from '@ada/shared'
 import type { CreateMedicineInput, UpdateMedicineInput, StockInInput, AdjustStockInput } from '@ada/shared'
 
 // ─── Medicine catalog ──────────────────────────────────────────────────────────
@@ -53,7 +54,16 @@ export async function deleteMedicine(id: string) {
     if (!medicine) {
         throw Object.assign(new Error('Medicine not found'), { status: 404 })
     }
-    return prisma.medicine.update({ where: { id }, data: { isActive: false } })
+    if (medicine.isActive) {
+        return prisma.medicine.update({ where: { id }, data: { isActive: false } })
+    }
+    // Already archived: permanent delete (used when deleting from Archive page)
+    return prisma.$transaction(async (tx) => {
+        await tx.stockTransaction.deleteMany({ where: { batch: { medicineId: id } } })
+        await tx.visitMedicine.deleteMany({ where: { medicineId: id } })
+        await tx.inventoryBatch.deleteMany({ where: { medicineId: id } })
+        await tx.medicine.delete({ where: { id } })
+    })
 }
 
 export async function restoreMedicine(id: string) {
@@ -62,6 +72,44 @@ export async function restoreMedicine(id: string) {
         throw Object.assign(new Error('Medicine not found'), { status: 404 })
     }
     return prisma.medicine.update({ where: { id }, data: { isActive: true } })
+}
+
+export async function restoreMedicines(ids: string[]): Promise<BatchResult> {
+    const succeeded: string[] = []
+    const failed: { id: string; error: string }[] = []
+    for (const id of ids) {
+        try {
+            await restoreMedicine(id)
+            succeeded.push(id)
+        } catch (err: any) {
+            const message = err?.message ?? 'Unknown error'
+            const status = err?.status
+            failed.push({
+                id,
+                error: status === 404 ? 'Medicine not found' : message,
+            })
+        }
+    }
+    return { succeeded, failed }
+}
+
+export async function deleteMedicines(ids: string[]): Promise<BatchResult> {
+    const succeeded: string[] = []
+    const failed: { id: string; error: string }[] = []
+    for (const id of ids) {
+        try {
+            await deleteMedicine(id)
+            succeeded.push(id)
+        } catch (err: any) {
+            const message = err?.message ?? 'Unknown error'
+            const status = err?.status
+            failed.push({
+                id,
+                error: status === 404 ? 'Medicine not found' : message,
+            })
+        }
+    }
+    return { succeeded, failed }
 }
 
 // ─── Stock operations ──────────────────────────────────────────────────────────

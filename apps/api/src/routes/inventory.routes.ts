@@ -1,9 +1,23 @@
 import { Router } from 'express'
 import { validate } from '../middlewares/validate.js'
-import { CreateMedicineSchema, UpdateMedicineSchema, StockInSchema, AdjustStockSchema } from '@ada/shared'
+import { CreateMedicineSchema, UpdateMedicineSchema, StockInSchema, AdjustStockSchema, BatchIdsSchema } from '@ada/shared'
 import * as svc from '../services/inventory.service.js'
 
 const router = Router()
+
+router.post('/bulk/restore', validate(BatchIdsSchema), async (req, res, next) => {
+    try {
+        const { ids } = req.body as { ids: string[] }
+        res.json(await svc.restoreMedicines(ids))
+    } catch (err) { next(err) }
+})
+
+router.post('/bulk/delete', validate(BatchIdsSchema), async (req, res, next) => {
+    try {
+        const { ids } = req.body as { ids: string[] }
+        res.json(await svc.deleteMedicines(ids))
+    } catch (err) { next(err) }
+})
 
 // ─── Stock movements ledger ────────────────────────────────────────────────────
 

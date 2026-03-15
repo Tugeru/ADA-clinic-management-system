@@ -11,10 +11,15 @@ import { Skeleton } from '../components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
+import { Checkbox } from '../components/ui/checkbox';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { useVisits, useDeleteVisit } from '../lib/hooks';
+import { useVisits, useDeleteVisit, useBulkDeleteVisits } from '../lib/hooks';
 import { format } from 'date-fns';
+import { useTableSelection } from '../hooks/useTableSelection';
+import { BulkActionsBar } from '../components/BulkActionsBar';
+import { BulkConfirmDialog } from '../components/BulkConfirmDialog';
+import { BulkPartialFailureDialog } from '../components/BulkPartialFailureDialog';
 
 const typeColors: Record<string, string> = {
   Student: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -42,9 +47,13 @@ export function VisitsList() {
   const [dispoFilter, setDispoFilter] = useState('All Dispositions');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteLabel, setConfirmDeleteLabel] = useState('');
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [partialFailureOpen, setPartialFailureOpen] = useState(false);
+  const [lastBulkResult, setLastBulkResult] = useState<{ succeeded: string[]; failed: { id: string; error: string }[] } | null>(null);
 
   const { data, isLoading } = useVisits({ search, type: typeFilter, period: periodFilter, disposition: dispoFilter });
   const deleteMutation = useDeleteVisit();
+  const bulkDeleteMutation = useBulkDeleteVisits();
   const allVisits = data?.data || [];
 
   // ── Client-side filtering ──────────────────────────────────
@@ -72,6 +81,35 @@ export function VisitsList() {
     }
     return true;
   });
+
+  const {
+    selectedIds: selectedIdsArray,
+    setSelectedIds,
+    isSelected,
+    toggle,
+    selectAll,
+    clearSelection,
+    selectedCount,
+  } = useTableSelection(visits, (v) => String(v.id));
+
+  const handleBulkDeleteConfirm = async () => {
+    if (selectedIdsArray.length === 0) return;
+    try {
+      const result = await bulkDeleteMutation.mutateAsync(selectedIdsArray);
+      setBulkDeleteOpen(false);
+      if (result.failed.length > 0) {
+        setLastBulkResult(result);
+        setPartialFailureOpen(true);
+        setSelectedIds(selectedIdsArray.filter((id) => !result.succeeded.includes(id)));
+        if (result.succeeded.length > 0) toast.success(`${result.succeeded.length} visit(s) deleted.`);
+      } else {
+        clearSelection();
+        toast.success(`${result.succeeded.length} visit(s) permanently deleted.`);
+      }
+    } catch {
+      toast.error('Failed to delete visits.');
+    }
+  };
 
   const handleDelete = (id: string, label: string) => {
     setConfirmDeleteId(id);
@@ -113,6 +151,32 @@ export function VisitsList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Delete confirmation */}
+      <BulkConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title="Permanently delete selected visits?"
+        description={
+          <>
+            You are about to permanently delete <span className="font-semibold text-slate-700">{selectedCount}</span> visit record(s).
+            This action <span className="font-semibold text-red-600">cannot be undone</span>. All dispensed medicine records linked to these visits will also be removed.
+          </>
+        }
+        confirmLabel="Yes, Delete Permanently"
+        onConfirm={handleBulkDeleteConfirm}
+        destructive
+        isLoading={bulkDeleteMutation.isPending}
+      />
+
+      {/* Partial failure */}
+      <BulkPartialFailureDialog
+        open={partialFailureOpen}
+        onOpenChange={(open) => { if (!open) { setPartialFailureOpen(false); setLastBulkResult(null); clearSelection(); } }}
+        title="Some visits could not be deleted"
+        summary={lastBulkResult ? `${lastBulkResult.failed.length} visit(s) could not be deleted.` : ''}
+        failed={lastBulkResult?.failed ?? []}
+      />
 
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-1">
@@ -173,6 +237,16 @@ export function VisitsList() {
         </div>
       </div>
 
+      {/* Bulk actions bar */}
+      {selectedCount > 0 && (
+        <BulkActionsBar
+          selectedCount={selectedCount}
+          selectionLabel="visits"
+          onClearSelection={clearSelection}
+          actions={[{ label: 'Delete', onClick: () => setBulkDeleteOpen(true), variant: 'destructive' as const }]}
+        />
+      )}
+
       {/* Table */}
       <Card className="gap-0">
         <div className="px-5 py-3 border-b flex items-center justify-between">
@@ -193,6 +267,13 @@ export function VisitsList() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/80">
+                    <TableHead className="w-10 pl-4 pr-0 h-9" scope="col">
+                      <Checkbox
+                        checked={visits.length > 0 && visits.every((v) => isSelected(String(v.id)))}
+                        onCheckedChange={() => (visits.every((v) => isSelected(String(v.id))) ? clearSelection() : selectAll())}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
                     <TableHead className="text-[10px] uppercase font-semibold text-slate-500 pl-5 h-9">Date</TableHead>
                     <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Time In</TableHead>
                     <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Patient</TableHead>
@@ -205,6 +286,13 @@ export function VisitsList() {
                 <TableBody>
                   {visits.map((v) => (
                     <TableRow key={v.id}>
+                      <TableCell className="w-10 pl-4 pr-0 py-3">
+                        <Checkbox
+                          checked={isSelected(String(v.id))}
+                          onCheckedChange={() => toggle(String(v.id))}
+                          aria-label={`Select visit ${v.patientName}`}
+                        />
+                      </TableCell>
                       <TableCell className="text-xs text-slate-600 pl-5 py-3">{format(new Date(v.date), 'MMM dd, yyyy')}</TableCell>
                       <TableCell className="font-mono text-[10px] text-slate-500 py-3">{v.timeIn}</TableCell>
                       <TableCell className="py-3">

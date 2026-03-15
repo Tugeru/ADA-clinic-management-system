@@ -1,5 +1,6 @@
 import prisma from '../config/db.js'
 import type { CreateStudentInput, UpdateStudentInput } from '@ada/shared'
+import type { BatchResult } from '@ada/shared'
 
 // Prisma client regenerated after add_strand_field migration
 
@@ -50,23 +51,103 @@ export async function updateStudent(id: string, data: UpdateStudentInput) {
     })
 }
 
-export async function toggleArchiveStudent(id: string) {
+/** Set student archived state and cascade to their visits. */
+async function setStudentArchived(id: string, archived: boolean) {
     return prisma.$transaction(async (tx) => {
-        const student = await tx.student.findUniqueOrThrow({ where: { id } })
-        const nextArchived = !student.isArchived
-
         const updated = await tx.student.update({
             where: { id },
-            data: { isArchived: nextArchived },
+            data: { isArchived: archived },
         })
-
         await tx.visit.updateMany({
             where: { studentId: id },
-            data: { isArchived: nextArchived } as any,
+            data: { isArchived: archived } as any,
         })
-
         return updated
     })
+}
+
+export async function toggleArchiveStudent(id: string) {
+    const student = await prisma.student.findUniqueOrThrow({ where: { id } })
+    return setStudentArchived(id, !student.isArchived)
+}
+
+export async function archiveStudents(ids: string[]): Promise<BatchResult> {
+    const succeeded: string[] = []
+    const failed: { id: string; error: string }[] = []
+    for (const id of ids) {
+        try {
+            await setStudentArchived(id, true)
+            succeeded.push(id)
+        } catch (err: any) {
+            const message = err?.message ?? 'Unknown error'
+            const status = err?.status
+            failed.push({
+                id,
+                error: status === 404 ? 'Student not found' : message,
+            })
+        }
+    }
+    return { succeeded, failed }
+}
+
+export async function restoreStudents(ids: string[]): Promise<BatchResult> {
+    const succeeded: string[] = []
+    const failed: { id: string; error: string }[] = []
+    for (const id of ids) {
+        try {
+            await setStudentArchived(id, false)
+            succeeded.push(id)
+        } catch (err: any) {
+            const message = err?.message ?? 'Unknown error'
+            const status = err?.status
+            failed.push({
+                id,
+                error: status === 404 ? 'Student not found' : message,
+            })
+        }
+    }
+    return { succeeded, failed }
+}
+
+export async function deleteStudents(ids: string[]): Promise<BatchResult> {
+    const succeeded: string[] = []
+    const failed: { id: string; error: string }[] = []
+    for (const id of ids) {
+        try {
+            await deleteStudent(id)
+            succeeded.push(id)
+        } catch (err: any) {
+            const message = err?.message ?? 'Unknown error'
+            const status = err?.status
+            failed.push({
+                id,
+                error: status === 404 ? 'Student not found' : message,
+            })
+        }
+    }
+    return { succeeded, failed }
+}
+
+export async function bulkUpdateSchoolYear(
+    ids: string[],
+    schoolYear: string
+): Promise<BatchResult> {
+    const succeeded: string[] = []
+    const failed: { id: string; error: string }[] = []
+    for (const id of ids) {
+        try {
+            await updateStudent(id, { schoolYear })
+            succeeded.push(id)
+        } catch (err: any) {
+            const message = err?.message ?? 'Unknown error'
+            const status = err?.status
+            failed.push({
+                id,
+                error: status === 404 ? 'Student not found' : message,
+            })
+        }
+    }
+    return { succeeded, failed }
 }
 
 export async function deleteStudent(id: string) {

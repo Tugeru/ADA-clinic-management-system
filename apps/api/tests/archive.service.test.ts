@@ -190,6 +190,31 @@ describe('Medicine inactive/restore service', () => {
     })
   })
 
+  it('deleteMedicine when already inactive permanently deletes the medicine', async () => {
+    db.medicine.findUnique.mockResolvedValue(inactiveMedicine)
+    const deleteManyStock = vi.fn().mockResolvedValue(undefined)
+    const deleteManyVisitMedicine = vi.fn().mockResolvedValue(undefined)
+    const deleteManyBatch = vi.fn().mockResolvedValue(undefined)
+    const deleteMedicineRow = vi.fn().mockResolvedValue(undefined)
+    db.$transaction.mockImplementation(async (fn: (tx: any) => Promise<any>) => {
+      const tx = {
+        stockTransaction: { deleteMany: deleteManyStock },
+        visitMedicine: { deleteMany: deleteManyVisitMedicine },
+        inventoryBatch: { deleteMany: deleteManyBatch },
+        medicine: { delete: deleteMedicineRow },
+      }
+      return fn(tx)
+    })
+
+    await deleteMedicine('m2')
+
+    expect(db.$transaction).toHaveBeenCalled()
+    expect(deleteManyStock).toHaveBeenCalledWith({ where: { batch: { medicineId: 'm2' } } })
+    expect(deleteManyVisitMedicine).toHaveBeenCalledWith({ where: { medicineId: 'm2' } })
+    expect(deleteManyBatch).toHaveBeenCalledWith({ where: { medicineId: 'm2' } })
+    expect(deleteMedicineRow).toHaveBeenCalledWith({ where: { id: 'm2' } })
+  })
+
   it('restoreMedicine sets isActive=true', async () => {
     db.medicine.findUnique.mockResolvedValue(inactiveMedicine)
     db.medicine.update.mockResolvedValue({ ...inactiveMedicine, isActive: true })
