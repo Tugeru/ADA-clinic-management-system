@@ -40,12 +40,13 @@ export function Inventory() {
   const totalItems = medicines?.length || 0;
   const lowStock = medicines?.filter(m => m.status === 'low').length || 0;
   const critical = medicines?.filter(m => m.status === 'critical').length || 0;
+  const expiringSoon = medicines?.filter(m => m.hasExpiringSoon).length ?? 0;
 
   const stats = [
     { label: 'Total Items', value: String(totalItems), color: 'text-slate-800' },
     { label: 'Low Stock', value: String(lowStock), color: 'text-orange-600' },
     { label: 'Critical', value: String(critical), color: 'text-red-600' },
-    { label: 'Expiring Soon', value: '5', color: 'text-yellow-600' },
+    { label: 'Expiring Soon', value: String(expiringSoon), color: 'text-yellow-600' },
   ];
 
   const handleArchive = (id: string, name: string) => {

@@ -164,6 +164,7 @@ export interface Medicine {
   status: InventoryStatus;
   supplier?: string;
   notes?: string;
+  hasExpiringSoon?: boolean;
   isArchived?: boolean;
   dateArchived?: string;
   archivedBy?: string;

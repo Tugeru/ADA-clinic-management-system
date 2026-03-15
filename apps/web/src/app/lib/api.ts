@@ -494,6 +494,7 @@ function mapMedicine(m: any): Medicine {
     expiry: m.batches?.[0]?.expirationDate?.slice(0, 10) ?? 'N/A',
     status: (m.isLowStock ? (m.totalStock === 0 ? 'critical' : 'low') : 'good') as any,
     notes: m.description,
+    hasExpiringSoon: m.hasExpiringSoon ?? false,
   } as any;
 }
 
