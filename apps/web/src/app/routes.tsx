@@ -18,6 +18,7 @@ import { MedicineDetails } from "./pages/MedicineDetails";
 import { Analytics } from "./pages/Analytics";
 import { Archive } from "./pages/Archive";
 import { Settings } from "./pages/Settings";
+import { EditMedicine } from "./pages/EditMedicine";
 
 export const router = createBrowserRouter([
     // Public route
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
             { path: "inventory/stock-in", Component: StockInMedicine },
             { path: "inventory/add-medicine", Component: AddMedicine },
             { path: "inventory/movements", Component: StockMovements },
+            { path: "inventory/:id/edit", Component: EditMedicine },
             { path: "inventory/:id", Component: MedicineDetails },
             { path: "analytics", Component: Analytics },
             { path: "archive", Component: Archive },

@@ -4,6 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { patientApi, visitApi, inventoryApi, dashboardApi, analyticsApi, archiveApi, patientVisitsApi, clinicProfileApi, auditLogApi, referenceDataApi } from './api';
+import type { MedicineType } from './types';
 import type { PatientFormData, VisitFormData, StockInFormData, MedicineFormData, ClinicProfile, AuditAction, AuditEntity } from './types';
 
 // ─── Query Keys ──────────────────────────────────────────────
@@ -323,6 +324,19 @@ export function useAdjustStock() {
       inventoryApi.adjustStock(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+    },
+  });
+}
+
+// Update a medicine's core details
+export function useUpdateMedicine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { id: string; data: { name?: string; notes?: string; threshold?: number; type?: MedicineType | '' } }) =>
+      inventoryApi.update(params.id, params.data),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.detail(variables.id) });
     },
   });
 }

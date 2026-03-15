@@ -7,7 +7,7 @@ import type {
   Patient, Visit, Medicine, StockMovement,
   PaginatedResponse, KPI, MedicineUsageRanking,
   DashboardAnalyticsResponse, DashboardAnalyticsParams,
-  ReferenceDataItem,
+  ReferenceDataItem, MedicineType,
 } from './types';
 
 // ─── Auth ───────────────────────────────────────────────────
@@ -204,6 +204,17 @@ export const inventoryApi = {
   // M-1: reduce stock by adjusting a specific batch
   async adjustStock(payload: { batchId: string; quantity: number; notes?: string }): Promise<void> {
     await http.post('/inventory/adjust', payload);
+  },
+
+  // Update an existing medicine's core details
+  async update(id: string, payload: { name?: string; notes?: string; threshold?: number; type?: MedicineType | '' }): Promise<Medicine> {
+    const { data } = await http.patch(`/medicines/${id}`, {
+      name: payload.name,
+      description: payload.notes,
+      reorderThreshold: typeof payload.threshold === 'number' ? payload.threshold : undefined,
+      purpose: payload.type || undefined,
+    });
+    return mapMedicine(data);
   },
 
   // M-2: archive medicine (set isActive = false)
@@ -488,6 +499,7 @@ function mapMedicine(m: any): Medicine {
     name: m.name,
     sku: m.id.slice(0, 8),
     category: m.purpose ?? 'General',
+    type: m.purpose ?? '',
     stock: m.totalStock ?? m.batches?.reduce((s: number, b: any) => s + b.quantityOnHand, 0) ?? 0,
     threshold: m.reorderThreshold ?? 0,
     unit: 'pcs',
