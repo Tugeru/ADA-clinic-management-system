@@ -14,11 +14,12 @@ http.interceptors.request.use((config) => {
     return config;
 });
 
-// On 401, clear token and redirect to login
+// On 401, clear token and redirect to login (except when 401 is from the login request itself)
 http.interceptors.response.use(
     (res) => res,
     (err) => {
-        if (err.response?.status === 401) {
+        const isLoginRequest = err.config?.url?.includes('/auth/login');
+        if (err.response?.status === 401 && !isLoginRequest) {
             localStorage.removeItem('ada_token');
             window.location.href = '/login';
         }
