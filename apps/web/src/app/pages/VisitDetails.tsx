@@ -178,7 +178,6 @@ export function VisitDetails() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-[10px] uppercase font-semibold text-slate-400 h-8">Medicine</TableHead>
-                      <TableHead className="text-[10px] uppercase font-semibold text-slate-400 h-8">Dosage</TableHead>
                       <TableHead className="text-[10px] uppercase font-semibold text-slate-400 h-8 text-right">Qty</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -186,7 +185,6 @@ export function VisitDetails() {
                     {visit.medicines.map((med, i) => (
                       <TableRow key={i}>
                         <TableCell className="text-xs font-medium text-slate-800 py-2.5">{med.name}</TableCell>
-                        <TableCell className="text-xs text-slate-600 py-2.5">{med.dosage || '—'}</TableCell>
                         <TableCell className="text-xs font-semibold text-slate-800 text-right py-2.5">{med.quantity}</TableCell>
                       </TableRow>
                     ))}
