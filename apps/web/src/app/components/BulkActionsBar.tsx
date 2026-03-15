@@ -20,14 +20,11 @@ export interface BulkActionsBarProps {
   actions: BulkAction[];
   onClearSelection?: () => void;
   className?: string;
-  /** Optional label for the selection, e.g. "patients", "visits" */
+
   selectionLabel?: string;
 }
 
-/**
- * Bar shown when rows are selected. Displays count and action buttons.
- * Layout aligned with existing filter bars (Card, flex, gap).
- */
+
 export function BulkActionsBar({
   selectedCount,
   actions,
