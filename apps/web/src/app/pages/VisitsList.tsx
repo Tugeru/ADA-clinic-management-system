@@ -128,6 +128,13 @@ export function VisitsList() {
     }
   };
 
+  const handleResetFilters = () => {
+    setSearch('');
+    setTypeFilter('All Types');
+    setPeriodFilter('All Time');
+    setDispoFilter('All Dispositions');
+  };
+
   return (
     <div className="space-y-5">
       {/* Confirm Delete Dialog */}
@@ -230,6 +237,16 @@ export function VisitsList() {
                 <SelectItem value="Sent to Hospital">Sent to Hospital</SelectItem>
               </SelectContent>
             </Select>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs"
+              onClick={handleResetFilters}
+              aria-label="Reset all filters"
+            >
+              Reset filters
+            </Button>
           </div>
           <Button asChild className="bg-teal-600 hover:bg-teal-700 text-xs h-9 whitespace-nowrap">
             <Link to="/visits/new"><Plus size={14} /> New Visit</Link>
