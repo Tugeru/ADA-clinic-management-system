@@ -25,7 +25,8 @@ export const LogVisitSchema = z
         timeIn: z.string().datetime(),
         timeOut: z.string().datetime().optional(),
         complaint: z.string().min(1, 'Complaint is required'),
-        actionTaken: z.string().min(1, 'Action taken is required'),
+        // Assessment & Intervention (actionTaken) is optional; allow empty string
+        actionTaken: z.string().optional(),
         disposition: DispositionEnum.optional(),
         remarks: z.string().optional(),
         // Vital signs
@@ -60,7 +61,7 @@ export const UpdateVisitSchema = z.object({
     timeIn: z.string().datetime().optional(),
     timeOut: z.string().datetime().optional(),
     complaint: z.string().min(1, 'Complaint is required').optional(),
-    actionTaken: z.string().min(1, 'Action taken is required').optional(),
+    actionTaken: z.string().optional(),
     disposition: DispositionEnum.optional(),
     remarks: z.string().optional(),
     // Vital signs

@@ -103,8 +103,8 @@ export function NewVisit() {
         timeIn: todayISO,            // ISO 8601 — satisfies z.string().datetime()
         timeOut: timeOutISO,
         complaint,
-        // actionTaken is required on backend — use assessment if filled, else reuse complaint
-        assessment: assessment.trim() || complaint,
+        // Assessment / Intervention is optional — send empty string when left blank
+        assessment: assessment.trim() || '',
         remarks,
         // Vital signs
         temperature: temp || undefined,
