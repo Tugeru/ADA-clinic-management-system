@@ -133,13 +133,16 @@ export async function createVisit(userId: string, data: LogVisitInput) {
                             { status: 400 }
                         )
                     }
-                    if (batch.quantityOnHand < med.quantity) {
-                        throw Object.assign(
-                            new Error(`Insufficient stock for batch ${med.batchId}`),
-                            { status: 400 }
+                    if (batch.quantityOnHand >= med.quantity) {
+                        allocations = [{ batchId: batch.id, quantity: med.quantity }]
+                    } else {
+                        // Fall back to FEFO when requested batch is depleted or has insufficient stock
+                        allocations = await allocateBatchesForMedicine(
+                            tx,
+                            med.medicineId,
+                            med.quantity
                         )
                     }
-                    allocations = [{ batchId: batch.id, quantity: med.quantity }]
                 } else {
                     // FEFO multi-batch allocation
                     allocations = await allocateBatchesForMedicine(
