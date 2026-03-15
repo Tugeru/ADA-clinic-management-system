@@ -104,12 +104,24 @@ export function MedicineDetails() {
                         <p className="text-xs text-slate-500">{med.category} · SKU: {med.sku}</p>
                     </div>
                 </div>
-                <Badge
-                    variant="outline"
-                    className={cn('text-[10px] font-bold', statusStyles[(med as any).status ?? 'good'])}
-                >
-                    {((med as any).status ?? 'good').toUpperCase()}
-                </Badge>
+                <div className="flex flex-col items-end gap-2">
+                    <Badge
+                        variant="outline"
+                        className={cn('text-[10px] font-bold', statusStyles[(med as any).status ?? 'good'])}
+                    >
+                        {((med as any).status ?? 'good').toUpperCase()}
+                    </Badge>
+                    {id && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-8"
+                            onClick={() => navigate(`/inventory/${id}/edit`)}
+                        >
+                            Edit medicine
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Stats row */}
