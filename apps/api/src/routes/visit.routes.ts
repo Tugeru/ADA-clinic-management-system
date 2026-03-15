@@ -1,9 +1,16 @@
 import { Router } from 'express'
 import { validate, validateQuery } from '../middlewares/validate.js'
-import { LogVisitSchema, UpdateVisitSchema, VisitQuerySchema } from '@ada/shared'
+import { LogVisitSchema, UpdateVisitSchema, VisitQuerySchema, BatchIdsSchema } from '@ada/shared'
 import * as svc from '../services/visit.service.js'
 
 const router = Router()
+
+router.post('/bulk/delete', validate(BatchIdsSchema), async (req, res, next) => {
+    try {
+        const { ids } = req.body as { ids: string[] }
+        res.json(await svc.deleteVisits(ids))
+    } catch (err) { next(err) }
+})
 
 router.get('/', validateQuery(VisitQuerySchema), async (req, res, next) => {
     try {

@@ -58,6 +58,29 @@ export const patientApi = {
     await http.delete(`/students/${id}`);
   },
 
+  async bulkArchive(ids: string[]): Promise<{ succeeded: string[]; failed: { id: string; error: string }[] }> {
+    const { data } = await http.post('/students/bulk/archive', { ids });
+    return data;
+  },
+
+  async bulkDelete(ids: string[]): Promise<{ succeeded: string[]; failed: { id: string; error: string }[] }> {
+    const { data } = await http.post('/students/bulk/delete', { ids });
+    return data;
+  },
+
+  async bulkRestore(ids: string[]): Promise<{ succeeded: string[]; failed: { id: string; error: string }[] }> {
+    const { data } = await http.post('/students/bulk/restore', { ids });
+    return data;
+  },
+
+  async bulkUpdateSchoolYear(
+    ids: string[],
+    schoolYear: string,
+  ): Promise<{ succeeded: string[]; failed: { id: string; error: string }[] }> {
+    const { data } = await http.patch('/students/bulk/school-year', { ids, schoolYear });
+    return data as { succeeded: string[]; failed: { id: string; error: string }[] };
+  },
+
   async search(query: string): Promise<Patient[]> {
     const { data } = await http.get('/students', { params: { search: query } });
     const items: any[] = Array.isArray(data) ? data : data.data ?? [];
@@ -107,6 +130,11 @@ export const visitApi = {
 
   async delete(id: string): Promise<void> {
     await http.delete(`/visits/${id}`);
+  },
+
+  async bulkDelete(ids: string[]): Promise<{ succeeded: string[]; failed: { id: string; error: string }[] }> {
+    const { data } = await http.post('/visits/bulk/delete', { ids });
+    return data;
   },
 };
 
@@ -186,6 +214,16 @@ export const inventoryApi = {
   // M-2: permanently delete medicine
   async deleteMedicine(id: string): Promise<void> {
     await http.delete(`/medicines/${id}`);
+  },
+
+  async bulkRestore(ids: string[]): Promise<{ succeeded: string[]; failed: { id: string; error: string }[] }> {
+    const { data } = await http.post('/medicines/bulk/restore', { ids });
+    return data;
+  },
+
+  async bulkDelete(ids: string[]): Promise<{ succeeded: string[]; failed: { id: string; error: string }[] }> {
+    const { data } = await http.post('/medicines/bulk/delete', { ids });
+    return data;
   },
 };
 

@@ -172,30 +172,70 @@ describe('visit.service FEFO multi-batch dispensing', () => {
     })
   })
 
-  it('throws 400 for explicit batch when requested quantity exceeds that batch stock', async () => {
+  it('falls back to FEFO when explicit batch is depleted and another batch has stock', async () => {
     const tx = makeTx()
-    tx.inventoryBatch.findUniqueOrThrow.mockResolvedValue({ id: 'b2', medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', quantityOnHand: 2 })
+    // Requested batch b1 is depleted (0); b2 has stock
+    tx.inventoryBatch.findUniqueOrThrow.mockResolvedValue({
+      id: 'b1',
+      medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      quantityOnHand: 0,
+    })
+    tx.inventoryBatch.findMany.mockResolvedValue([
+      { id: 'b2', quantityOnHand: 10 },
+    ])
     mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
 
-    await expect(
-      createVisit('22222222-2222-2222-2222-222222222222', {
-        ...basePayload,
-        medicines: [
-          {
-            medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-            batchId: 'b2',
-            quantity: 3,
-          },
-        ],
-      })
-    ).rejects.toMatchObject({
-      status: 400,
-      message: 'Insufficient stock for batch b2',
+    await createVisit('22222222-2222-2222-2222-222222222222', {
+      ...basePayload,
+      medicines: [
+        {
+          medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          batchId: 'b1',
+          quantity: 3,
+        },
+      ],
     })
 
-    expect(tx.inventoryBatch.updateMany).not.toHaveBeenCalled()
-    expect(tx.stockTransaction.create).not.toHaveBeenCalled()
-    expect(tx.visitMedicine.create).not.toHaveBeenCalled()
+    expect(tx.inventoryBatch.findMany).toHaveBeenCalledWith({
+      where: { medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', quantityOnHand: { gt: 0 } },
+      orderBy: [{ expirationDate: 'asc' }, { createdAt: 'asc' }],
+    })
+    expect(tx.inventoryBatch.updateMany).toHaveBeenCalledTimes(1)
+    expect(tx.inventoryBatch.updateMany).toHaveBeenCalledWith({
+      where: { id: 'b2', quantityOnHand: { gte: 3 } },
+      data: { quantityOnHand: { decrement: 3 } },
+    })
+    expect(tx.stockTransaction.create).toHaveBeenCalledTimes(1)
+    expect(tx.visitMedicine.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to FEFO when explicit batch has insufficient (non-zero) stock', async () => {
+    const tx = makeTx()
+    tx.inventoryBatch.findUniqueOrThrow.mockResolvedValue({
+      id: 'b2',
+      medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      quantityOnHand: 2,
+    })
+    tx.inventoryBatch.findMany.mockResolvedValue([
+      { id: 'b2', quantityOnHand: 2 },
+      { id: 'b3', quantityOnHand: 10 },
+    ])
+    mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
+
+    await createVisit('22222222-2222-2222-2222-222222222222', {
+      ...basePayload,
+      medicines: [
+        {
+          medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          batchId: 'b2',
+          quantity: 5,
+        },
+      ],
+    })
+
+    expect(tx.inventoryBatch.findMany).toHaveBeenCalled()
+    expect(tx.inventoryBatch.updateMany).toHaveBeenCalledTimes(2)
+    expect(tx.visitMedicine.create).toHaveBeenCalledTimes(2)
   })
 
   it('throws 400 when batchId does not belong to the specified medicineId', async () => {

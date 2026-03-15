@@ -127,6 +127,56 @@ export function useDeletePatient() {
   });
 }
 
+export function useBulkArchivePatients() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => patientApi.bulkArchive(ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.patients.all });
+      qc.invalidateQueries({ queryKey: queryKeys.archive.patients() });
+      qc.invalidateQueries({ queryKey: queryKeys.visits.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
+    },
+  });
+}
+
+export function useBulkDeletePatients() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => patientApi.bulkDelete(ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.patients.all });
+      qc.invalidateQueries({ queryKey: queryKeys.archive.patients() });
+      qc.invalidateQueries({ queryKey: queryKeys.visits.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.kpis });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
+    },
+  });
+}
+
+export function useBulkRestorePatients() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => patientApi.bulkRestore(ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.patients.all });
+      qc.invalidateQueries({ queryKey: queryKeys.archive.patients() });
+    },
+  });
+}
+
+export function useBulkUpdateSchoolYear() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ids, schoolYear }: { ids: string[]; schoolYear: string }) =>
+      patientApi.bulkUpdateSchoolYear(ids, schoolYear),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.patients.all });
+      qc.invalidateQueries({ queryKey: queryKeys.archive.patients() });
+    },
+  });
+}
+
 export function usePatientVisits(patientId: string, params?: { search?: string; page?: number; includeArchived?: boolean }) {
   return useQuery({
     queryKey: queryKeys.patients.visits(patientId, params),
@@ -169,6 +219,19 @@ export function useDeleteVisit() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => visitApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.visits.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.kpis });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+    },
+  });
+}
+
+export function useBulkDeleteVisits() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => visitApi.bulkDelete(ids),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.visits.all });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.kpis });
@@ -280,6 +343,28 @@ export function useDeleteMedicine() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => inventoryApi.deleteMedicine(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+      qc.invalidateQueries({ queryKey: queryKeys.archive.medicines() });
+    },
+  });
+}
+
+export function useBulkRestoreMedicines() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => inventoryApi.bulkRestore(ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+      qc.invalidateQueries({ queryKey: queryKeys.archive.medicines() });
+    },
+  });
+}
+
+export function useBulkDeleteMedicines() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => inventoryApi.bulkDelete(ids),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
       qc.invalidateQueries({ queryKey: queryKeys.archive.medicines() });

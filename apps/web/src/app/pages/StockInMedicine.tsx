@@ -16,7 +16,7 @@ export function StockInMedicine() {
 
   // medicineId stores the UUID string directly from medicine.id
   const [medicineId, setMedicineId] = useState('');
-  const [quantity, setQuantity] = useState('100');
+  const [quantity, setQuantity] = useState('1');
   const [batchNumber, setBatchNumber] = useState('');
   const [expirationDate, setExpirationDate] = useState('');
 
@@ -97,7 +97,7 @@ export function StockInMedicine() {
                   className="h-11 pr-14"
                   min={1}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Units</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Quantity</span>
               </div>
             </div>
             <div>
@@ -105,7 +105,7 @@ export function StockInMedicine() {
               <Input
                 value={batchNumber}
                 onChange={(e) => setBatchNumber(e.target.value)}
-                placeholder="e.g. BT-2025-001"
+                placeholder="e.g. BT-2026-001"
                 className="h-11 mt-1.5"
               />
             </div>

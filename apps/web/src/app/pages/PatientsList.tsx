@@ -11,10 +11,23 @@ import { Skeleton } from '../components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '../components/ui/dialog';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { usePatients, useArchivePatient, useDeletePatient, useReferenceData } from '../lib/hooks';
+import { usePatients, useArchivePatient, useDeletePatient, useBulkArchivePatients, useBulkDeletePatients, useBulkUpdateSchoolYear, useReferenceData } from '../lib/hooks';
 import { Combobox } from '../components/ui/combobox';
+import { Checkbox } from '../components/ui/checkbox';
+import { BulkActionsBar } from '../components/BulkActionsBar';
+import { BulkConfirmDialog } from '../components/BulkConfirmDialog';
+import { BulkPartialFailureDialog } from '../components/BulkPartialFailureDialog';
+import { useTableSelection } from '../hooks/useTableSelection';
 
 const typeColors: Record<string, string> = {
   Student: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -34,6 +47,13 @@ export function PatientsList() {
   const [confirmDeleteName, setConfirmDeleteName] = useState('');
   const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
   const [confirmArchiveName, setConfirmArchiveName] = useState('');
+  const [updateSchoolYearOpen, setUpdateSchoolYearOpen] = useState(false);
+  const [bulkSchoolYearValue, setBulkSchoolYearValue] = useState('');
+  const [confirmSchoolYearOpen, setConfirmSchoolYearOpen] = useState(false);
+  const [partialFailureOpen, setPartialFailureOpen] = useState(false);
+  const [lastBulkResult, setLastBulkResult] = useState<{ succeeded: string[]; failed: { id: string; error: string }[] } | null>(null);
+  const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const { data, isLoading } = usePatients({
     search,
@@ -41,6 +61,9 @@ export function PatientsList() {
   });
   const archiveMutation = useArchivePatient();
   const deleteMutation = useDeletePatient();
+  const bulkArchiveMutation = useBulkArchivePatients();
+  const bulkDeleteMutation = useBulkDeletePatients();
+  const bulkUpdateSchoolYearMutation = useBulkUpdateSchoolYear();
 
   const { data: gradeLevels = [] } = useReferenceData('GRADE_LEVEL');
   const { data: strands = [] } = useReferenceData('STRAND');
@@ -57,6 +80,16 @@ export function PatientsList() {
     setSectionFilter('');
   };
 
+  const handleResetFilters = () => {
+    setSearch('');
+    setTypeFilter('All Types');
+    setStatusFilter('Active');
+    setGradeFilter('');
+    setStrandFilter('');
+    setSectionFilter('');
+    setSchoolYearFilter('');
+  };
+
   const allPatients = data?.data || [];
 
   // ── Client-side filtering ──────────────────────────────────
@@ -71,6 +104,21 @@ export function PatientsList() {
     if (schoolYearFilter && p.schoolYear !== schoolYearFilter) return false;
     return true;
   });
+
+  const {
+    selectedIds: selectedIdsArray,
+    setSelectedIds,
+    isSelected,
+    toggle,
+    selectAll,
+    clearSelection,
+    selectedCount,
+  } = useTableSelection(patients, (p) => p.id);
+
+  const selectedStudents = patients.filter((p) => p.type === 'Student' && selectedIdsArray.includes(p.id));
+  const selectedStudentIds = selectedStudents.map((p) => p.id);
+  const selectedStudentCount = selectedStudentIds.length;
+  const showUpdateSchoolYear = selectedCount > 0 && selectedStudentCount > 0;
 
   const handleArchive = (id: string, name: string) => {
     setConfirmArchiveId(id);
@@ -104,6 +152,87 @@ export function PatientsList() {
     } finally {
       setConfirmDeleteId(null);
     }
+  };
+
+  const handleBulkConfirmSchoolYear = async () => {
+    if (selectedStudentIds.length === 0 || !bulkSchoolYearValue) return;
+    try {
+      const result = await bulkUpdateSchoolYearMutation.mutateAsync({
+        ids: selectedStudentIds,
+        schoolYear: bulkSchoolYearValue,
+      });
+      setConfirmSchoolYearOpen(false);
+      if (result.failed.length > 0) {
+        setLastBulkResult(result);
+        setPartialFailureOpen(true);
+        setSelectedIds(selectedIdsArray.filter((id) => !result.succeeded.includes(id)));
+        if (result.succeeded.length > 0) {
+          toast.success(`School year updated for ${result.succeeded.length} student(s).`);
+        }
+      } else {
+        clearSelection();
+        toast.success(`School year updated for ${result.succeeded.length} student(s).`);
+      }
+    } catch {
+      toast.error('Failed to update school year.');
+    }
+  };
+
+  const openUpdateSchoolYearFlow = () => {
+    setBulkSchoolYearValue('');
+    setUpdateSchoolYearOpen(true);
+  };
+
+  const onNextSchoolYearChoice = () => {
+    if (!bulkSchoolYearValue) return;
+    setUpdateSchoolYearOpen(false);
+    setConfirmSchoolYearOpen(true);
+  };
+
+  const selectedSchoolYearLabel = schoolYearOptions.find((o) => o.value === bulkSchoolYearValue)?.label ?? bulkSchoolYearValue;
+
+  const handleBulkArchiveConfirm = async () => {
+    if (selectedIdsArray.length === 0) return;
+    try {
+      const result = await bulkArchiveMutation.mutateAsync(selectedIdsArray);
+      setBulkArchiveOpen(false);
+      if (result.failed.length > 0) {
+        setLastBulkResult(result);
+        setPartialFailureOpen(true);
+        setSelectedIds(selectedIdsArray.filter((id) => !result.succeeded.includes(id)));
+        if (result.succeeded.length > 0) toast.success(`${result.succeeded.length} patient(s) archived.`);
+      } else {
+        clearSelection();
+        toast.success(`${result.succeeded.length} patient(s) archived.`);
+      }
+    } catch {
+      toast.error('Failed to archive patients.');
+    }
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    if (selectedIdsArray.length === 0) return;
+    try {
+      const result = await bulkDeleteMutation.mutateAsync(selectedIdsArray);
+      setBulkDeleteOpen(false);
+      if (result.failed.length > 0) {
+        setLastBulkResult(result);
+        setPartialFailureOpen(true);
+        setSelectedIds(selectedIdsArray.filter((id) => !result.succeeded.includes(id)));
+        if (result.succeeded.length > 0) toast.success(`${result.succeeded.length} patient(s) deleted.`);
+      } else {
+        clearSelection();
+        toast.success(`${result.succeeded.length} patient(s) permanently deleted.`);
+      }
+    } catch {
+      toast.error('Failed to delete patients.');
+    }
+  };
+
+  const onPartialFailureClose = () => {
+    setPartialFailureOpen(false);
+    setLastBulkResult(null);
+    clearSelection();
   };
 
   return (
@@ -243,9 +372,126 @@ export function PatientsList() {
                 emptyMessage="No school years found."
               />
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs"
+              onClick={handleResetFilters}
+              aria-label="Reset all filters"
+            >
+              Reset filters
+            </Button>
           </div>
         </div>
       </Card>
+
+      {/* Bulk actions bar */}
+      {selectedCount > 0 && (
+        <BulkActionsBar
+          selectedCount={selectedCount}
+          selectionLabel="patients"
+          onClearSelection={clearSelection}
+          actions={[
+            { label: 'Archive', onClick: () => setBulkArchiveOpen(true), variant: 'outline' as const },
+            { label: 'Delete', onClick: () => setBulkDeleteOpen(true), variant: 'destructive' as const },
+            ...(showUpdateSchoolYear ? [{ label: 'Update school year', onClick: openUpdateSchoolYearFlow, variant: 'outline' as const }] : []),
+          ]}
+        />
+      )}
+
+      {/* Bulk Archive confirmation */}
+      <BulkConfirmDialog
+        open={bulkArchiveOpen}
+        onOpenChange={setBulkArchiveOpen}
+        title="Archive selected patients?"
+        description={
+          <>
+            You are about to archive <span className="font-semibold text-slate-700">{selectedCount}</span> patient(s).
+            Archived records will no longer appear in the active list but can be restored from the Archive page.
+            This will also archive their visit records.
+          </>
+        }
+        confirmLabel="Yes, Archive"
+        onConfirm={handleBulkArchiveConfirm}
+        isLoading={bulkArchiveMutation.isPending}
+      />
+
+      {/* Bulk Delete confirmation */}
+      <BulkConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title="Permanently delete selected patients?"
+        description={
+          <>
+            You are about to permanently delete <span className="font-semibold text-slate-700">{selectedCount}</span> patient(s).
+            This action <span className="font-semibold text-red-600">cannot be undone</span> and will delete all visit records under these patients.
+          </>
+        }
+        confirmLabel="Yes, Delete Permanently"
+        onConfirm={handleBulkDeleteConfirm}
+        destructive
+        isLoading={bulkDeleteMutation.isPending}
+      />
+
+      {/* Update school year: choose value */}
+      <Dialog open={updateSchoolYearOpen} onOpenChange={setUpdateSchoolYearOpen}>
+        <DialogContent className="sm:max-w-sm" aria-describedby="bulk-school-year-desc">
+          <DialogHeader>
+            <DialogTitle>Update school year</DialogTitle>
+            <DialogDescription id="bulk-school-year-desc">
+              Choose the new school year for the selected students.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Combobox
+              options={schoolYearOptions}
+              value={bulkSchoolYearValue}
+              onValueChange={setBulkSchoolYearValue}
+              placeholder="School year"
+              searchPlaceholder="Search year..."
+              emptyMessage="No school years found."
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUpdateSchoolYearOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={onNextSchoolYearChoice} disabled={!bulkSchoolYearValue}>
+              Next
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update school year: confirm */}
+      <BulkConfirmDialog
+        open={confirmSchoolYearOpen}
+        onOpenChange={setConfirmSchoolYearOpen}
+        title="Update school year?"
+        description={
+          <>
+            Update school year to <span className="font-semibold text-slate-700">{selectedSchoolYearLabel}</span> for{' '}
+            <span className="font-semibold text-slate-700">{selectedStudentCount}</span> student(s)?
+          </>
+        }
+        confirmLabel="Update school year"
+        onConfirm={handleBulkConfirmSchoolYear}
+        isLoading={bulkUpdateSchoolYearMutation.isPending}
+      />
+
+      {/* Partial failure (bulk archive / delete / school year) */}
+      <BulkPartialFailureDialog
+        open={partialFailureOpen}
+        onOpenChange={(open) => { if (!open) onPartialFailureClose(); }}
+        title="Some items could not be processed"
+        summary={
+          lastBulkResult
+            ? `${lastBulkResult.failed.length} item(s) could not be processed.`
+            : ''
+        }
+        failed={lastBulkResult?.failed ?? []}
+      />
 
       {/* Table Card */}
       <Card className="gap-0">
@@ -260,6 +506,19 @@ export function PatientsList() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/80">
+                    <TableHead className="w-10 pl-4 pr-0 h-9" scope="col">
+                      <Checkbox
+                        checked={
+                          patients.length === 0
+                            ? false
+                            : patients.every((p) => isSelected(p.id))
+                              ? true
+                              : 'indeterminate'
+                        }
+                        onCheckedChange={() => (patients.length > 0 && patients.every((p) => isSelected(p.id)) ? clearSelection() : selectAll())}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
                     <TableHead className="text-[10px] uppercase font-semibold text-slate-500 pl-6 h-9">ID Number</TableHead>
                     <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Full Name</TableHead>
                     <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Type</TableHead>
@@ -274,6 +533,13 @@ export function PatientsList() {
                 <TableBody>
                   {patients.map((p) => (
                     <TableRow key={p.id}>
+                      <TableCell className="w-10 pl-4 pr-0 py-3">
+                        <Checkbox
+                          checked={isSelected(p.id)}
+                          onCheckedChange={() => toggle(p.id)}
+                          aria-label={`Select ${p.fullName}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono text-slate-500 text-xs pl-6 py-3">{p.idNumber}</TableCell>
                       <TableCell className="py-3">
                         <div className="flex items-center gap-2.5">

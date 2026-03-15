@@ -1,9 +1,37 @@
 import { Router } from 'express'
 import { validate } from '../middlewares/validate.js'
-import { CreateStudentSchema, UpdateStudentSchema } from '@ada/shared'
+import { CreateStudentSchema, UpdateStudentSchema, BatchIdsSchema, BulkSchoolYearSchema } from '@ada/shared'
 import * as svc from '../services/student.service.js'
 
 const router = Router()
+
+router.post('/bulk/archive', validate(BatchIdsSchema), async (req, res, next) => {
+    try {
+        const { ids } = req.body as { ids: string[] }
+        res.json(await svc.archiveStudents(ids))
+    } catch (err) { next(err) }
+})
+
+router.post('/bulk/delete', validate(BatchIdsSchema), async (req, res, next) => {
+    try {
+        const { ids } = req.body as { ids: string[] }
+        res.json(await svc.deleteStudents(ids))
+    } catch (err) { next(err) }
+})
+
+router.post('/bulk/restore', validate(BatchIdsSchema), async (req, res, next) => {
+    try {
+        const { ids } = req.body as { ids: string[] }
+        res.json(await svc.restoreStudents(ids))
+    } catch (err) { next(err) }
+})
+
+router.patch('/bulk/school-year', validate(BulkSchoolYearSchema), async (req, res, next) => {
+    try {
+        const { ids, schoolYear } = req.body as { ids: string[]; schoolYear: string }
+        res.json(await svc.bulkUpdateSchoolYear(ids, schoolYear))
+    } catch (err) { next(err) }
+})
 
 router.get('/', async (req, res, next) => {
     try {
