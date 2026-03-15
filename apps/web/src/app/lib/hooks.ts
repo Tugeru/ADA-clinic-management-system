@@ -209,6 +209,7 @@ export function useCreateVisit() {
       qc.invalidateQueries({ queryKey: queryKeys.visits.all });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.kpis });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
       // Bug 2 fix: also refresh patient profile visit history
       qc.invalidateQueries({ queryKey: ['patients', 'visits'] });
     },
