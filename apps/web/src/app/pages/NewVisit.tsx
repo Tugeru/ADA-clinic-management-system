@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
-import { ArrowLeft, Search, X, Plus, Trash2, AlertCircle, User, Calendar, Stethoscope, Pill, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Search, X, AlertCircle, User, Calendar, Stethoscope, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -8,15 +8,15 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
 import { usePatientSearch, useDispensableMedicines, useCreateVisit } from '../lib/hooks';
 import type { Patient, DispositionType } from '../lib/types';
 import { Combobox, type ComboboxOption } from '../components/ui/combobox';
+import { MedicineLinesCard, type MedicineLine } from '../components/visit/MedicineLinesCard';
 
-// Bug fix: track medicineId UUID alongside name for display
-type MedRow = { id: string; name: string; quantity: number; maxStock: number; error?: string };
+// Track medicine UUID, quantity, and local stock validation state
+type MedRow = { medicineId: string; quantity: number; maxStock: number; error?: string };
 
 export function NewVisit() {
   const navigate = useNavigate();
@@ -51,7 +51,9 @@ export function NewVisit() {
 
   // Medicines
   const { data: availableMeds } = useDispensableMedicines();
-  const [medicines, setMedicines] = useState<MedRow[]>([{ id: '', name: '', quantity: 1, maxStock: 0 }]);
+  const [medicines, setMedicines] = useState<MedRow[]>([
+    { medicineId: '', quantity: 1, maxStock: 0, error: undefined },
+  ]);
 
   // Disposition
   const [disposition, setDisposition] = useState<'returned' | 'sentHome' | 'hospital'>('returned');
@@ -74,22 +76,38 @@ export function NewVisit() {
     setShowDropdown(false);
   };
 
-  const addMedicine = () => setMedicines([...medicines, { id: '', name: '', quantity: 1, maxStock: 0 }]);
+  const addMedicine = () =>
+    setMedicines([...medicines, { medicineId: '', quantity: 1, maxStock: 0, error: undefined }]);
 
-  const updateMedicine = (i: number, field: string, value: any) => {
+  const updateMedicine = (i: number, patch: Partial<MedRow>) => {
     const updated = [...medicines];
-    if (field === 'id') {
-      // value is the medicine UUID from availableMeds
-      const med = availableMeds?.find(m => m.id === value);
-      updated[i] = { ...updated[i], id: value, name: med?.name ?? value, maxStock: med?.stock || 0, error: undefined };
-    } else if (field === 'quantity') {
-      const qty = parseInt(value) || 0;
-      updated[i] = { ...updated[i], quantity: qty, error: qty > updated[i].maxStock ? `Exceeds stock (max: ${updated[i].maxStock})` : undefined };
+    const current = updated[i];
+    const next: MedRow = {
+      ...current,
+      ...patch,
+    };
+
+    // When medicine changes, refresh maxStock from source list
+    if (patch.medicineId !== undefined) {
+      const med = availableMeds?.find((m) => m.id === patch.medicineId);
+      next.maxStock = med?.stock || 0;
+      // reset error on medicine change; quantity validation will re-run
+      next.error = undefined;
     }
+
+    // When quantity changes, re-run stock validation
+    if (patch.quantity !== undefined) {
+      const qty = patch.quantity;
+      next.error =
+        qty > next.maxStock ? `Exceeds stock (max: ${next.maxStock})` : undefined;
+    }
+
+    updated[i] = next;
     setMedicines(updated);
   };
 
-  const removeMedicine = (i: number) => setMedicines(medicines.filter((_, idx) => idx !== i));
+  const removeMedicine = (i: number) =>
+    setMedicines(medicines.filter((_, idx) => idx !== i));
 
   const getDispositionValue = (): DispositionType => {
     if (disposition === 'returned') return selectedPatient?.type === 'Student' ? 'Returned to Class' : 'Returned to Work';
@@ -122,8 +140,8 @@ export function NewVisit() {
         heartRate: hr || undefined,
         respiratoryRate: rr || undefined,
         medicines: medicines
-          .filter(m => m.id)          // only rows where a medicine UUID was selected
-          .map(m => ({ medicineId: m.id, quantity: m.quantity })),
+          .filter(m => m.medicineId)          // only rows where a medicine UUID was selected
+          .map(m => ({ medicineId: m.medicineId, quantity: m.quantity })),
         disposition: getDispositionValue(),
         guardianName,
         relationship,
@@ -253,64 +271,20 @@ export function NewVisit() {
         </Card>
 
         {/* Medicine Administered */}
-        <Card>
-          <CardHeader className="pb-2 flex-row items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Pill size={15} className="text-teal-600" />
-              <CardTitle className="text-sm font-bold">Medicine Administered</CardTitle>
-            </div>
-            <Button variant="ghost" size="sm" onClick={addMedicine} className="text-xs h-7 text-teal-600 gap-1">
-              <Plus size={12} /> Add
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-2.5">
-            {medicines.map((med, i) => (
-              <div key={i} className={cn("grid grid-cols-12 gap-2 items-end", med.error && "")}>
-                <div className="col-span-8">
-                  {i === 0 && <Label className="text-[10px] text-slate-400 uppercase mb-1">Medicine</Label>}
-                  <Select value={med.id} onValueChange={v => updateMedicine(i, 'id', v)}>
-                    <SelectTrigger className={cn("h-9 text-xs", med.error && "border-red-300")}>
-                      <SelectValue placeholder="Select medicine..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableMeds?.map(m => (
-                        // Bug fix: use m.id (UUID) as item value, not m.name
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.name} <span className="text-slate-400 ml-1">(Stock: {m.stock})</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-3">
-                  {i === 0 && <Label className="text-[10px] text-slate-400 uppercase mb-1">Qty</Label>}
-                  <Input
-                    type="number"
-                    value={med.quantity}
-                    onChange={e => updateMedicine(i, 'quantity', e.target.value)}
-                    min={1}
-                    className={cn("h-9 text-xs", med.error && "border-red-300 bg-red-50")}
-                  />
-                </div>
-                <div className="col-span-1 flex justify-end">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeMedicine(i)}
-                    className="h-9 w-9 text-slate-400 hover:text-red-500"
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
-                {med.error && (
-                  <p className="text-[10px] text-red-500 flex items-center gap-0.5 sm:hidden">
-                    <AlertCircle size={10} /> {med.error}
-                  </p>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <MedicineLinesCard
+          title="Medicine Administered"
+          medicines={medicines as MedicineLine[]}
+          availableMeds={availableMeds as any}
+          onAdd={addMedicine}
+          onRemove={removeMedicine}
+          onChange={(index, patch) => {
+            updateMedicine(index, {
+              ...(patch.medicineId !== undefined ? { medicineId: patch.medicineId } : null),
+              ...(patch.quantity !== undefined ? { quantity: patch.quantity } : null),
+            } as Partial<MedRow>);
+          }}
+          showInventoryAlert
+        />
 
         {/* Disposition */}
         <Card>

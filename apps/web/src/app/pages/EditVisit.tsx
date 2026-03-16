@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Trash2, Plus, Save, Stethoscope, Pill, CheckCircle, Info } from 'lucide-react';
+import { ArrowLeft, Trash2, Save, Stethoscope, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -8,7 +8,6 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
-import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -24,6 +23,7 @@ import { toast } from 'sonner';
 import { useVisit, useUpdateVisit, useDeleteVisit, useDispensableMedicines } from '../lib/hooks';
 import { Skeleton } from '../components/ui/skeleton';
 import { Combobox, type ComboboxOption } from '../components/ui/combobox';
+import { MedicineLinesCard, type MedicineLine } from '../components/visit/MedicineLinesCard';
 import {
   Select,
   SelectTrigger,
@@ -254,62 +254,22 @@ export function EditVisit() {
           </Card>
 
           {/* Prescribed Medicine */}
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2"><Pill size={15} className="text-teal-600" /><CardTitle className="text-sm font-bold">Prescribed Medicine</CardTitle></div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Alert className="bg-blue-50 border-blue-200">
-                <Info className="h-3.5 w-3.5 text-blue-600" />
-                <AlertTitle className="text-xs font-semibold text-blue-800">Inventory Update</AlertTitle>
-                <AlertDescription className="text-[10px] text-blue-600">Inventory will be adjusted automatically based on changes.</AlertDescription>
-              </Alert>
-
-              {medicines.map((med: MedRow, i: number) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-8">
-                    {i === 0 && <Label className="text-[10px] uppercase text-slate-400 mb-1">Medicine</Label>}
-                    <Select
-                      value={med.medicineId}
-                      onValueChange={(v: string) => updateMedicine(i, 'medicineId', v)}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Select..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableMeds?.map((m: any) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {m.name} <span className="text-slate-400 ml-1">(Stock: {m.stock})</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-3">
-                    {i === 0 && <Label className="text-[10px] uppercase text-slate-400 mb-1">Qty</Label>}
-                    <Input
-                      type="number"
-                      value={med.quantity}
-                        onChange={(e: any) => updateMedicine(i, 'quantity', e.target.value)}
-                      min={1}
-                      className="h-9 text-xs"
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeMedicine(i)}
-                      className="h-9 w-9 text-slate-400 hover:text-red-500"
-                    >
-                      <Trash2 size={14} />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              <Button variant="outline" onClick={addMedicine} className="w-full border-dashed border-teal-200 text-teal-600 text-xs h-9">+ Add Medicine</Button>
-            </CardContent>
-          </Card>
+          <MedicineLinesCard
+            title="Prescribed Medicine"
+            medicines={medicines as MedicineLine[]}
+            availableMeds={availableMeds as any}
+            onAdd={addMedicine}
+            onRemove={removeMedicine}
+            onChange={(index, patch) => {
+              if (patch.medicineId !== undefined) {
+                updateMedicine(index, 'medicineId', patch.medicineId);
+              }
+              if (patch.quantity !== undefined) {
+                updateMedicine(index, 'quantity', String(patch.quantity));
+              }
+            }}
+            showInventoryAlert
+          />
 
           {/* Disposition */}
           <Card>
