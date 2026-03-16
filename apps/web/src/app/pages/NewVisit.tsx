@@ -13,6 +13,7 @@ import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
 import { usePatientSearch, useDispensableMedicines, useCreateVisit } from '../lib/hooks';
 import type { Patient, DispositionType } from '../lib/types';
+import { Combobox, type ComboboxOption } from '../components/ui/combobox';
 
 // Bug fix: track medicineId UUID alongside name for display
 type MedRow = { id: string; name: string; quantity: number; maxStock: number; error?: string };
@@ -57,6 +58,15 @@ export function NewVisit() {
   const [guardianName, setGuardianName] = useState('');
   const [relationship, setRelationship] = useState('');
   const [releaseTime, setReleaseTime] = useState('');
+
+  const relationshipOptions: ComboboxOption[] = [
+    { value: 'Mother', label: 'Mother' },
+    { value: 'Father', label: 'Father' },
+    { value: 'Guardian', label: 'Guardian' },
+    { value: 'Spouse', label: 'Spouse' },
+    { value: 'Sibling', label: 'Sibling' },
+    { value: 'Other', label: 'Other' },
+  ];
 
   const selectPatient = (p: Patient) => {
     setSelectedPatient(p);
@@ -255,8 +265,8 @@ export function NewVisit() {
           </CardHeader>
           <CardContent className="space-y-2.5">
             {medicines.map((med, i) => (
-              <div key={i} className={cn("flex flex-col sm:flex-row gap-2 sm:items-end", med.error && "")}>
-                <div className="flex-1">
+              <div key={i} className={cn("grid grid-cols-12 gap-2 items-end", med.error && "")}>
+                <div className="col-span-8">
                   {i === 0 && <Label className="text-[10px] text-slate-400 uppercase mb-1">Medicine</Label>}
                   <Select value={med.id} onValueChange={v => updateMedicine(i, 'id', v)}>
                     <SelectTrigger className={cn("h-9 text-xs", med.error && "border-red-300")}>
@@ -272,7 +282,7 @@ export function NewVisit() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="w-20">
+                <div className="col-span-3">
                   {i === 0 && <Label className="text-[10px] text-slate-400 uppercase mb-1">Qty</Label>}
                   <Input
                     type="number"
@@ -282,10 +292,21 @@ export function NewVisit() {
                     className={cn("h-9 text-xs", med.error && "border-red-300 bg-red-50")}
                   />
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => removeMedicine(i)} className="h-9 w-9 text-slate-400 hover:text-red-500 flex-shrink-0">
-                  <Trash2 size={14} />
-                </Button>
-                {med.error && <p className="text-[10px] text-red-500 flex items-center gap-0.5 sm:hidden"><AlertCircle size={10} /> {med.error}</p>}
+                <div className="col-span-1 flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeMedicine(i)}
+                    className="h-9 w-9 text-slate-400 hover:text-red-500"
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+                {med.error && (
+                  <p className="text-[10px] text-red-500 flex items-center gap-0.5 sm:hidden">
+                    <AlertCircle size={10} /> {med.error}
+                  </p>
+                )}
               </div>
             ))}
           </CardContent>
@@ -330,12 +351,14 @@ export function NewVisit() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Relationship</Label>
-                    <Select value={relationship} onValueChange={setRelationship}>
-                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        {['Mother', 'Father', 'Guardian', 'Spouse', 'Sibling', 'Other'].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Combobox
+                      options={relationshipOptions}
+                      value={relationship}
+                      onValueChange={setRelationship}
+                      placeholder="Select relationship"
+                      searchPlaceholder="Search relationship..."
+                      emptyMessage="No matches found."
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Release Time</Label>

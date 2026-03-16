@@ -8,13 +8,29 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
 import { useVisit, useUpdateVisit, useDeleteVisit, useDispensableMedicines } from '../lib/hooks';
 import { Skeleton } from '../components/ui/skeleton';
+import { Combobox, type ComboboxOption } from '../components/ui/combobox';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '../components/ui/select';
 
 type MedRow = { medicineId: string; quantity: number };
 
@@ -39,6 +55,15 @@ export function EditVisit() {
   const [relationship, setRelationship] = useState('');
   const [releaseTime, setReleaseTime] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const relationshipOptions: ComboboxOption[] = [
+    { value: 'Mother', label: 'Mother' },
+    { value: 'Father', label: 'Father' },
+    { value: 'Guardian', label: 'Guardian' },
+    { value: 'Spouse', label: 'Spouse' },
+    { value: 'Sibling', label: 'Sibling' },
+    { value: 'Other', label: 'Other' },
+  ];
 
   // Sync from loaded visit when data arrives
   useEffect(() => {
@@ -83,7 +108,8 @@ export function EditVisit() {
   }, [visit]);
 
   const addMedicine = () => setMedicines([...medicines, { medicineId: '', quantity: 1 }]);
-  const removeMedicine = (i: number) => setMedicines(medicines.filter((_, idx) => idx !== i));
+  const removeMedicine = (i: number) =>
+    setMedicines(medicines.filter((_row: MedRow, idx: number) => idx !== i));
   const updateMedicine = (i: number, field: keyof MedRow, value: any) => {
     const updated = [...medicines];
     (updated[i] as any)[field] = field === 'quantity' ? parseInt(value, 10) || 0 : value;
@@ -154,8 +180,8 @@ export function EditVisit() {
       // Medicines payload — always send current list so backend can
       // reconcile stock and visit-medicine links.
       payload.medicines = medicines
-        .filter(m => m.medicineId && m.quantity > 0)
-        .map(m => ({
+        .filter((m: MedRow) => m.medicineId && m.quantity > 0)
+        .map((m: MedRow) => ({
           medicineId: m.medicineId,
           quantity: m.quantity,
         }));
@@ -207,7 +233,7 @@ export function EditVisit() {
                   <Input
                     type="time"
                     value={timeIn}
-                    onChange={e => setTimeIn(e.target.value)}
+                    onChange={(e: any) => setTimeIn(e.target.value)}
                     className="h-9 text-xs"
                   />
                 </div>
@@ -216,14 +242,14 @@ export function EditVisit() {
                   <Input
                     type="time"
                     value={timeOut}
-                    onChange={e => setTimeOut(e.target.value)}
+                    onChange={(e: any) => setTimeOut(e.target.value)}
                     className="h-9 text-xs"
                   />
                 </div>
               </div>
-              <div className="space-y-1.5"><Label className="text-xs">Chief Complaint</Label><Input value={complaint} onChange={e => setComplaint(e.target.value)} className="h-9 text-xs" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Assessment / Intervention</Label><Textarea value={assessment} onChange={e => setAssessment(e.target.value)} rows={3} className="text-xs" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Remarks</Label><Input value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Additional notes" className="h-9 text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Chief Complaint</Label><Input value={complaint} onChange={(e: any) => setComplaint(e.target.value)} className="h-9 text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Assessment / Intervention</Label><Textarea value={assessment} onChange={(e: any) => setAssessment(e.target.value)} rows={3} className="text-xs" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Remarks</Label><Input value={remarks} onChange={(e: any) => setRemarks(e.target.value)} placeholder="Additional notes" className="h-9 text-xs" /></div>
             </CardContent>
           </Card>
 
@@ -239,19 +265,19 @@ export function EditVisit() {
                 <AlertDescription className="text-[10px] text-blue-600">Inventory will be adjusted automatically based on changes.</AlertDescription>
               </Alert>
 
-              {medicines.map((med, i) => (
+              {medicines.map((med: MedRow, i: number) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-8">
                     {i === 0 && <Label className="text-[10px] uppercase text-slate-400 mb-1">Medicine</Label>}
                     <Select
                       value={med.medicineId}
-                      onValueChange={v => updateMedicine(i, 'medicineId', v)}
+                      onValueChange={(v: string) => updateMedicine(i, 'medicineId', v)}
                     >
                       <SelectTrigger className="h-9 text-xs">
                         <SelectValue placeholder="Select..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableMeds?.map(m => (
+                        {availableMeds?.map((m: any) => (
                           <SelectItem key={m.id} value={m.id}>
                             {m.name} <span className="text-slate-400 ml-1">(Stock: {m.stock})</span>
                           </SelectItem>
@@ -264,7 +290,7 @@ export function EditVisit() {
                     <Input
                       type="number"
                       value={med.quantity}
-                      onChange={e => updateMedicine(i, 'quantity', e.target.value)}
+                        onChange={(e: any) => updateMedicine(i, 'quantity', e.target.value)}
                       min={1}
                       className="h-9 text-xs"
                     />
@@ -306,9 +332,34 @@ export function EditVisit() {
                 <div className="bg-slate-50 rounded-lg border p-4">
                   <p className="text-xs font-bold text-slate-800 mb-3">Release Details</p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="space-y-1.5"><Label className="text-xs">Notified Person</Label><Input value={notifiedPerson} onChange={e => setNotifiedPerson(e.target.value)} className="h-9 text-xs" /></div>
-                    <div className="space-y-1.5"><Label className="text-xs">Relationship</Label><Input value={relationship} onChange={e => setRelationship(e.target.value)} className="h-9 text-xs" /></div>
-                    <div className="space-y-1.5"><Label className="text-xs">Release Time</Label><Input value={releaseTime} onChange={e => setReleaseTime(e.target.value)} placeholder="--:-- --" className="h-9 text-xs" /></div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Notified Person</Label>
+                      <Input
+                        value={notifiedPerson}
+                        onChange={(e: any) => setNotifiedPerson(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Relationship</Label>
+                      <Combobox
+                        options={relationshipOptions}
+                        value={relationship}
+                        onValueChange={setRelationship}
+                        placeholder="Select relationship"
+                        searchPlaceholder="Search relationship..."
+                        emptyMessage="No matches found."
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Release Time</Label>
+                      <Input
+                        type="time"
+                        value={releaseTime}
+                        onChange={(e: any) => setReleaseTime(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -328,10 +379,10 @@ export function EditVisit() {
                   { label: 'BP (mmHg)', value: bp, onChange: setBp },
                   { label: 'HR (bpm)', value: hr, onChange: setHr },
                   { label: 'Temp (°C)', value: temp, onChange: setTemp },
-                ].map((v, i) => (
+                ].map((v: { label: string; value: string; onChange: (val: string) => void }, i: number) => (
                   <div key={i} className="space-y-1.5">
                     <Label className="text-[10px] uppercase text-slate-400">{v.label}</Label>
-                    <Input value={v.value} onChange={e => v.onChange(e.target.value)} className="h-9 text-xs" />
+                    <Input value={v.value} onChange={(e: any) => v.onChange(e.target.value)} className="h-9 text-xs" />
                   </div>
                 ))}
               </div>
