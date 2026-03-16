@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { useVisit, useUpdateVisit, useDeleteVisit, useDispensableMedicines } from '../lib/hooks';
 import { Skeleton } from '../components/ui/skeleton';
 
-type MedRow = { name: string; quantity: number; dosage: string };
+type MedRow = { medicineId: string; quantity: number };
 
 export function EditVisit() {
   const navigate = useNavigate();
@@ -59,11 +59,14 @@ export function EditVisit() {
       setRr(visit.respiratoryRate || '');
       // Medicines from visit
       if (visit.medicines?.length) {
-        setMedicines(visit.medicines.map((m: any) => ({
-          name: m.name,
-          quantity: m.quantity,
-          dosage: '',
-        })));
+        setMedicines(
+          visit.medicines.map((m: any) => ({
+            medicineId: m.medicineId || '',
+            quantity: m.quantity,
+          }))
+        );
+      } else {
+        setMedicines([]);
       }
       // Disposition
       if (visit.disposition) {
@@ -79,11 +82,11 @@ export function EditVisit() {
     }
   }, [visit]);
 
-  const addMedicine = () => setMedicines([...medicines, { name: '', quantity: 1, dosage: '' }]);
+  const addMedicine = () => setMedicines([...medicines, { medicineId: '', quantity: 1 }]);
   const removeMedicine = (i: number) => setMedicines(medicines.filter((_, idx) => idx !== i));
-  const updateMedicine = (i: number, field: string, value: any) => {
+  const updateMedicine = (i: number, field: keyof MedRow, value: any) => {
     const updated = [...medicines];
-    (updated[i] as any)[field] = field === 'quantity' ? parseInt(value) || 0 : value;
+    (updated[i] as any)[field] = field === 'quantity' ? parseInt(value, 10) || 0 : value;
     setMedicines(updated);
   };
 
@@ -107,7 +110,18 @@ export function EditVisit() {
     if (!id) return;
     try {
       // Build payload — only include timeOut if the user set it
-      const payload: { timeIn?: string; timeOut?: string; complaint?: string; assessment?: string; remarks?: string; temperature?: string; bloodPressure?: string; heartRate?: string; respiratoryRate?: string } = {};
+      const payload: {
+        timeIn?: string;
+        timeOut?: string;
+        complaint?: string;
+        assessment?: string;
+        remarks?: string;
+        temperature?: string;
+        bloodPressure?: string;
+        heartRate?: string;
+        respiratoryRate?: string;
+        medicines?: { medicineId: string; quantity: number }[];
+      } = {};
       const visitDateStr = visit?.date || new Date().toISOString().slice(0, 10);
       let dateISO: string;
       try {
@@ -136,6 +150,15 @@ export function EditVisit() {
         hospital: 'SENT_TO_HOSPITAL',
       };
       (payload as any).disposition = dispositionDbMap[disposition];
+
+      // Medicines payload — always send current list so backend can
+      // reconcile stock and visit-medicine links.
+      payload.medicines = medicines
+        .filter(m => m.medicineId && m.quantity > 0)
+        .map(m => ({
+          medicineId: m.medicineId,
+          quantity: m.quantity,
+        }));
 
       await updateMutation.mutateAsync({ id, data: payload });
       toast.success('Visit updated successfully');
@@ -218,25 +241,43 @@ export function EditVisit() {
 
               {medicines.map((med, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-5">
+                  <div className="col-span-8">
                     {i === 0 && <Label className="text-[10px] uppercase text-slate-400 mb-1">Medicine</Label>}
-                    <Select value={med.name} onValueChange={v => updateMedicine(i, 'name', v)}>
-                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <Select
+                      value={med.medicineId}
+                      onValueChange={v => updateMedicine(i, 'medicineId', v)}
+                    >
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
                       <SelectContent>
-                        {availableMeds?.map(m => <SelectItem key={m.name} value={m.name}>{m.name}</SelectItem>)}
+                        {availableMeds?.map(m => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.name} <span className="text-slate-400 ml-1">(Stock: {m.stock})</span>
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-3">
                     {i === 0 && <Label className="text-[10px] uppercase text-slate-400 mb-1">Qty</Label>}
-                    <Input type="number" value={med.quantity} onChange={e => updateMedicine(i, 'quantity', e.target.value)} min={1} className="h-9 text-xs" />
-                  </div>
-                  <div className="col-span-4">
-                    {i === 0 && <Label className="text-[10px] uppercase text-slate-400 mb-1">Dosage</Label>}
-                    <Input value={med.dosage} onChange={e => updateMedicine(i, 'dosage', e.target.value)} placeholder="1 tab PRN" className="h-9 text-xs" />
+                    <Input
+                      type="number"
+                      value={med.quantity}
+                      onChange={e => updateMedicine(i, 'quantity', e.target.value)}
+                      min={1}
+                      className="h-9 text-xs"
+                    />
                   </div>
                   <div className="col-span-1">
-                    <Button variant="ghost" size="icon" onClick={() => removeMedicine(i)} className="h-9 w-9 text-slate-400 hover:text-red-500"><Trash2 size={14} /></Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeMedicine(i)}
+                      className="h-9 w-9 text-slate-400 hover:text-red-500"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
                   </div>
                 </div>
               ))}

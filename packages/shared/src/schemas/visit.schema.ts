@@ -70,6 +70,8 @@ export const UpdateVisitSchema = z.object({
     heartRate: z.string().optional(),
     respiratoryRate: z.string().optional(),
     release: ReleaseInfoSchema.optional(),
+    // Optional replacement list of dispensed medicines
+    medicines: z.array(DispensedMedicineSchema).optional(),
 })
 
 export type LogVisitInput = z.infer<typeof LogVisitSchema>

@@ -485,6 +485,7 @@ function mapVisit(v: any): Visit {
     releaseTime: v.releaseTime ? new Date(v.releaseTime).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
     // Medicines
     medicines: (v.visitMedicines ?? []).map((m: any) => ({
+      medicineId: m.medicineId ?? m.medicine?.id,
       name: m.medicine?.name ?? '',
       quantity: m.quantityDispensed,
     })),

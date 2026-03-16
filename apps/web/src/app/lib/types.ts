@@ -124,6 +124,7 @@ export interface Visit {
 }
 
 export interface DispensedMedicine {
+  medicineId?: string;
   name: string;
   dosage?: string;
   quantity: number;

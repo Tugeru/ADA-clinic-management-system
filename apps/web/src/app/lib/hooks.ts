@@ -252,6 +252,7 @@ export function useUpdateVisit() {
       qc.invalidateQueries({ queryKey: queryKeys.visits.all });
       qc.invalidateQueries({ queryKey: queryKeys.visits.detail(variables.id) });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
     },
   });
 }

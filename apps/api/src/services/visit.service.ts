@@ -198,25 +198,135 @@ export async function createVisit(userId: string, data: LogVisitInput) {
 }
 
 export async function updateVisit(id: string, data: UpdateVisitInput) {
-    return prisma.visit.update({
-        where: { id },
-        data: {
-            timeIn: data.timeIn ? new Date(data.timeIn) : undefined,
-            timeOut: data.timeOut ? new Date(data.timeOut) : undefined,
-            complaint: data.complaint,
-            actionTaken: data.actionTaken,
-            disposition: (data.disposition as any) ?? undefined,
-            remarks: data.remarks,
-            temperature: data.temperature,
-            bloodPressure: data.bloodPressure,
-            heartRate: data.heartRate,
-            respiratoryRate: data.respiratoryRate,
-            releasedToName: data.release?.releasedToName,
-            releasedToRelationship: data.release?.releasedToRelationship,
-            releaseTime: data.release?.releaseTime
-                ? new Date(data.release.releaseTime)
-                : undefined,
-        },
+    return prisma.$transaction(async (tx) => {
+        const existingVisit = await tx.visit.findUnique({
+            where: { id },
+            include: { visitMedicines: true },
+        })
+
+        if (!existingVisit) {
+            throw Object.assign(new Error('Visit not found'), { status: 404 })
+        }
+
+        const { medicines, ...scalar } = data as UpdateVisitInput & {
+            medicines?: { medicineId: string; batchId?: string; quantity: number }[]
+        }
+
+        // If medicines array is provided, treat it as a full replacement of
+        // dispensed medicines for this visit: restore previous stock, clear
+        // visit-medicine links and stock transactions, then re-apply FEFO
+        // dispensing using the new list.
+        if (typeof medicines !== 'undefined') {
+            // Restore stock for existing dispensed items
+            const dispensedItems = await tx.visitMedicine.findMany({
+                where: { visitId: id },
+                select: { batchId: true, quantityDispensed: true },
+            })
+
+            for (const item of dispensedItems) {
+                if (item.batchId) {
+                    await tx.inventoryBatch.update({
+                        where: { id: item.batchId },
+                        data: { quantityOnHand: { increment: item.quantityDispensed } },
+                    })
+                }
+            }
+
+            // Clean up existing audit trail and visit-medicine links
+            await tx.stockTransaction.deleteMany({ where: { referenceVisitId: id } })
+            await tx.visitMedicine.deleteMany({ where: { visitId: id } })
+        }
+
+        const updatedVisit = await tx.visit.update({
+            where: { id },
+            data: {
+                timeIn: scalar.timeIn ? new Date(scalar.timeIn) : undefined,
+                timeOut: scalar.timeOut ? new Date(scalar.timeOut) : undefined,
+                complaint: scalar.complaint,
+                actionTaken: scalar.actionTaken,
+                disposition: (scalar.disposition as any) ?? undefined,
+                remarks: scalar.remarks,
+                temperature: scalar.temperature,
+                bloodPressure: scalar.bloodPressure,
+                heartRate: scalar.heartRate,
+                respiratoryRate: scalar.respiratoryRate,
+                releasedToName: scalar.release?.releasedToName,
+                releasedToRelationship: scalar.release?.releasedToRelationship,
+                releaseTime: scalar.release?.releaseTime
+                    ? new Date(scalar.release.releaseTime)
+                    : undefined,
+            },
+        })
+
+        if (Array.isArray(medicines) && medicines.length > 0) {
+            for (const med of medicines) {
+                let allocations: BatchAllocation[] = []
+
+                if (med.batchId) {
+                    const batch = await tx.inventoryBatch.findUniqueOrThrow({
+                        where: { id: med.batchId },
+                    })
+                    if (batch.medicineId !== med.medicineId) {
+                        throw Object.assign(
+                            new Error(`Batch ${med.batchId} does not belong to medicine ${med.medicineId}`),
+                            { status: 400 }
+                        )
+                    }
+                    if (batch.quantityOnHand >= med.quantity) {
+                        allocations = [{ batchId: batch.id, quantity: med.quantity }]
+                    } else {
+                        allocations = await allocateBatchesForMedicine(
+                            tx,
+                            med.medicineId,
+                            med.quantity
+                        )
+                    }
+                } else {
+                    allocations = await allocateBatchesForMedicine(
+                        tx,
+                        med.medicineId,
+                        med.quantity
+                    )
+                }
+
+                for (const allocation of allocations) {
+                    const result = await tx.inventoryBatch.updateMany({
+                        where: {
+                            id: allocation.batchId,
+                            quantityOnHand: { gte: allocation.quantity },
+                        },
+                        data: { quantityOnHand: { decrement: allocation.quantity } },
+                    })
+
+                    if (result.count === 0) {
+                        throw Object.assign(
+                            new Error('Concurrent stock update conflict. Please refresh and try again.'),
+                            { status: 409 }
+                        )
+                    }
+
+                    await tx.stockTransaction.create({
+                        data: {
+                            batchId: allocation.batchId,
+                            txnType: TransactionType.OUT,
+                            quantity: allocation.quantity,
+                            referenceVisitId: id,
+                        },
+                    })
+
+                    await tx.visitMedicine.create({
+                        data: {
+                            visitId: id,
+                            medicineId: med.medicineId,
+                            batchId: allocation.batchId,
+                            quantityDispensed: allocation.quantity,
+                        },
+                    })
+                }
+            }
+        }
+
+        return updatedVisit
     })
 }
 
