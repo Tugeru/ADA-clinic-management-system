@@ -206,7 +206,27 @@ export function Inventory() {
                   </TableCell>
                   {/* Actions */}
                   <TableCell className="py-3 pr-4 text-right">
-                    <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-[10px]"
+                        onClick={() => navigate(`/inventory/${item.id}`)}
+                        aria-label={`View details for ${item.name}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                        View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-[10px]"
+                        onClick={() => navigate(`/inventory/${item.id}/edit`)}
+                        aria-label={`Edit medicine ${item.name}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                        Edit
+                      </Button>
                       {/* Reduce stock */}
                       <Button
                         variant="ghost"
@@ -215,6 +235,7 @@ export function Inventory() {
                         title="Reduce Stock"
                         disabled={item.stock === 0}
                         onClick={() => setReduceId(item.id)}
+                        aria-label={`Reduce stock for ${item.name}`}
                       >
                         <Minus size={13} />
                       </Button>
@@ -226,23 +247,12 @@ export function Inventory() {
                             size="icon"
                             className="h-7 w-7 text-slate-400 hover:text-slate-700"
                             title="More actions"
+                            aria-label={`More actions for ${item.name}`}
                           >
                             <MoreVertical size={13} />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-52">
-                          <DropdownMenuItem onClick={() => navigate(`/inventory/${item.id}`)}>
-                            <span className="flex items-center gap-2">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
-                              View Details
-                            </span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/inventory/${item.id}/edit`)}>
-                            <span className="flex items-center gap-2">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-                              Edit Medicine
-                            </span>
-                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleArchive(item.id, item.name)}
                             className="text-amber-600 focus:text-amber-700 focus:bg-amber-50"

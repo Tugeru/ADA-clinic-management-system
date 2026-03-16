@@ -584,33 +584,54 @@ export function PatientsList() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right pr-6 py-3">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <MoreHorizontal size={14} />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem asChild>
-                              <Link to={`/patients/${p.id}`}><Eye size={13} /> View Profile</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link to={`/patients/edit/${p.id}`}><Edit size={13} /> Edit</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleArchive(p.id, p.fullName)}
-                              className="text-amber-600 focus:text-amber-700 focus:bg-amber-50"
-                            >
-                              <ArchiveIcon size={13} /> Archive
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDelete(p.id, p.fullName)}
-                              className="text-red-600 focus:text-red-700 focus:bg-red-50"
-                            >
-                              <Trash2 size={13} /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="h-7 px-2 text-[10px]"
+                          >
+                            <Link to={`/patients/${p.id}`} aria-label={`View profile for ${p.fullName}`}>
+                              <Eye size={12} className="mr-1" /> View
+                            </Link>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="h-7 px-2 text-[10px]"
+                          >
+                            <Link to={`/patients/edit/${p.id}`} aria-label={`Edit record for ${p.fullName}`}>
+                              <Edit size={12} className="mr-1" /> Edit
+                            </Link>
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                aria-label={`More actions for ${p.fullName}`}
+                              >
+                                <MoreHorizontal size={14} />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem
+                                onClick={() => handleArchive(p.id, p.fullName)}
+                                className="text-amber-600 focus:text-amber-700 focus:bg-amber-50"
+                              >
+                                <ArchiveIcon size={13} /> Archive
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(p.id, p.fullName)}
+                                className="text-red-600 focus:text-red-700 focus:bg-red-50"
+                              >
+                                <Trash2 size={13} /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

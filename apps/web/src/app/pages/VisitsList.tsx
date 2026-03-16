@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Search, Plus, Download, MoreHorizontal, Eye, Archive, Trash2 } from 'lucide-react';
+import { Search, Plus, Download, MoreHorizontal, Eye, Edit, Archive, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -337,30 +337,52 @@ export function VisitsList() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right pr-4 py-3">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <MoreHorizontal size={14} />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem onClick={() => navigate(`/visits/${v.id}`)}>
-                              <Eye size={13} /> View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-amber-600 focus:text-amber-700 focus:bg-amber-50"
-                              onClick={() => toast.info('Visits cannot be archived — delete the record instead.')}
-                            >
-                              <Archive size={13} /> Archive
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600 focus:text-red-700 focus:bg-red-50"
-                              onClick={() => handleDelete(String(v.id), v.patientName)}
-                            >
-                              <Trash2 size={13} /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-[10px]"
+                            onClick={() => navigate(`/visits/${v.id}`)}
+                            aria-label={`View visit details for ${v.patientName}`}
+                          >
+                            <Eye size={12} className="mr-1" /> View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-[10px]"
+                            onClick={() => navigate(`/visits/${v.id}/edit`)}
+                            aria-label={`Edit visit for ${v.patientName}`}
+                          >
+                            <Edit size={12} className="mr-1" /> Edit
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                aria-label={`More actions for visit of ${v.patientName}`}
+                              >
+                                <MoreHorizontal size={14} />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem
+                                className="text-amber-600 focus:text-amber-700 focus:bg-amber-50"
+                                onClick={() => toast.info('Visits cannot be archived — delete the record instead.')}
+                              >
+                                <Archive size={13} /> Archive
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-700 focus:bg-red-50"
+                                onClick={() => handleDelete(String(v.id), v.patientName)}
+                              >
+                                <Trash2 size={13} /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
