@@ -39,6 +39,24 @@ const dotColors: Record<string, string> = {
   red: 'bg-red-500',
 };
 
+function formatTime12h(timeStr: string | undefined): string {
+  if (!timeStr) return '';
+  // Expected input: "HH:mm" (24-hour)
+  const [hourStr, minuteStr] = timeStr.split(':');
+  if (!hourStr || !minuteStr) return timeStr;
+  
+  let h = parseInt(hourStr, 10);
+  const m = parseInt(minuteStr, 10);
+  if (isNaN(h) || isNaN(m)) return timeStr;
+
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  h = h ? h : 12; // the hour '0' should be '12'
+  const minPad = m < 10 ? '0' + m : m;
+
+  return `${h}:${minPad} ${ampm}`;
+}
+
 export function VisitsList() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -311,7 +329,7 @@ export function VisitsList() {
                         />
                       </TableCell>
                       <TableCell className="text-xs text-slate-600 pl-5 py-3">{format(new Date(v.date), 'MMM dd, yyyy')}</TableCell>
-                      <TableCell className="font-mono text-[10px] text-slate-500 py-3">{v.timeIn}</TableCell>
+                      <TableCell className="font-mono text-[10px] text-slate-500 py-3">{formatTime12h(v.timeIn)}</TableCell>
                       <TableCell className="py-3">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
@@ -409,7 +427,7 @@ export function VisitsList() {
                         <p className="text-xs font-semibold text-slate-800">{v.patientName}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <Badge variant="outline" className={cn("text-[8px] px-1 py-0", typeColors[v.patientType])}>{v.patientType}</Badge>
-                          <span className="text-[10px] text-slate-400">{format(new Date(v.date), 'MMM dd')} &middot; {v.timeIn}</span>
+                          <span className="text-[10px] text-slate-400">{format(new Date(v.date), 'MMM dd')} &middot; {formatTime12h(v.timeIn)}</span>
                         </div>
                       </div>
                     </div>
