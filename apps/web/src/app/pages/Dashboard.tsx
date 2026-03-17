@@ -15,6 +15,7 @@ import { Skeleton } from '../components/ui/skeleton';
 import { cn } from '../components/ui/utils';
 import { useDashboardKPIs, useRecentVisits, useLowStock, useDashboardCharts } from '../lib/hooks';
 import type { DashboardAnalyticsParams } from '../lib/types';
+import { formatTimeTo12Hour } from '../lib/dateTime';
 
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip as ChartTooltip, Legend, Filler } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
@@ -48,13 +49,6 @@ const TREND_LABELS: Record<string, string> = {
 };
 
 const MED_BAR_COLORS = ['bg-teal-500', 'bg-blue-500', 'bg-emerald-400', 'bg-cyan-500', 'bg-violet-400'];
-
-function formatTime12h(time: string): string {
-  if (!time) return '';
-  const dt = new Date(`1970-01-01T${time}:00`);
-  if (Number.isNaN(dt.getTime())) return time;
-  return dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-}
 
 export function Dashboard() {
   const [rangePreset, setRangePreset] = useState<DashboardAnalyticsParams['rangePreset']>('30d');
@@ -197,7 +191,7 @@ export function Dashboard() {
                       <TableBody>
                         {recentVisits.map((v) => (
                           <TableRow key={v.id} className="border-slate-50">
-                            <TableCell className="font-semibold text-slate-800 text-xs py-3">{formatTime12h(v.timeIn)}</TableCell>
+                            <TableCell className="font-semibold text-slate-800 text-xs py-3">{formatTimeTo12Hour(v.timeIn)}</TableCell>
                             <TableCell className="py-3">
                               <div className="flex items-center gap-2">
                                 <Avatar className="h-6 w-6">
@@ -235,7 +229,7 @@ export function Dashboard() {
                           </Avatar>
                           <div className="min-w-0">
                             <p className="text-xs font-semibold text-slate-800 truncate">{v.patientName}</p>
-                            <p className="text-[10px] text-slate-400">{formatTime12h(v.timeIn)} &middot; {v.complaint.substring(0, 20)}...</p>
+                            <p className="text-[10px] text-slate-400">{formatTimeTo12Hour(v.timeIn)} &middot; {v.complaint.substring(0, 20)}...</p>
                           </div>
                         </div>
                         <Badge variant="outline" className={cn("text-[8px] flex-shrink-0",

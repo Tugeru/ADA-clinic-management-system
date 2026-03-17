@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { cn } from '../components/ui/utils';
 import { usePatient, usePatientVisits, useArchivePatient, useDeletePatient } from '../lib/hooks';
+import { formatTimeTo12Hour } from '../lib/dateTime';
 import { toast } from 'sonner';
 
 export function PatientProfile() {
@@ -443,8 +444,12 @@ function VisitHistoryTab({
                       <span className="text-xs font-medium text-slate-800">{visit.complaint}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-xs text-slate-600 py-3.5">{visit.timeIn}</TableCell>
-                  <TableCell className="text-xs text-slate-600 py-3.5">{visit.timeOut}</TableCell>
+                  <TableCell className="text-xs text-slate-600 py-3.5">
+                    {formatTimeTo12Hour(visit.timeIn)}
+                  </TableCell>
+                  <TableCell className="text-xs text-slate-600 py-3.5">
+                    {formatTimeTo12Hour(visit.timeOut)}
+                  </TableCell>
                   <TableCell className="py-3.5">
                     <Badge variant="outline" className={cn("text-[10px] font-semibold", visit.dispositionColor)}>
                       {visit.disposition}
