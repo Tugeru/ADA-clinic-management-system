@@ -1,7 +1,7 @@
 ### External Entities
 
 - **E1 – Clinic In-Charge**  
-  Single authenticated user who manages student records, clinic visits, medicine inventory, and reports via the web UI.
+  Single authenticated user who manages patient records (students, teachers, and non‑teaching personnel), clinic visits, medicine inventory, and analytics via the web UI.
 
 ---
 
@@ -10,11 +10,11 @@
 - **1.0 Authenticate User**  
   Verifies Clinic In-Charge credentials and issues an authentication token for protected actions.
 
-- **2.0 Manage Students**  
-  Creates, updates, archives, and retrieves student/patient profiles for later use in visits and reports.
+- **2.0 Manage Patients**  
+  Creates, updates, archives, and retrieves patient profiles (students, teachers, and non‑teaching personnel) for later use in visits and analytics.
 
 - **3.0 Record Clinic Visits**  
-  Logs clinic visits, including time-in/out, complaints, actions taken, dispensed medicines, and release details for students.
+  Logs clinic visits, including time‑in/out, complaints, actions taken, dispensed medicines, and release details for patients (students, teachers, and non‑teaching personnel).
 
 - **4.0 Manage Inventory**  
   Maintains medicine master data, records stock-in and stock adjustments, and tracks current stock statuses and alerts.
@@ -29,11 +29,11 @@
 - **D1 – User Account**  
   `users` table: Clinic In-Charge credentials and profile (email, password_hash, full_name, status, timestamps).
 
-- **D2 – Students**  
-  `students` table: student/patient profiles (identity, grade/section, medical info, archive flag, timestamps).
+- **D2 – Patients**  
+  `students` table: patient profiles (students, teachers, and non‑teaching personnel), including identity, classification (e.g., patient type/role), grade/section where applicable, medical info, archive flag, timestamps.
 
 - **D3 – Visits**  
-  `visits` table: clinic visit records (student_id, logged_by_user_id, visit_date, time_in/out, complaint, action_taken, remarks, release details, timestamps).
+  `visits` table: clinic visit records (patient reference id, logged_by_user_id, visit_date, time_in/out, complaint, action_taken, remarks, release details, timestamps).
 
 - **D4 – Visit Medicines**  
   `visit_medicines` table: medicines dispensed per visit (visit_id, medicine_id, optional batch_id, quantity_dispensed, timestamps).
@@ -59,14 +59,14 @@
 - **1.0 → E1**: **Auth Response**  
   (auth token, basic user info).
 
-- **E1 → 2.0**: **Student Management Commands**  
+- **E1 → 2.0**: **Patient Management Commands**  
   (create/update/archive requests, search criteria).
 
-- **2.0 → E1**: **Student List / Details**  
-  (filtered student lists, profile details).
+- **2.0 → E1**: **Patient List / Details**  
+  (filtered patient lists, profile details including patient type).
 
 - **E1 → 3.0**: **Visit Submission**  
-  (student_id, time_in/out, complaint, action_taken, remarks, release info, dispensed medicines).
+  (patient record id, time_in/out, complaint, action_taken, remarks, release info, dispensed medicines).
 
 - **3.0 → E1**: **Visit Confirmation**  
   (saved visit summary, optionally inventory impact).
@@ -90,17 +90,17 @@
     - Reads user record by email to verify password.  
     - May update activity/updated_at metadata.
 
-- **2.0 Manage Students**
-  - **2.0 → D2**: **Student Record Write**  
-    - Inserts/updates/archives student profiles.  
-  - **2.0 ← D2**: **Student Record Read**  
-    - Retrieves student lists and individual profiles.
+- **2.0 Manage Patients**
+  - **2.0 → D2**: **Patient Record Write**  
+    - Inserts/updates/archives patient profiles (students, teachers, non‑teaching personnel).  
+  - **2.0 ← D2**: **Patient Record Read**  
+    - Retrieves patient lists and individual profiles, including their type/classification.
 
 - **3.0 Record Clinic Visits**
   - **3.0 → D3**: **Visit Record Write**  
-    - Creates and updates visit entries (time_in/out, complaint, action_taken, remarks, release details).  
+    - Creates and updates visit entries (time_in/out, complaint, action_taken, remarks, release details) linked to a patient record.  
   - **3.0 ← D3**: **Visit Record Read**  
-    - Retrieves visit details for viewing or reporting.  
+    - Retrieves visit details for viewing or analytics.  
   - **3.0 → D4**: **Dispensed Medicines Recording**  
     - Stores medicines dispensed per visit (visit_medicines rows).  
   - **3.0 ↔ D5**: **Batch Stock Access**  
@@ -118,6 +118,6 @@
 
 - **5.0 Generate Analytics & Dashboards**
   - **5.0 ← D2, D3, D4**: **Clinic Activity Data**  
-    - Reads students, visits, and dispensed medicines within a date range to compute utilization metrics, visit trends, and visit-type breakdowns.  
+    - Reads patients, visits, and dispensed medicines within a date range to compute utilization metrics, visit trends, and visit-type breakdowns.  
   - **5.0 ← D5, D6, D7**: **Inventory & Consumption Data**  
     - Reads batches, stock transactions, and medicine definitions/thresholds to compute medicine consumption, most-used medicines, and low‑stock/expiring‑stock indicators used in dashboards.

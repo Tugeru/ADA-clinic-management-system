@@ -10,15 +10,15 @@
 #### 3.0 Record Clinic Visits
 
 - **3.1 Validate Visit Input**  
-  Checks that required visit fields (student, time_in, complaint, action_taken, medicines list) are present and well‑formed.
+  Checks that required visit fields (patient, time_in, complaint, action_taken, medicines list) are present and well‑formed.
 - **3.2 Create/Update Visit Record**  
-  Creates a new visit or updates an existing one with clinical details (time_in/out, complaint, action_taken, remarks, basic metadata).
+  Creates a new visit or updates an existing one with clinical details (time_in/out, complaint, action_taken, remarks, basic metadata) linked to a patient.
 - **3.3 Record Dispensed Medicines**  
   Stores the list of medicines dispensed during a visit, linked to the visit and (optionally) specific inventory batches.
 - **3.4 Update Inventory From Visit**  
   Deducts stock for dispensed medicines, choosing batches and recording OUT transactions.
 - **3.5 Save Release Details**  
-  Captures and persists guardian release information (name, relationship, release_time) for the visit.
+  Captures and persists guardian or responsible‑person release information (name, relationship, release_time) for the visit.
 
 #### 4.0 Manage Inventory
 
@@ -36,7 +36,7 @@
 - **5.1 Accept Analytics Parameters**  
   Validates analytics/report type, date ranges, and presets (e.g., `rangePreset`, `trendMonths`, `topMedicinesLimit`) used by dashboard views.
 - **5.2 Aggregate Clinic Activity**  
-  Queries and aggregates student and visit data (plus dispensed medicines) to produce clinic utilization metrics, visit‑type breakdowns, and time‑series analytics.
+  Queries and aggregates patient and visit data (plus dispensed medicines) to produce clinic utilization metrics, visit‑type breakdowns, and time‑series analytics.
 - **5.3 Aggregate Inventory & Consumption**  
   Aggregates medicines, batches, and stock transactions to produce medicine consumption analytics and stock status metrics (e.g., low‑stock indicators, most‑used medicines).
 - **5.4 Format Analytics Payload**  
@@ -46,7 +46,7 @@
 
 ### Data Stores (Reference from Level 1)
 
-- **D2 – Students** (`students`)  
+- **D2 – Patients** (`students`)  
 - **D3 – Visits** (`visits`)  
 - **D4 – Visit Medicines** (`visit_medicines`)  
 - **D5 – Inventory Batches** (`inventory_batches`)  
@@ -62,7 +62,7 @@
 #### 3.0 Record Clinic Visits
 
 - **E1 → 3.1**: **Visit Input Payload**  
-  (student_id, time_in, optional time_out, complaint, action_taken, remarks, release info, dispensed medicines list).
+  (patient record id, time_in, optional time_out, complaint, action_taken, remarks, release info, dispensed medicines list).
 - **3.1 → 3.2**: **Validated Visit Data**  
   (cleaned/validated visit fields).
 - **3.1 → E1**: **Visit Validation Errors**  
@@ -72,7 +72,7 @@
   - **3.2 → D3**: **Visit Record Write** (new or updated visit row).  
   - **3.2 ← D3**: **Existing Visit Record** (when updating).
 - **3.2 → 3.3**: **Visit Identifier & Core Details**  
-  (visit_id, student_id, visit_date, time_in/out, complaint, action_taken).
+  (visit_id, patient record id, visit_date, time_in/out, complaint, action_taken).
 
 - **3.3 → D4**: **Dispensed Medicines Rows**  
   (visit_id, medicine_id, optional batch_id, quantity_dispensed).
@@ -131,9 +131,9 @@
   (normalized dates and options relevant to inventory/consumption).
 
 - **5.2 ← D2, D3, D4**: **Clinic Source Data**  
-  (students, visits, dispensed medicines within the target period).  
+  (patients, visits, dispensed medicines within the target period).  
 - **5.2 → 5.4**: **Clinic Activity Aggregates**  
-  (weekly visits, visits by type, monthly trends, per‑student or per‑grade stats, and related time‑series analytics).
+  (weekly visits, visits by type, monthly trends, per‑patient or per‑group stats, and related time‑series analytics).
 
 - **5.3 ← D5, D6, D7**: **Inventory & Transaction Data**  
   (medicine definitions, batch stock, IN/OUT/ADJUST transactions).  
