@@ -16,7 +16,7 @@
 - **3.3 Record Dispensed Medicines**  
   Stores the list of medicines dispensed during a visit, linked to the visit and (optionally) specific inventory batches.
 - **3.4 Update Inventory From Visit**  
-  Deducts stock for dispensed medicines, choosing batches and recording OUT transactions.
+  **Only subprocess that decreases batch stock:** deducts stock for dispensed medicines, choosing batches and recording OUT transactions.
 - **3.5 Save Release Details**  
   Captures and persists guardian or responsible‑person release information (name, relationship, release_time) for the visit.
 
@@ -25,11 +25,9 @@
 - **4.1 Maintain Medicine Master Data**  
   Creates and updates medicine definitions (name, description/purpose, reorder_threshold, active status).
 - **4.2 Process Stock-In**  
-  Records incoming stock as inventory batches and corresponding IN transactions.
-- **4.3 Process Stock Adjustment**  
-  Applies manual corrections (loss, damage, count discrepancies) through ADJUST transactions and batch quantity updates.
-- **4.4 Compute Stock Snapshot & Alerts**  
-  Aggregates batch and transaction data with reorder thresholds to derive current stock snapshot, low‑stock, and expiring‑stock indicators.
+  Records incoming stock as inventory batches and corresponding IN transactions (sole inventory path that **increases** stock from the Clinic In-Charge).
+- **4.3 Compute Stock Snapshot & Alerts**  
+  Aggregates batch and transaction data with reorder thresholds to derive current stock snapshot, low‑stock, and expiring‑stock indicators (reads **OUT** rows produced by **3.4**).
 
 #### 5.0 Generate Analytics & Dashboards
 
@@ -84,7 +82,7 @@
 - **3.4 → D5**: **Updated Batch Quantities**  
   (new quantity_on_hand after deduction per batch).  
 - **3.4 → D6**: **OUT Stock Transactions**  
-  (batch_id, quantity, txn_type=OUT, reference_visit_id, timestamps).
+  (batch_id, quantity, txn_type=OUT, reference_visit_id, timestamps; **only user-facing path that reduces stock**).
 
 - **3.5 → D3**: **Release Details Update**  
   (released_to_name, released_to_relationship, release_time for given visit_id).
@@ -107,18 +105,9 @@
 - **4.2 → D6**: **IN Stock Transaction**  
   (batch_id, quantity, txn_type=IN, notes).
 
-- **E1 → 4.3**: **Stock Adjustment Request**  
-  (batch_id or medicine reference, adjustment quantity, reason/notes).
-- **4.3 ← D5**: **Current Batch Quantity**  
-  (existing quantity_on_hand for referenced batch).  
-- **4.3 → D5**: **Adjusted Batch Quantity**  
-  (new quantity_on_hand reflecting adjustment).  
-- **4.3 → D6**: **ADJUST Stock Transaction**  
-  (batch_id, quantity, txn_type=ADJUST, notes).
-
-- **4.4 ← D5, D6, D7**: **Raw Stock & Threshold Data**  
-  (batch quantities/expirations, transactions, medicine thresholds/status).  
-- **4.4 → E1**: **Stock Snapshot & Alerts**  
+- **4.3 ← D5, D6, D7**: **Raw Stock & Threshold Data**  
+  (batch quantities/expirations, **IN** and **OUT** transactions, medicine thresholds/status).  
+- **4.3 → E1**: **Stock Snapshot & Alerts**  
   (per‑medicine stock levels, low‑stock flags, expiring batches list).
 
 #### 5.0 Generate Analytics & Dashboards
@@ -136,7 +125,7 @@
   (weekly visits, visits by type, monthly trends, per‑patient or per‑group stats, and related time‑series analytics).
 
 - **5.3 ← D5, D6, D7**: **Inventory & Transaction Data**  
-  (medicine definitions, batch stock, IN/OUT/ADJUST transactions).  
+  (medicine definitions, batch stock, **IN** from stock-in and **OUT** from visit dispensing).  
 - **5.3 → 5.4**: **Inventory & Consumption Aggregates**  
   (medicine consumption totals, most used medicines, low‑stock metrics, expiring‑stock indicators).
 

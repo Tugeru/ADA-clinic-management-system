@@ -17,7 +17,7 @@
   Logs clinic visits, including time‑in/out, complaints, actions taken, dispensed medicines, and release details for patients (students, teachers, and non‑teaching personnel).
 
 - **4.0 Manage Inventory**  
-  Maintains medicine master data, records stock-in and stock adjustments, and tracks current stock statuses and alerts.
+  Maintains medicine master data, records **stock-in only** (additions to batch quantities), and surfaces current stock status and alerts. The Clinic In-Charge does **not** manually reduce stock here; reductions occur only when medicines are dispensed during a visit (**3.0**).
 
 - **5.0 Generate Analytics & Dashboards**  
   Aggregates stored clinic and inventory data into summarized JSON outputs (metrics, tables, and chart-ready series) that power the dashboard and analytics views in the web UI.
@@ -42,7 +42,7 @@
   `inventory_batches` table: batch-level stock (medicine_id, batch_number, expiration_date, quantity_on_hand, timestamps).
 
 - **D6 – Stock Transactions**  
-  `stock_transactions` table: inventory movements (batch_id, txn_type IN/OUT/ADJUST, quantity, optional reference_visit_id, notes, timestamps).
+  `stock_transactions` table: inventory movements (batch_id, txn_type IN/OUT/ADJUST, quantity, optional reference_visit_id, notes, timestamps). In this workflow, **OUT** (stock decrease) is written only from **3.0** (dispensing); **4.0** records **IN** (stock-in). *(Schema may allow other txn types; the DFD reflects intended clinic workflow.)*
 
 - **D7 – Medicines**  
   `medicines` table: medicine master data (name, description/purpose, reorder_threshold, is_active, timestamps).
@@ -72,10 +72,10 @@
   (saved visit summary, optionally inventory impact).
 
 - **E1 → 4.0**: **Inventory Management Commands**  
-  (create/update medicine, stock‑in instructions, stock adjustment details).
+  (create/update medicine, stock‑in instructions only—not manual stock reduction).
 
 - **4.0 → E1**: **Inventory Status & Alerts**  
-  (current stock snapshot, low‑stock list, expiring batches).
+  (current stock snapshot, low‑stock list, expiring batches; read-only for levels relative to manual decreases).
 
 - **E1 → 5.0**: **Analytics Request**  
   (analytics/report type, date range, presets like rangePreset/trendMonths, filters).
@@ -104,20 +104,20 @@
   - **3.0 → D4**: **Dispensed Medicines Recording**  
     - Stores medicines dispensed per visit (visit_medicines rows).  
   - **3.0 ↔ D5**: **Batch Stock Access**  
-    - Reads batch quantities and expirations; updates quantity_on_hand when dispensing.  
+    - Reads batch quantities and expirations; **only process that decreases** `quantity_on_hand` (when dispensing).  
   - **3.0 → D6**: **OUT Stock Transactions**  
-    - Writes OUT transactions linked to visits and batches.
+    - Writes OUT transactions linked to visits and batches (**sole path for stock reduction** in this model).
 
 - **4.0 Manage Inventory**
   - **4.0 ↔ D7**: **Medicine Master Data Access**  
     - Creates/updates medicines; reads for lists and thresholds.  
-  - **4.0 ↔ D5**: **Batch Stock Maintenance**  
-    - Creates/updates inventory batches for stock‑in and adjustments; reads current quantities and expirations.  
-  - **4.0 → D6**: **IN/ADJUST Stock Transactions**  
-    - Records IN transactions for stock‑in events and ADJUST transactions for corrections or losses.
+  - **4.0 ↔ D5**: **Batch Stock Maintenance (additions only)**  
+    - Creates or increases inventory batches via stock‑in; reads quantities and expirations for display and alerts (no manual decrement from this process).  
+  - **4.0 → D6**: **IN Stock Transactions**  
+    - Records IN transactions for stock‑in events only; **OUT** is not initiated here.
 
 - **5.0 Generate Analytics & Dashboards**
   - **5.0 ← D2, D3, D4**: **Clinic Activity Data**  
     - Reads patients, visits, and dispensed medicines within a date range to compute utilization metrics, visit trends, and visit-type breakdowns.  
   - **5.0 ← D5, D6, D7**: **Inventory & Consumption Data**  
-    - Reads batches, stock transactions, and medicine definitions/thresholds to compute medicine consumption, most-used medicines, and low‑stock/expiring‑stock indicators used in dashboards.
+    - Reads batches, stock transactions (**IN** from stock-in, **OUT** from visit dispensing), and medicine definitions/thresholds to compute consumption, most-used medicines, and low‑stock/expiring‑stock indicators.
