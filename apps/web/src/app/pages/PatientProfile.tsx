@@ -335,6 +335,10 @@ function InformationTab({ patient }: { patient: any }) {
               <p className="text-xs text-slate-400 mb-1">Strand</p>
               <p className="text-sm font-semibold text-slate-800">{patient.strand || '—'}</p>
             </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-1">School Year</p>
+              <p className="text-sm font-semibold text-slate-800">{patient.schoolYear || '—'}</p>
+            </div>
           </div>
         </div>
 

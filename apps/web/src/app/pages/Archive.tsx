@@ -111,7 +111,7 @@ function ArchivedPatientsTab() {
       if (!p.fullName.toLowerCase().includes(q) && !p.idNumber?.toLowerCase().includes(q)) return false;
     }
     if (typeFilter !== 'All Types' && p.type !== typeFilter) return false;
-    if (gradeFilter !== 'All' && !p.context?.toLowerCase().includes(gradeFilter.toLowerCase())) return false;
+    if (gradeFilter !== 'All' && String(p.gradeLevel ?? '').toLowerCase() !== gradeFilter.toLowerCase()) return false;
     return true;
   });
 
@@ -391,10 +391,12 @@ function ArchivedPatientsTab() {
                       aria-label="Select all"
                     />
                   </TableHead>
-                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 pl-5 h-9">ID Number</TableHead>
                   <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Full Name</TableHead>
                   <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Type</TableHead>
-                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Context</TableHead>
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Grade</TableHead>
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Strand</TableHead>
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Section</TableHead>
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">School Year</TableHead>
                   <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Date Archived</TableHead>
                   <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9 text-center">Actions</TableHead>
                 </TableRow>
@@ -415,7 +417,6 @@ function ArchivedPatientsTab() {
                           aria-label={`Select ${p.fullName}`}
                         />
                       </TableCell>
-                      <TableCell className="text-xs font-mono text-slate-500 pl-5 py-3.5">{p.idNumber}</TableCell>
                       <TableCell className="py-3.5">
                         <div className="flex items-center gap-2.5">
                           <Avatar className="h-7 w-7">
@@ -427,7 +428,10 @@ function ArchivedPatientsTab() {
                       <TableCell className="py-3.5">
                         <Badge variant="outline" className={cn("text-[9px] font-semibold", typeColors[p.type])}>{p.type}</Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-slate-600 py-3.5">{p.context}</TableCell>
+                      <TableCell className="text-xs text-slate-600 py-3.5">{p.gradeLevel || '—'}</TableCell>
+                      <TableCell className="text-xs text-slate-600 py-3.5">{p.strand || '—'}</TableCell>
+                      <TableCell className="text-xs text-slate-600 py-3.5">{p.section || '—'}</TableCell>
+                      <TableCell className="text-xs text-slate-600 py-3.5">{p.schoolYear || '—'}</TableCell>
                       <TableCell className="text-xs text-slate-500 py-3.5">{dateArchived}</TableCell>
                       <TableCell className="py-3.5 text-center">
                         <div className="flex items-center justify-center gap-1">
