@@ -111,7 +111,11 @@ function ArchivedPatientsTab() {
       if (!p.fullName.toLowerCase().includes(q) && !p.idNumber?.toLowerCase().includes(q)) return false;
     }
     if (typeFilter !== 'All Types' && p.type !== typeFilter) return false;
-    if (gradeFilter !== 'All' && String(p.gradeLevel ?? '').toLowerCase() !== gradeFilter.toLowerCase()) return false;
+    if (gradeFilter !== 'All') {
+      const gradeOrDepartment =
+        p.type === 'Student' ? p.gradeLevel : (p.department ?? '');
+      if (String(gradeOrDepartment ?? '').toLowerCase() !== gradeFilter.toLowerCase()) return false;
+    }
     return true;
   });
 
@@ -141,7 +145,7 @@ function ArchivedPatientsTab() {
       if (result.failed.length > 0) {
         setLastBulkResult(result);
         setPartialFailureOpen(true);
-        setSelectedIds(selectedIdsArray.filter((id) => !result.succeeded.includes(id)));
+        setSelectedIds(selectedIdsArray.filter((id: string) => !result.succeeded.includes(id)));
         if (result.succeeded.length > 0) {
           toast.success(`School year updated for ${result.succeeded.length} student(s).`);
         }
@@ -175,7 +179,7 @@ function ArchivedPatientsTab() {
       if (result.failed.length > 0) {
         setLastBulkResult(result);
         setPartialFailureOpen(true);
-        setSelectedIds(selectedIdsArray.filter((id) => !result.succeeded.includes(id)));
+        setSelectedIds(selectedIdsArray.filter((id: string) => !result.succeeded.includes(id)));
         if (result.succeeded.length > 0) toast.success(`${result.succeeded.length} patient(s) restored.`);
       } else {
         clearSelection();
@@ -194,7 +198,7 @@ function ArchivedPatientsTab() {
       if (result.failed.length > 0) {
         setLastBulkResult(result);
         setPartialFailureOpen(true);
-        setSelectedIds(selectedIdsArray.filter((id) => !result.succeeded.includes(id)));
+        setSelectedIds(selectedIdsArray.filter((id: string) => !result.succeeded.includes(id)));
         if (result.succeeded.length > 0) toast.success(`${result.succeeded.length} patient(s) deleted.`);
       } else {
         clearSelection();
@@ -428,10 +432,18 @@ function ArchivedPatientsTab() {
                       <TableCell className="py-3.5">
                         <Badge variant="outline" className={cn("text-[9px] font-semibold", typeColors[p.type])}>{p.type}</Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-slate-600 py-3.5">{p.gradeLevel || '—'}</TableCell>
-                      <TableCell className="text-xs text-slate-600 py-3.5">{p.strand || '—'}</TableCell>
-                      <TableCell className="text-xs text-slate-600 py-3.5">{p.section || '—'}</TableCell>
-                      <TableCell className="text-xs text-slate-600 py-3.5">{p.schoolYear || '—'}</TableCell>
+                      <TableCell className="text-xs text-slate-600 py-3.5">
+                        {p.type === 'Student' ? p.gradeLevel || '—' : (p.department || '—')}
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-600 py-3.5">
+                        {p.type === 'Student' ? p.strand || '—' : (p.position || '—')}
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-600 py-3.5">
+                        {p.type === 'Student' ? (p.section || '—') : '—'}
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-600 py-3.5">
+                        {p.type === 'Student' ? (p.schoolYear || '—') : '—'}
+                      </TableCell>
                       <TableCell className="text-xs text-slate-500 py-3.5">{dateArchived}</TableCell>
                       <TableCell className="py-3.5 text-center">
                         <div className="flex items-center justify-center gap-1">
@@ -528,7 +540,7 @@ function ArchivedMedicinesTab() {
       if (result.failed.length > 0) {
         setLastBulkResult(result);
         setPartialFailureOpen(true);
-        setSelectedIds(selectedIdsArray.filter((id) => !result.succeeded.includes(id)));
+        setSelectedIds(selectedIdsArray.filter((id: string) => !result.succeeded.includes(id)));
         if (result.succeeded.length > 0) toast.success(`${result.succeeded.length} medicine(s) restored.`);
       } else {
         clearSelection();
@@ -547,7 +559,7 @@ function ArchivedMedicinesTab() {
       if (result.failed.length > 0) {
         setLastBulkResult(result);
         setPartialFailureOpen(true);
-        setSelectedIds(selectedIdsArray.filter((id) => !result.succeeded.includes(id)));
+        setSelectedIds(selectedIdsArray.filter((id: string) => !result.succeeded.includes(id)));
         if (result.succeeded.length > 0) toast.success(`${result.succeeded.length} medicine(s) deleted.`);
       } else {
         clearSelection();
