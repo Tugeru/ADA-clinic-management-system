@@ -85,7 +85,10 @@ export function Archive() {
 function ArchivedPatientsTab() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
-  const [gradeFilter, setGradeFilter] = useState('All');
+  const [gradeFilter, setGradeFilter] = useState('');
+  const [strandFilter, setStrandFilter] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('');
+  const [schoolYearFilter, setSchoolYearFilter] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; fullName: string } | null>(null);
   const [updateSchoolYearOpen, setUpdateSchoolYearOpen] = useState(false);
   const [bulkSchoolYearValue, setBulkSchoolYearValue] = useState('');
@@ -101,8 +104,30 @@ function ArchivedPatientsTab() {
   const bulkRestoreMutation = useBulkRestorePatients();
   const bulkDeleteMutation = useBulkDeletePatients();
   const bulkUpdateSchoolYearMutation = useBulkUpdateSchoolYear();
+  const { data: gradeLevels = [] } = useReferenceData('GRADE_LEVEL');
+  const { data: strands = [] } = useReferenceData('STRAND');
+  const { data: sections = [] } = useReferenceData('SECTION', gradeFilter || undefined);
   const { data: schoolYears = [] } = useReferenceData('SCHOOL_YEAR');
+
+  const gradeOptions = gradeLevels.map((r: { value: string; label: string }) => ({ value: r.value, label: r.label }));
+  const strandOptions = strands.map((r: { value: string; label: string }) => ({ value: r.value, label: r.label }));
+  const sectionOptions = sections.map((r: { value: string; label: string }) => ({ value: r.value, label: r.label }));
   const schoolYearOptions = schoolYears.map((r: { value: string; label: string }) => ({ value: r.value, label: r.label }));
+
+  const handleGradeFilterChange = (v: string) => {
+    setGradeFilter(v);
+    setSectionFilter('');
+  };
+
+  const handleResetFilters = () => {
+    setSearch('');
+    setTypeFilter('All Types');
+    setGradeFilter('');
+    setStrandFilter('');
+    setSectionFilter('');
+    setSchoolYearFilter('');
+  };
+
   const allPatients = data?.data || [];
 
   const filtered = allPatients.filter((p: any) => {
@@ -111,11 +136,10 @@ function ArchivedPatientsTab() {
       if (!p.fullName.toLowerCase().includes(q) && !p.idNumber?.toLowerCase().includes(q)) return false;
     }
     if (typeFilter !== 'All Types' && p.type !== typeFilter) return false;
-    if (gradeFilter !== 'All') {
-      const gradeOrDepartment =
-        p.type === 'Student' ? p.gradeLevel : (p.department ?? '');
-      if (String(gradeOrDepartment ?? '').toLowerCase() !== gradeFilter.toLowerCase()) return false;
-    }
+    if (gradeFilter && p.gradeLevel !== gradeFilter) return false;
+    if (strandFilter && p.strand !== strandFilter) return false;
+    if (sectionFilter && p.section !== sectionFilter) return false;
+    if (schoolYearFilter && p.schoolYear !== schoolYearFilter) return false;
     return true;
   });
 
@@ -320,32 +344,90 @@ function ArchivedPatientsTab() {
         failed={lastBulkResult?.failed ?? []}
       />
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
+      {/* Title + filters (parity with Patients master list) */}
+      <div className="space-y-3">
         <h3 className="text-xl font-bold text-slate-900">Archived Patients</h3>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <Input placeholder="Search by Name or ID" value={search} onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)} className="pl-8 h-9 text-xs w-48" />
+        <Card className="p-4 gap-0">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col md:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input
+                  placeholder="Search by Name or ID number"
+                  value={search}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                  className="pl-8 h-9 text-xs"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-[130px] h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All Types">All Types</SelectItem>
+                    <SelectItem value="Student">Student</SelectItem>
+                    <SelectItem value="Teacher">Teacher</SelectItem>
+                    <SelectItem value="NTP">NTP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <div className="w-[140px]">
+                <Combobox
+                  options={gradeOptions}
+                  value={gradeFilter}
+                  onValueChange={handleGradeFilterChange}
+                  placeholder="Grade Level"
+                  searchPlaceholder="Search grade..."
+                  emptyMessage="No grades found."
+                />
+              </div>
+              <div className="w-[130px]">
+                <Combobox
+                  options={strandOptions}
+                  value={strandFilter}
+                  onValueChange={setStrandFilter}
+                  placeholder="Strand"
+                  searchPlaceholder="Search strand..."
+                  emptyMessage="No strands found."
+                />
+              </div>
+              <div className="w-[150px]">
+                <Combobox
+                  options={sectionOptions}
+                  value={sectionFilter}
+                  onValueChange={setSectionFilter}
+                  placeholder="Section"
+                  searchPlaceholder="Search section..."
+                  emptyMessage={gradeFilter ? 'No sections found.' : 'Select a grade first.'}
+                  disabled={!gradeFilter}
+                />
+              </div>
+              <div className="w-[140px]">
+                <Combobox
+                  options={schoolYearOptions}
+                  value={schoolYearFilter}
+                  onValueChange={setSchoolYearFilter}
+                  placeholder="School Year"
+                  searchPlaceholder="Search year..."
+                  emptyMessage="No school years found."
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs"
+                onClick={handleResetFilters}
+                aria-label="Reset all filters"
+              >
+                Reset filters
+              </Button>
+            </div>
           </div>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All Types">All Types</SelectItem>
-              <SelectItem value="Student">Student</SelectItem>
-              <SelectItem value="Teacher">Teacher</SelectItem>
-              <SelectItem value="NTP">NTP</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={gradeFilter} onValueChange={setGradeFilter}>
-            <SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue placeholder="Department / Grade" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">Department / Grade</SelectItem>
-              <SelectItem value="Grade 11">Grade 11</SelectItem>
-              <SelectItem value="Grade 12">Grade 12</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        </Card>
       </div>
 
       {selectedCount > 0 && (
