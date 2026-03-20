@@ -38,7 +38,6 @@ const typeColors: Record<string, string> = {
 export function PatientsList() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
-  const [statusFilter, setStatusFilter] = useState('Active');
   const [gradeFilter, setGradeFilter] = useState('');
   const [strandFilter, setStrandFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
@@ -57,7 +56,7 @@ export function PatientsList() {
 
   const { data, isLoading } = usePatients({
     search,
-    includeArchived: statusFilter !== 'Active',
+    includeArchived: false,
   });
   const archiveMutation = useArchivePatient();
   const deleteMutation = useDeletePatient();
@@ -83,7 +82,6 @@ export function PatientsList() {
   const handleResetFilters = () => {
     setSearch('');
     setTypeFilter('All Types');
-    setStatusFilter('Active');
     setGradeFilter('');
     setStrandFilter('');
     setSectionFilter('');
@@ -96,8 +94,6 @@ export function PatientsList() {
   const patients = allPatients.filter((p) => {
     if (search && !p.fullName.toLowerCase().includes(search.toLowerCase())) return false;
     if (typeFilter !== 'All Types' && p.type !== typeFilter) return false;
-    if (statusFilter === 'Active' && p.status !== 'Active') return false;
-    if (statusFilter === 'Archived' && p.status !== 'Archived') return false;
     if (gradeFilter && p.gradeLevel !== gradeFilter) return false;
     if (strandFilter && p.strand !== strandFilter) return false;
     if (sectionFilter && p.section !== sectionFilter) return false;
@@ -318,14 +314,6 @@ export function PatientsList() {
                   <SelectItem value="Student">Student</SelectItem>
                   <SelectItem value="Teacher">Teacher</SelectItem>
                   <SelectItem value="NTP">NTP</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px] h-9 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active Only</SelectItem>
-                  <SelectItem value="Archived">Archived Only</SelectItem>
-                  <SelectItem value="All Statuses">All Statuses</SelectItem>
                 </SelectContent>
               </Select>
             </div>
