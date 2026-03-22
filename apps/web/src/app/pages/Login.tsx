@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
+import schoolLogo from '../../assets/school-logo.png';
 
 export function LoginPage() {
     const { login } = useAuth();
@@ -35,10 +36,14 @@ export function LoginPage() {
             <div className="w-full max-w-sm mx-4">
                 {/* Logo / Header */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-600 mb-4 shadow-sm shadow-teal-200">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
+                    <div className="inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-full mb-4 ring-1 ring-slate-200/60 shadow-sm">
+                        <img
+                            src={schoolLogo}
+                            alt="Cabantian Stand-Alone Senior High School"
+                            className="h-full w-full object-cover"
+                            width={64}
+                            height={64}
+                        />
                     </div>
                     <h1 className="text-2xl font-bold text-slate-800">ADA Clinic System</h1>
                     <p className="text-slate-500 text-sm mt-1">Cabantian Stand-Alone SHS</p>

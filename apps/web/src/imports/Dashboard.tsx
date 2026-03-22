@@ -35,7 +35,7 @@ function Container3() {
   return (
     <div className="content-stretch flex flex-col items-start relative shrink-0 w-full" data-name="Container">
       <div className="flex flex-col font-['Inter:Bold',sans-serif] font-bold h-[15px] justify-center leading-[0] not-italic relative shrink-0 text-[#678380] text-[10px] tracking-[1px] uppercase w-[101.66px]">
-        <p className="leading-[15px] whitespace-pre-wrap">Clinic Manager</p>
+        <p className="leading-[15px] whitespace-pre-wrap">CSASHS Clinic Manager</p>
       </div>
     </div>
   );

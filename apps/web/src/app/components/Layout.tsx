@@ -15,6 +15,7 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger
 } from './ui/dropdown-menu';
 import { useAuth } from '../lib/auth-context';
+import schoolLogo from '../../assets/school-logo.png';
 
 const navItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -51,12 +52,17 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   return (
     <>
       <div className="p-5 flex items-center gap-3">
-        <div className="w-9 h-9 bg-teal-600 rounded-lg flex items-center justify-center text-white">
-          <span className="text-lg font-black">+</span>
-        </div>
+        <img
+          src={schoolLogo}
+          alt=""
+          width={36}
+          height={36}
+          className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-slate-200/60"
+          aria-hidden
+        />
         <div>
           <h1 className="text-base font-black leading-tight text-slate-800 tracking-tight">ADA</h1>
-          <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wider">Clinic Manager</p>
+          <p className="text-[10px] font-semibold text-teal-600 uppercase tracking-wider">CSASHS Clinic Manager</p>
         </div>
       </div>
       <Separator />

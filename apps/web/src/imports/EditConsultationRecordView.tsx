@@ -5,7 +5,7 @@ function Heading() {
   return (
     <div className="content-stretch flex flex-col items-start relative shrink-0 w-full" data-name="Heading 1">
       <div className="flex flex-col font-['Inter:Bold',sans-serif] font-bold h-[24px] justify-center leading-[0] not-italic relative shrink-0 text-[#0f172a] text-[16px] tracking-[0.4px] w-[186.02px]">
-        <p className="leading-[24px] whitespace-pre-wrap">ADA CLINIC MANAGER</p>
+        <p className="leading-[24px] whitespace-pre-wrap">ADA CSASHS CLINIC MANAGER</p>
       </div>
     </div>
   );
