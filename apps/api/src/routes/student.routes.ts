@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { validate } from '../middlewares/validate.js'
-import { CreateStudentSchema, UpdateStudentSchema, BatchIdsSchema, BulkSchoolYearSchema } from '@ada/shared'
+import { CreateStudentSchema, UpdateStudentSchema, BatchIdsSchema, BulkSchoolYearSchema, BulkGradeLevelSchema } from '@ada/shared'
 import * as svc from '../services/student.service.js'
 
 const router = Router()
@@ -30,6 +30,13 @@ router.patch('/bulk/school-year', validate(BulkSchoolYearSchema), async (req, re
     try {
         const { ids, schoolYear } = req.body as { ids: string[]; schoolYear: string }
         res.json(await svc.bulkUpdateSchoolYear(ids, schoolYear))
+    } catch (err) { next(err) }
+})
+
+router.patch('/bulk/grade-level', validate(BulkGradeLevelSchema), async (req, res, next) => {
+    try {
+        const { ids, gradeLevel } = req.body as { ids: string[]; gradeLevel: string }
+        res.json(await svc.bulkUpdateGradeLevel(ids, gradeLevel))
     } catch (err) { next(err) }
 })
 

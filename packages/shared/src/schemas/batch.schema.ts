@@ -15,6 +15,11 @@ export const BulkSchoolYearSchema = BatchIdsSchema.extend({
     schoolYear: z.string().min(1, 'School year is required'),
 })
 
+/** Request body for bulk grade level update (students only). */
+export const BulkGradeLevelSchema = BatchIdsSchema.extend({
+    gradeLevel: z.string().min(1, 'Grade level is required'),
+})
+
 /** Response shape for batch operations: partial success with per-id failures. */
 export type BatchResult = {
     succeeded: string[]
@@ -23,3 +28,4 @@ export type BatchResult = {
 
 export type BatchIdsInput = z.infer<typeof BatchIdsSchema>
 export type BulkSchoolYearInput = z.infer<typeof BulkSchoolYearSchema>
+export type BulkGradeLevelInput = z.infer<typeof BulkGradeLevelSchema>

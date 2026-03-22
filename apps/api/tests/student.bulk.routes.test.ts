@@ -6,6 +6,7 @@ const archiveStudents = vi.fn()
 const deleteStudents = vi.fn()
 const restoreStudents = vi.fn()
 const bulkUpdateSchoolYear = vi.fn()
+const bulkUpdateGradeLevel = vi.fn()
 
 vi.mock('../src/services/student.service.js', () => ({
     listStudents: vi.fn(),
@@ -18,6 +19,7 @@ vi.mock('../src/services/student.service.js', () => ({
     deleteStudents: (...args: any[]) => deleteStudents(...args),
     restoreStudents: (...args: any[]) => restoreStudents(...args),
     bulkUpdateSchoolYear: (...args: any[]) => bulkUpdateSchoolYear(...args),
+    bulkUpdateGradeLevel: (...args: any[]) => bulkUpdateGradeLevel(...args),
 }))
 
 vi.mock('../src/middlewares/auth.js', () => ({
@@ -195,6 +197,62 @@ describe('Student bulk routes', () => {
             expect(res.body.succeeded).toEqual([validId1])
             expect(res.body.failed).toHaveLength(1)
             expect(res.body.failed[0].error).toBe('Student not found')
+        })
+    })
+
+    describe('PATCH /api/students/bulk/grade-level', () => {
+        it('returns 200 with succeeded/failed when all succeed', async () => {
+            bulkUpdateGradeLevel.mockResolvedValue({ succeeded: [validId1, validId2], failed: [] })
+            const app = makeApp()
+
+            const res = await request(app)
+                .patch('/api/students/bulk/grade-level')
+                .send({ ids: [validId1, validId2], gradeLevel: 'grade-11-uuid' })
+
+            expect(res.status).toBe(200)
+            expect(res.body).toEqual({ succeeded: [validId1, validId2], failed: [] })
+            expect(bulkUpdateGradeLevel).toHaveBeenCalledWith([validId1, validId2], 'grade-11-uuid')
+        })
+
+        it('returns 400 when gradeLevel is missing', async () => {
+            const app = makeApp()
+
+            const res = await request(app)
+                .patch('/api/students/bulk/grade-level')
+                .send({ ids: [validId1] })
+
+            expect(res.status).toBe(400)
+            expect(res.body.error).toBe('Validation failed')
+            expect(bulkUpdateGradeLevel).not.toHaveBeenCalled()
+        })
+
+        it('returns 400 when gradeLevel is empty string', async () => {
+            const app = makeApp()
+
+            const res = await request(app)
+                .patch('/api/students/bulk/grade-level')
+                .send({ ids: [validId1], gradeLevel: '' })
+
+            expect(res.status).toBe(400)
+            expect(res.body.error).toBe('Validation failed')
+            expect(bulkUpdateGradeLevel).not.toHaveBeenCalled()
+        })
+
+        it('returns 200 with partial failure for bulk grade level', async () => {
+            bulkUpdateGradeLevel.mockResolvedValue({
+                succeeded: [validId1],
+                failed: [{ id: validId2, error: 'Not a student' }],
+            })
+            const app = makeApp()
+
+            const res = await request(app)
+                .patch('/api/students/bulk/grade-level')
+                .send({ ids: [validId1, validId2], gradeLevel: 'grade-11-uuid' })
+
+            expect(res.status).toBe(200)
+            expect(res.body.succeeded).toEqual([validId1])
+            expect(res.body.failed).toHaveLength(1)
+            expect(res.body.failed[0].error).toBe('Not a student')
         })
     })
 })

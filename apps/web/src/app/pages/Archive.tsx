@@ -20,7 +20,7 @@ import {
   DialogDescription,
 } from '../components/ui/dialog';
 import { cn } from '../components/ui/utils';
-import { useArchivedPatients, useArchivedMedicines, useRestorePatient, useRestoreMedicine, useDeletePatient, useDeleteMedicine, useBulkRestorePatients, useBulkDeletePatients, useBulkRestoreMedicines, useBulkDeleteMedicines, useBulkUpdateSchoolYear, useReferenceData } from '../lib/hooks';
+import { useArchivedPatients, useArchivedMedicines, useRestorePatient, useRestoreMedicine, useDeletePatient, useDeleteMedicine, useBulkRestorePatients, useBulkDeletePatients, useBulkRestoreMedicines, useBulkDeleteMedicines, useBulkUpdateSchoolYear, useBulkUpdateGradeLevel, useReferenceData } from '../lib/hooks';
 import { toast } from 'sonner';
 import { Checkbox } from '../components/ui/checkbox';
 import { Combobox } from '../components/ui/combobox';
@@ -93,6 +93,9 @@ function ArchivedPatientsTab() {
   const [updateSchoolYearOpen, setUpdateSchoolYearOpen] = useState(false);
   const [bulkSchoolYearValue, setBulkSchoolYearValue] = useState('');
   const [confirmSchoolYearOpen, setConfirmSchoolYearOpen] = useState(false);
+  const [updateGradeLevelOpen, setUpdateGradeLevelOpen] = useState(false);
+  const [bulkGradeLevelValue, setBulkGradeLevelValue] = useState('');
+  const [confirmGradeLevelOpen, setConfirmGradeLevelOpen] = useState(false);
   const [partialFailureOpen, setPartialFailureOpen] = useState(false);
   const [lastBulkResult, setLastBulkResult] = useState<{ succeeded: string[]; failed: { id: string; error: string }[] } | null>(null);
   const [bulkRestoreOpen, setBulkRestoreOpen] = useState(false);
@@ -104,6 +107,7 @@ function ArchivedPatientsTab() {
   const bulkRestoreMutation = useBulkRestorePatients();
   const bulkDeleteMutation = useBulkDeletePatients();
   const bulkUpdateSchoolYearMutation = useBulkUpdateSchoolYear();
+  const bulkUpdateGradeLevelMutation = useBulkUpdateGradeLevel();
   const { data: gradeLevels = [] } = useReferenceData('GRADE_LEVEL');
   const { data: strands = [] } = useReferenceData('STRAND');
   const { data: sections = [] } = useReferenceData('SECTION', gradeFilter || undefined);
@@ -194,6 +198,43 @@ function ArchivedPatientsTab() {
   };
 
   const selectedSchoolYearLabel = schoolYearOptions.find((o: { value: string; label: string }) => o.value === bulkSchoolYearValue)?.label ?? bulkSchoolYearValue;
+
+  const handleBulkConfirmGradeLevel = async () => {
+    if (selectedStudentIds.length === 0 || !bulkGradeLevelValue) return;
+    try {
+      const result = await bulkUpdateGradeLevelMutation.mutateAsync({
+        ids: selectedStudentIds,
+        gradeLevel: bulkGradeLevelValue,
+      });
+      setConfirmGradeLevelOpen(false);
+      if (result.failed.length > 0) {
+        setLastBulkResult(result);
+        setPartialFailureOpen(true);
+        setSelectedIds(selectedIdsArray.filter((id: string) => !result.succeeded.includes(id)));
+        if (result.succeeded.length > 0) {
+          toast.success(`Grade level updated for ${result.succeeded.length} student(s).`);
+        }
+      } else {
+        clearSelection();
+        toast.success(`Grade level updated for ${result.succeeded.length} student(s).`);
+      }
+    } catch {
+      toast.error('Failed to update grade level.');
+    }
+  };
+
+  const openUpdateGradeLevelFlow = () => {
+    setBulkGradeLevelValue('');
+    setUpdateGradeLevelOpen(true);
+  };
+
+  const onNextGradeLevelChoice = () => {
+    if (!bulkGradeLevelValue) return;
+    setUpdateGradeLevelOpen(false);
+    setConfirmGradeLevelOpen(true);
+  };
+
+  const selectedGradeLevelLabel = gradeOptions.find((o: { value: string; label: string }) => o.value === bulkGradeLevelValue)?.label ?? bulkGradeLevelValue;
 
   const handleBulkRestoreConfirm = async () => {
     if (selectedIdsArray.length === 0) return;
@@ -336,6 +377,48 @@ function ArchivedPatientsTab() {
         onConfirm={handleBulkConfirmSchoolYear}
         isLoading={bulkUpdateSchoolYearMutation.isPending}
       />
+      <Dialog open={updateGradeLevelOpen} onOpenChange={setUpdateGradeLevelOpen}>
+        <DialogContent className="sm:max-w-sm" aria-describedby="archive-bulk-grade-level-desc">
+          <DialogHeader>
+            <DialogTitle>Update grade level</DialogTitle>
+            <DialogDescription id="archive-bulk-grade-level-desc">
+              Choose the new grade level for the selected archived students.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Combobox
+              options={gradeOptions}
+              value={bulkGradeLevelValue}
+              onValueChange={setBulkGradeLevelValue}
+              placeholder="Grade level"
+              searchPlaceholder="Search grade..."
+              emptyMessage="No grades found."
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUpdateGradeLevelOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={onNextGradeLevelChoice} disabled={!bulkGradeLevelValue}>
+              Next
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <BulkConfirmDialog
+        open={confirmGradeLevelOpen}
+        onOpenChange={setConfirmGradeLevelOpen}
+        title="Update grade level?"
+        description={
+          <>
+            Set grade level to <span className="font-semibold text-slate-700">{selectedGradeLevelLabel}</span> for{' '}
+            <span className="font-semibold text-slate-700">{selectedStudentCount}</span> student(s)?
+          </>
+        }
+        confirmLabel="Update grade level"
+        onConfirm={handleBulkConfirmGradeLevel}
+        isLoading={bulkUpdateGradeLevelMutation.isPending}
+      />
       <BulkPartialFailureDialog
         open={partialFailureOpen}
         onOpenChange={(open: boolean) => { if (!open) { setPartialFailureOpen(false); setLastBulkResult(null); clearSelection(); } }}
@@ -438,7 +521,12 @@ function ArchivedPatientsTab() {
           actions={[
             { label: 'Restore', onClick: () => setBulkRestoreOpen(true), variant: 'outline' as const },
             { label: 'Delete', onClick: () => setBulkDeleteOpen(true), variant: 'destructive' as const },
-            ...(showUpdateSchoolYear ? [{ label: 'Update school year', onClick: openUpdateSchoolYearFlow, variant: 'outline' as const }] : []),
+            ...(showUpdateSchoolYear
+              ? [
+                  { label: 'Update school year', onClick: openUpdateSchoolYearFlow, variant: 'outline' as const },
+                  { label: 'Update grade level', onClick: openUpdateGradeLevelFlow, variant: 'outline' as const },
+                ]
+              : []),
           ]}
         />
       )}

@@ -21,7 +21,7 @@ import {
 } from '../components/ui/dialog';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { usePatients, useArchivePatient, useDeletePatient, useBulkArchivePatients, useBulkDeletePatients, useBulkUpdateSchoolYear, useReferenceData } from '../lib/hooks';
+import { usePatients, useArchivePatient, useDeletePatient, useBulkArchivePatients, useBulkDeletePatients, useBulkUpdateSchoolYear, useBulkUpdateGradeLevel, useReferenceData } from '../lib/hooks';
 import { Combobox } from '../components/ui/combobox';
 import { Checkbox } from '../components/ui/checkbox';
 import { BulkActionsBar } from '../components/BulkActionsBar';
@@ -49,6 +49,9 @@ export function PatientsList() {
   const [updateSchoolYearOpen, setUpdateSchoolYearOpen] = useState(false);
   const [bulkSchoolYearValue, setBulkSchoolYearValue] = useState('');
   const [confirmSchoolYearOpen, setConfirmSchoolYearOpen] = useState(false);
+  const [updateGradeLevelOpen, setUpdateGradeLevelOpen] = useState(false);
+  const [bulkGradeLevelValue, setBulkGradeLevelValue] = useState('');
+  const [confirmGradeLevelOpen, setConfirmGradeLevelOpen] = useState(false);
   const [partialFailureOpen, setPartialFailureOpen] = useState(false);
   const [lastBulkResult, setLastBulkResult] = useState<{ succeeded: string[]; failed: { id: string; error: string }[] } | null>(null);
   const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false);
@@ -63,6 +66,7 @@ export function PatientsList() {
   const bulkArchiveMutation = useBulkArchivePatients();
   const bulkDeleteMutation = useBulkDeletePatients();
   const bulkUpdateSchoolYearMutation = useBulkUpdateSchoolYear();
+  const bulkUpdateGradeLevelMutation = useBulkUpdateGradeLevel();
 
   const { data: gradeLevels = [] } = useReferenceData('GRADE_LEVEL');
   const { data: strands = [] } = useReferenceData('STRAND');
@@ -186,6 +190,43 @@ export function PatientsList() {
   };
 
   const selectedSchoolYearLabel = schoolYearOptions.find((o) => o.value === bulkSchoolYearValue)?.label ?? bulkSchoolYearValue;
+
+  const handleBulkConfirmGradeLevel = async () => {
+    if (selectedStudentIds.length === 0 || !bulkGradeLevelValue) return;
+    try {
+      const result = await bulkUpdateGradeLevelMutation.mutateAsync({
+        ids: selectedStudentIds,
+        gradeLevel: bulkGradeLevelValue,
+      });
+      setConfirmGradeLevelOpen(false);
+      if (result.failed.length > 0) {
+        setLastBulkResult(result);
+        setPartialFailureOpen(true);
+        setSelectedIds(selectedIdsArray.filter((id) => !result.succeeded.includes(id)));
+        if (result.succeeded.length > 0) {
+          toast.success(`Grade level updated for ${result.succeeded.length} student(s).`);
+        }
+      } else {
+        clearSelection();
+        toast.success(`Grade level updated for ${result.succeeded.length} student(s).`);
+      }
+    } catch {
+      toast.error('Failed to update grade level.');
+    }
+  };
+
+  const openUpdateGradeLevelFlow = () => {
+    setBulkGradeLevelValue('');
+    setUpdateGradeLevelOpen(true);
+  };
+
+  const onNextGradeLevelChoice = () => {
+    if (!bulkGradeLevelValue) return;
+    setUpdateGradeLevelOpen(false);
+    setConfirmGradeLevelOpen(true);
+  };
+
+  const selectedGradeLevelLabel = gradeOptions.find((o) => o.value === bulkGradeLevelValue)?.label ?? bulkGradeLevelValue;
 
   const handleBulkArchiveConfirm = async () => {
     if (selectedIdsArray.length === 0) return;
@@ -383,7 +424,12 @@ export function PatientsList() {
           actions={[
             { label: 'Archive', onClick: () => setBulkArchiveOpen(true), variant: 'outline' as const },
             { label: 'Delete', onClick: () => setBulkDeleteOpen(true), variant: 'destructive' as const },
-            ...(showUpdateSchoolYear ? [{ label: 'Update school year', onClick: openUpdateSchoolYearFlow, variant: 'outline' as const }] : []),
+            ...(showUpdateSchoolYear
+              ? [
+                  { label: 'Update school year', onClick: openUpdateSchoolYearFlow, variant: 'outline' as const },
+                  { label: 'Update grade level', onClick: openUpdateGradeLevelFlow, variant: 'outline' as const },
+                ]
+              : []),
           ]}
         />
       )}
@@ -466,6 +512,49 @@ export function PatientsList() {
         confirmLabel="Update school year"
         onConfirm={handleBulkConfirmSchoolYear}
         isLoading={bulkUpdateSchoolYearMutation.isPending}
+      />
+
+      <Dialog open={updateGradeLevelOpen} onOpenChange={setUpdateGradeLevelOpen}>
+        <DialogContent className="sm:max-w-sm" aria-describedby="bulk-grade-level-desc">
+          <DialogHeader>
+            <DialogTitle>Update grade level</DialogTitle>
+            <DialogDescription id="bulk-grade-level-desc">
+              Choose the new grade level for the selected students.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Combobox
+              options={gradeOptions}
+              value={bulkGradeLevelValue}
+              onValueChange={setBulkGradeLevelValue}
+              placeholder="Grade level"
+              searchPlaceholder="Search grade..."
+              emptyMessage="No grades found."
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUpdateGradeLevelOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={onNextGradeLevelChoice} disabled={!bulkGradeLevelValue}>
+              Next
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <BulkConfirmDialog
+        open={confirmGradeLevelOpen}
+        onOpenChange={setConfirmGradeLevelOpen}
+        title="Update grade level?"
+        description={
+          <>
+            Set grade level to <span className="font-semibold text-slate-700">{selectedGradeLevelLabel}</span> for{' '}
+            <span className="font-semibold text-slate-700">{selectedStudentCount}</span> student(s)?
+          </>
+        }
+        confirmLabel="Update grade level"
+        onConfirm={handleBulkConfirmGradeLevel}
+        isLoading={bulkUpdateGradeLevelMutation.isPending}
       />
 
       {/* Partial failure (bulk archive / delete / school year) */}

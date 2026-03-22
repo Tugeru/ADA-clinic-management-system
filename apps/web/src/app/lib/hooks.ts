@@ -178,6 +178,18 @@ export function useBulkUpdateSchoolYear() {
   });
 }
 
+export function useBulkUpdateGradeLevel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ids, gradeLevel }: { ids: string[]; gradeLevel: string }) =>
+      patientApi.bulkUpdateGradeLevel(ids, gradeLevel),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.patients.all });
+      qc.invalidateQueries({ queryKey: queryKeys.archive.patients() });
+    },
+  });
+}
+
 export function usePatientVisits(patientId: string, params?: { search?: string; page?: number; includeArchived?: boolean }) {
   return useQuery({
     queryKey: queryKeys.patients.visits(patientId, params),

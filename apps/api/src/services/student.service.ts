@@ -150,6 +150,40 @@ export async function bulkUpdateSchoolYear(
     return { succeeded, failed }
 }
 
+export async function bulkUpdateGradeLevel(
+    ids: string[],
+    gradeLevel: string
+): Promise<BatchResult> {
+    const succeeded: string[] = []
+    const failed: { id: string; error: string }[] = []
+    for (const id of ids) {
+        try {
+            const row = await prisma.student.findUnique({
+                where: { id },
+                select: { id: true, patientType: true },
+            })
+            if (!row) {
+                failed.push({ id, error: 'Student not found' })
+                continue
+            }
+            if (row.patientType !== 'Student') {
+                failed.push({ id, error: 'Not a student' })
+                continue
+            }
+            await updateStudent(id, { gradeLevel })
+            succeeded.push(id)
+        } catch (err: any) {
+            const message = err?.message ?? 'Unknown error'
+            const status = err?.status
+            failed.push({
+                id,
+                error: status === 404 ? 'Student not found' : message,
+            })
+        }
+    }
+    return { succeeded, failed }
+}
+
 export async function deleteStudent(id: string) {
     return prisma.$transaction(async (tx) => {
         const student = await tx.student.findUnique({ where: { id }, select: { id: true } })

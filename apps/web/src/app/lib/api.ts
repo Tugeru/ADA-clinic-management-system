@@ -81,6 +81,14 @@ export const patientApi = {
     return data as { succeeded: string[]; failed: { id: string; error: string }[] };
   },
 
+  async bulkUpdateGradeLevel(
+    ids: string[],
+    gradeLevel: string,
+  ): Promise<{ succeeded: string[]; failed: { id: string; error: string }[] }> {
+    const { data } = await http.patch('/students/bulk/grade-level', { ids, gradeLevel });
+    return data as { succeeded: string[]; failed: { id: string; error: string }[] };
+  },
+
   async search(query: string): Promise<Patient[]> {
     const { data } = await http.get('/students', { params: { search: query } });
     const items: any[] = Array.isArray(data) ? data : data.data ?? [];
