@@ -19,6 +19,7 @@ import { ReduceStockDialog } from '../components/ReduceStockDialog';
 const statusStyles: Record<string, string> = {
     critical: 'bg-red-100 text-red-700 border-red-200',
     low: 'bg-orange-100 text-orange-700 border-orange-200',
+    expiring: 'bg-amber-100 text-amber-800 border-amber-200',
     good: 'bg-emerald-100 text-emerald-700 border-emerald-200',
 };
 

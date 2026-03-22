@@ -7,7 +7,7 @@ import type {
   Patient, Visit, Medicine, StockMovement,
   PaginatedResponse, KPI, MedicineUsageRanking,
   DashboardAnalyticsResponse, DashboardAnalyticsParams,
-  ReferenceDataItem, MedicineType,
+  ReferenceDataItem, MedicineType, InventoryStatus,
 } from './types';
 
 // ─── Auth ───────────────────────────────────────────────────
@@ -157,17 +157,30 @@ export const inventoryApi = {
   async getLowStock(): Promise<Medicine[]> {
     const { data } = await http.get('/reports/low-stock');
     const items: any[] = Array.isArray(data) ? data : data.medicines ?? data.data ?? [];
-    return items.map((m: any) => ({
-      id: m.medicineId ?? m.id,
-      name: m.name,
-      sku: m.medicineId ?? m.id,
-      category: 'Medicine',
-      stock: m.totalStock ?? 0,
-      threshold: m.reorderThreshold ?? 0,
-      unit: 'pcs',
-      expiry: 'N/A',
-      status: 'low' as const,
-    }));
+    return items.map((m: any) => {
+      const stock = m.totalStock ?? 0;
+      const threshold = m.reorderThreshold ?? 0;
+      const hasExpiring = (m.expiringBatches?.length ?? 0) > 0;
+      const isLow = m.isLowStock === true;
+      let status: InventoryStatus;
+      if (isLow && stock === 0) status = 'critical';
+      else if (isLow) status = 'low';
+      else if (hasExpiring) status = 'expiring';
+      else status = 'good';
+
+      return {
+        id: m.medicineId ?? m.id,
+        name: m.name,
+        sku: m.medicineId ?? m.id,
+        category: 'Medicine',
+        stock,
+        threshold,
+        unit: 'pcs',
+        expiry: 'N/A',
+        hasExpiringSoon: hasExpiring,
+        status,
+      };
+    });
   },
 
   async getAvailableForDispensing(): Promise<{ name: string; id: string; stock: number }[]> {
@@ -258,11 +271,17 @@ export const dashboardApi = {
     const visitItems: any[] = Array.isArray(visits.data) ? visits.data : visits.data.data ?? [];
     const studentItems: any[] = Array.isArray(students.data) ? students.data : students.data.data ?? [];
     const lowItems: any[] = Array.isArray(lowStock.data) ? lowStock.data : lowStock.data.medicines ?? [];
+    /** Report lists low-stock and expiring-only rows; this KPI counts only below-threshold stock (see report.service `isLowStock`). */
+    const lowStockOnlyCount = lowItems.filter((m: any) =>
+      typeof m.isLowStock === 'boolean'
+        ? m.isLowStock
+        : (m.totalStock ?? 0) <= (m.reorderThreshold ?? 0),
+    ).length;
     const medItems: any[] = Array.isArray(medicines.data) ? medicines.data : medicines.data.data ?? [];
     return [
       { title: "TODAY'S VISITS", value: String(visitItems.length), change: '', changeType: 'positive', changeText: 'today' },
       { title: 'ACTIVE PATIENTS', value: String(studentItems.filter((s: any) => !s.isArchived).length), change: '', changeType: 'positive', changeText: 'active' },
-      { title: 'LOW STOCK ITEMS', value: String(lowItems.length), subtitle: 'Needs Attention', subtitleColor: 'text-orange-500', highlight: lowItems.length > 0 },
+      { title: 'LOW STOCK ITEMS', value: String(lowStockOnlyCount), subtitle: 'Needs Attention', subtitleColor: 'text-orange-500', highlight: lowStockOnlyCount > 0 },
       { title: 'TOTAL MEDICINES', value: String(medItems.length), subtitle: 'In Catalog', subtitleColor: 'text-emerald-500' },
     ];
   },

@@ -14,7 +14,8 @@ import { Separator } from '../components/ui/separator';
 import { Skeleton } from '../components/ui/skeleton';
 import { cn } from '../components/ui/utils';
 import { useDashboardKPIs, useRecentVisits, useLowStock, useDashboardCharts } from '../lib/hooks';
-import type { DashboardAnalyticsParams } from '../lib/types';
+import type { DashboardAnalyticsParams, InventoryStatus } from '../lib/types';
+import { EXPIRY_WARNING_DAYS } from '@ada/shared';
 import { formatTimeTo12Hour } from '../lib/dateTime';
 
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip as ChartTooltip, Legend, Filler } from 'chart.js';
@@ -396,37 +397,53 @@ export function Dashboard() {
 
         {/* Right Sidebar */}
         <div className="space-y-6">
-          {/* Low Stock Alerts */}
+          {/* Low stock + expiring batches (API: lowStockReport) */}
           <Card>
             <CardHeader className="pb-2 flex-row items-center justify-between">
-              <CardTitle className="text-sm font-bold text-slate-800">Low Stock Alerts</CardTitle>
+              <CardTitle className="text-sm font-bold text-slate-800">Stock &amp; Expiry Alerts</CardTitle>
               <AlertTriangle size={16} className="text-orange-500" />
             </CardHeader>
             <CardContent className="space-y-2.5">
               {lowStockLoading ? (
                 Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)
               ) : (
-                lowStock?.slice(0, 4).map((item) => (
-                  <div key={item.id} className={cn("p-3 rounded-lg border flex items-center justify-between",
-                    item.status === 'critical' ? "bg-red-50 border-red-100" : "bg-orange-50 border-orange-100"
-                  )}>
+                lowStock?.slice(0, 4).map((item) => {
+                  const st = item.status as InventoryStatus;
+                  const isCrit = st === 'critical';
+                  const isExp = st === 'expiring';
+                  const borderBg = isCrit
+                    ? 'bg-red-50 border-red-100'
+                    : isExp
+                      ? 'bg-amber-50 border-amber-100'
+                      : 'bg-orange-50 border-orange-100';
+                  const accent = isCrit ? 'text-red-500' : isExp ? 'text-amber-600' : 'text-orange-500';
+                  const stockColor = isCrit ? 'text-red-600' : isExp ? 'text-amber-700' : 'text-orange-600';
+                  const badge =
+                    isCrit ? 'CRITICAL' : isExp ? 'EXPIRING' : 'LOW';
+                  return (
+                  <div key={item.id} className={cn("p-3 rounded-lg border flex items-center justify-between", borderBg)}>
                     <div className="flex items-center gap-2.5">
-                      <div className={cn("p-1.5 rounded-md bg-white shadow-sm", item.status === 'critical' ? "text-red-500" : "text-orange-500")}>
+                      <div className={cn("p-1.5 rounded-md bg-white shadow-sm", accent)}>
                         <Pill size={13} />
                       </div>
                       <div>
                         <p className="font-bold text-slate-800 text-xs">{item.name}</p>
-                        <p className="text-[9px] text-slate-500">Threshold: {item.threshold}</p>
+                        <p className="text-[9px] text-slate-500">
+                          {isExp && !isCrit
+                            ? `Batch expiring within ${EXPIRY_WARNING_DAYS} days · Threshold: ${item.threshold}`
+                            : `Threshold: ${item.threshold}`}
+                        </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={cn("text-base font-bold leading-none", item.status === 'critical' ? "text-red-600" : "text-orange-600")}>{item.stock}</p>
-                      <p className={cn("text-[8px] font-bold uppercase", item.status === 'critical' ? "text-red-500" : "text-orange-500")}>
-                        {item.status === 'critical' ? 'CRITICAL' : 'LOW'}
+                      <p className={cn("text-base font-bold leading-none", stockColor)}>{item.stock}</p>
+                      <p className={cn("text-[8px] font-bold uppercase", accent)}>
+                        {badge}
                       </p>
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
               <Button variant="outline" asChild className="w-full text-teal-600 border-teal-200 hover:bg-teal-50 text-xs mt-1">
                 <Link to="/inventory">Manage Inventory</Link>
