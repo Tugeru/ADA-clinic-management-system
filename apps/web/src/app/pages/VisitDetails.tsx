@@ -1,5 +1,6 @@
-import { Link, useParams } from 'react-router';
-import { ArrowLeft, Archive, Edit, Clock, User, AlertCircle, Pill, ClipboardList, UserCheck, Shield, Thermometer, Heart, Activity } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
+import { ArrowLeft, Archive, Edit, Clock, User, AlertCircle, Pill, ClipboardList, UserCheck, Shield, Thermometer, Heart, Activity, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -7,8 +8,10 @@ import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Separator } from '../components/ui/separator';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Skeleton } from '../components/ui/skeleton';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
-import { useVisit } from '../lib/hooks';
+import { toast } from 'sonner';
+import { useDeleteVisit, useVisit } from '../lib/hooks';
 
 const typeColors: Record<string, string> = {
   Student: 'bg-blue-100 text-blue-700',
@@ -25,7 +28,23 @@ function formatTime12h(date: string | undefined, time: string | undefined): stri
 
 export function VisitDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const deleteMutation = useDeleteVisit();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { data: visit, isLoading } = useVisit(id || '');
+
+  const confirmDelete = async () => {
+    if (!id) return;
+    try {
+      await deleteMutation.mutateAsync(id);
+      toast.success('Visit record permanently deleted');
+      navigate('/visits');
+    } catch {
+      toast.error('Failed to delete visit record');
+    } finally {
+      setShowDeleteConfirm(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -54,6 +73,28 @@ export function VisitDetails() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Visit Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to permanently delete the visit for <span className="font-semibold text-slate-700">{visit.patientName}</span>.
+              This action <span className="font-semibold text-red-600">cannot be undone</span>. All dispensed medicine records linked to this visit will also be removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Button variant="link" asChild className="p-0 h-auto text-slate-500 hover:text-slate-800 text-xs">
         <Link to="/visits"><ArrowLeft size={13} className="mr-1" /> Back to Visits</Link>
       </Button>
@@ -81,6 +122,15 @@ export function VisitDetails() {
           </div>
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" className="text-xs h-8 gap-1.5"><Archive size={13} /> Archive</Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <Trash2 size={13} /> Delete
+            </Button>
             <Button asChild size="sm" className="bg-teal-600 hover:bg-teal-700 text-xs h-8 gap-1.5">
               <Link to={`/visits/${id}/edit`}><Edit size={13} /> Edit</Link>
             </Button>

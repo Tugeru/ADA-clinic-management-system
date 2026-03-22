@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
-import { ArrowLeft, Search, X, AlertCircle, User, Calendar, Stethoscope, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Search, X, AlertCircle, AlertTriangle, User, Calendar, Stethoscope, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -10,13 +10,30 @@ import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { usePatientSearch, useDispensableMedicines, useCreateVisit } from '../lib/hooks';
+import { usePatient, usePatientSearch, useDispensableMedicines, useCreateVisit } from '../lib/hooks';
 import type { Patient, DispositionType } from '../lib/types';
 import { Combobox, type ComboboxOption } from '../components/ui/combobox';
 import { MedicineLinesCard, type MedicineLine } from '../components/visit/MedicineLinesCard';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 // Track medicine UUID, quantity, and local stock validation state
 type MedRow = { medicineId: string; quantity: number; maxStock: number; error?: string };
+
+const MEDICAL_ALERT_TEXT_MAX = 800;
+
+function truncateMedicalText(text: string, max: number): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max)}…`;
+}
 
 export function NewVisit() {
   const navigate = useNavigate();
@@ -29,6 +46,61 @@ export function NewVisit() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(prefillPatient);
   const [showDropdown, setShowDropdown] = useState(false);
   const { data: patientResults } = usePatientSearch(patientQuery);
+
+  const selectedPatientId = selectedPatient?.id ?? '';
+  const {
+    data: patientDetail,
+    isSuccess: patientDetailSuccess,
+    isError: patientDetailError,
+  } = usePatient(selectedPatientId);
+
+  const [medicalAlertOpen, setMedicalAlertOpen] = useState(false);
+  const dismissedMedicalAlertForIdRef = useRef<string | null>(null);
+  const prevSelectedPatientIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (prevSelectedPatientIdRef.current !== selectedPatientId) {
+      prevSelectedPatientIdRef.current = selectedPatientId || null;
+      dismissedMedicalAlertForIdRef.current = null;
+    }
+  }, [selectedPatientId]);
+
+  useEffect(() => {
+    if (!selectedPatientId) {
+      setMedicalAlertOpen(false);
+      return;
+    }
+    if (patientDetailError) {
+      setMedicalAlertOpen(false);
+      return;
+    }
+    if (!patientDetailSuccess || !patientDetail) return;
+    const raw = patientDetail.knownMedicalConditions;
+    const text = typeof raw === 'string' ? raw.trim() : '';
+    if (!text) {
+      setMedicalAlertOpen(false);
+      return;
+    }
+    if (dismissedMedicalAlertForIdRef.current === selectedPatientId) return;
+    setMedicalAlertOpen(true);
+  }, [selectedPatientId, patientDetailSuccess, patientDetail, patientDetailError]);
+
+  const handleDismissMedicalAlert = () => {
+    if (selectedPatientId) dismissedMedicalAlertForIdRef.current = selectedPatientId;
+    setMedicalAlertOpen(false);
+  };
+
+  const medicalAlertExcerpt =
+    patientDetail?.knownMedicalConditions && typeof patientDetail.knownMedicalConditions === 'string'
+      ? truncateMedicalText(patientDetail.knownMedicalConditions, MEDICAL_ALERT_TEXT_MAX)
+      : '';
+
+  const inlineMedicalNotesText =
+    patientDetailSuccess &&
+    patientDetail?.knownMedicalConditions &&
+    typeof patientDetail.knownMedicalConditions === 'string'
+      ? patientDetail.knownMedicalConditions.trim()
+      : '';
 
   // Visit fields
   const [visitDate] = useState(new Date().toISOString().split('T')[0]);
@@ -125,9 +197,19 @@ export function NewVisit() {
     const todayISO = new Date(`${visitDate}T${timeIn}:00`).toISOString();
     const timeOutISO = timeOut ? new Date(`${visitDate}T${timeOut}:00`).toISOString() : undefined;
 
+    if (disposition === 'sentHome' && releaseTime) {
+      const visitStartMs = new Date(`${visitDate}T${timeIn}:00`).getTime();
+      const releaseMs = new Date(`${visitDate}T${releaseTime}:00`).getTime();
+      if (!Number.isNaN(visitStartMs) && !Number.isNaN(releaseMs) && releaseMs < visitStartMs) {
+        toast.error('Release time must be on or after the visit Time In.');
+        return;
+      }
+    }
+
     try {
       const result = await createVisit.mutateAsync({
         patientId: selectedPatient.id,
+        visitDate,
         timeIn: todayISO,            // ISO 8601 — satisfies z.string().datetime()
         timeOut: timeOutISO,
         complaint,
@@ -150,13 +232,45 @@ export function NewVisit() {
       toast.success('Visit record saved and finalized');
       navigate(`/visits/${result.id}`);
     } catch (err: any) {
-      const msg = err?.response?.data?.errors?.[0]?.message ?? err?.response?.data?.error ?? 'Failed to save visit';
+      const data = err?.response?.data;
+      const detailMsg =
+        Array.isArray(data?.details) && data.details.length > 0
+          ? data.details.map((d: { path?: string; message?: string }) => [d.path, d.message].filter(Boolean).join(': ')).join(' · ')
+          : undefined;
+      const msg = detailMsg ?? data?.error ?? 'Failed to save visit';
       toast.error(msg);
     }
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">
+      <AlertDialog open={medicalAlertOpen} onOpenChange={(open) => { if (!open) handleDismissMedicalAlert(); }}>
+        <AlertDialogContent aria-describedby="new-visit-medical-alert-desc" className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Known Medical Conditions / Allergies</AlertDialogTitle>
+            <AlertDialogDescription id="new-visit-medical-alert-desc" asChild>
+              <div className="space-y-2 text-left">
+                <p>
+                  This patient has medical notes on file. Review before continuing with the visit.
+                </p>
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 whitespace-pre-wrap break-words">
+                  {medicalAlertExcerpt}
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              type="button"
+              className="bg-teal-600 hover:bg-teal-700"
+              onClick={handleDismissMedicalAlert}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Button variant="link" asChild className="p-0 h-auto text-slate-500 hover:text-slate-800 text-xs">
         <Link to="/visits"><ArrowLeft size={13} className="mr-1" /> Back to Visits</Link>
       </Button>
@@ -204,14 +318,29 @@ export function NewVisit() {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <Badge className="bg-teal-50 text-teal-700 border-teal-200 gap-1.5 text-xs" variant="outline">
-                  <CheckCircle size={12} /> {selectedPatient.fullName} ({selectedPatient.idNumber})
-                </Badge>
-                <span className="text-[10px] text-slate-500">{selectedPatient.context}</span>
-                <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => setSelectedPatient(null)}>
-                  <X size={12} />
-                </Button>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-teal-50 text-teal-700 border-teal-200 gap-1.5 text-xs" variant="outline">
+                    <CheckCircle size={12} /> {selectedPatient.fullName} ({selectedPatient.idNumber})
+                  </Badge>
+                  <span className="text-[10px] text-slate-500">{selectedPatient.context}</span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => setSelectedPatient(null)}>
+                    <X size={12} />
+                  </Button>
+                </div>
+                {inlineMedicalNotesText ? (
+                  <div
+                    className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-lg max-h-40 overflow-y-auto"
+                    role="region"
+                    aria-label="Known medical conditions and allergies"
+                  >
+                    <AlertTriangle size={16} className="text-amber-500 mt-0.5 shrink-0" aria-hidden />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-amber-700">Known Medical Conditions / Allergies</p>
+                      <p className="text-sm text-amber-700 mt-0.5 whitespace-pre-wrap break-words">{inlineMedicalNotesText}</p>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             )}
           </CardContent>

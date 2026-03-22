@@ -540,6 +540,12 @@ function studentPayload(p: any) {
 }
 
 function visitPayload(p: any) {
+  // Same calendar day as timeIn / visit form — not UTC "today", so release vs timeIn refine matches user intent
+  const visitDateStr =
+    p.visitDate ||
+    (typeof p.timeIn === 'string' && p.timeIn.length >= 10 ? p.timeIn.slice(0, 10) : undefined) ||
+    new Date().toISOString().slice(0, 10);
+
   return {
     studentId: p.patientId,
     timeIn: p.timeIn ?? new Date().toISOString(),
@@ -554,10 +560,11 @@ function visitPayload(p: any) {
     respiratoryRate: p.respiratoryRate || undefined,
     medicines: (p.medicines ?? [])
       .filter((m: any) => m.medicineId || m.name)
-      .map((m: any) => ({
-        medicineId: m.medicineId,
-        quantity: Number(m.quantity) || 1,
-      })),
+      .map((m: any) => {
+        const n = Number(m.quantity);
+        const qty = Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
+        return { medicineId: m.medicineId, quantity: qty };
+      }),
     disposition: (() => {
       const d = p.disposition as string | undefined;
       if (d === 'Returned to Class') return 'RETURNED_TO_CLASS';
@@ -571,9 +578,8 @@ function visitPayload(p: any) {
       releasedToRelationship: p.relationship || undefined,
       releaseTime: p.releaseTime
         ? (() => {
-          // releaseTime is HH:MM — combine with today's date for ISO
-          const today = new Date().toISOString().slice(0, 10);
-          const dt = new Date(`${today}T${p.releaseTime}:00`);
+          // releaseTime is HH:MM from <input type="time" /> — combine with visit date (not UTC midnight drift)
+          const dt = new Date(`${visitDateStr}T${p.releaseTime}:00`);
           return isNaN(dt.getTime()) ? undefined : dt.toISOString();
         })()
         : undefined,

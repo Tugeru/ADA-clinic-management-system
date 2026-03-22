@@ -187,6 +187,7 @@ export function PatientProfile() {
                       idNumber: patient.idNumber,
                       type: patient.type,
                       context: patient.context,
+                      knownMedicalConditions: patient.knownMedicalConditions,
                     },
                   }}
                 >

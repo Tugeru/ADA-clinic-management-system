@@ -238,6 +238,7 @@ export function useDeleteVisit() {
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.kpis });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.recentVisits });
       qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+      qc.invalidateQueries({ queryKey: ['patients', 'visits'] });
     },
   });
 }

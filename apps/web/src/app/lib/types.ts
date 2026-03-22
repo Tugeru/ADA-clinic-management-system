@@ -59,6 +59,8 @@ export interface Patient {
   // Medical notes
   allergies?: string;
   conditions?: string;
+  /** Combined medical conditions / allergies (API field; profile & visits) */
+  knownMedicalConditions?: string;
   remarks?: string;
 
   dateArchived?: string;
@@ -133,6 +135,8 @@ export interface DispensedMedicine {
 // Matches LogVisitSchema on the backend
 export interface VisitFormData {
   patientId: string;
+  /** YYYY-MM-DD — used with release time so it matches visit date (API refine) */
+  visitDate?: string;
   timeIn: string;           // ISO 8601 datetime
   timeOut?: string;         // ISO 8601 datetime
   complaint: string;
