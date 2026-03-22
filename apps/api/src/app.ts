@@ -9,6 +9,7 @@ import visitRoutes from './routes/visit.routes.js'
 import inventoryRoutes from './routes/inventory.routes.js'
 import reportRoutes from './routes/report.routes.js'
 import referenceDataRoutes from './routes/reference-data.routes.js'
+import exportRoutes from './routes/export.routes.js'
 
 const app = express()
 
@@ -31,6 +32,7 @@ app.use('/api/medicines', authGuard, inventoryRoutes)
 app.use('/api/inventory', authGuard, inventoryRoutes)
 app.use('/api/reports', authGuard, reportRoutes)
 app.use('/api/reference-data', authGuard, referenceDataRoutes)
+app.use('/api/export', authGuard, exportRoutes)
 
 // ─── Error handler (must be last) ─────────────────────────────────────────────
 app.use(errorHandler)

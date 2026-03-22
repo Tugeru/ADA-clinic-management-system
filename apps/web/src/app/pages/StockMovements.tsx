@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Download, Plus, Calendar, AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card } from '../components/ui/card';
@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
 import { cn } from '../components/ui/utils';
+import { toast } from 'sonner';
 import { useStockMovements, useInventory } from '../lib/hooks';
+import { downloadCsvExport } from '../lib/exportDownload';
 
 function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -44,6 +46,7 @@ export function StockMovements() {
   const [medicineId, setMedicineId] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [page, setPage] = useState(1);
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   const { startDate, endDate } = periodToDates(period);
 
@@ -77,6 +80,36 @@ export function StockMovements() {
 
   const navigate = useNavigate();
 
+  const handleExportCsv = useCallback(async () => {
+    let expStart = startDate;
+    let expEnd = endDate;
+    if (!expStart || !expEnd) {
+      const end = new Date();
+      const start = new Date(Date.now() - 90 * 86_400_000);
+      expStart = toDateStr(start);
+      expEnd = toDateStr(end);
+      toast.info('Using last 90 days for export (pick a period to narrow).');
+    }
+    setExportingCsv(true);
+    try {
+      await downloadCsvExport(
+        '/export/stock-movements.csv',
+        {
+          startDate: expStart,
+          endDate: expEnd,
+          ...(medicineId !== 'ALL' ? { medicineId } : {}),
+          type: typeFilter,
+        },
+        'ada_stock_movements.csv',
+      );
+      toast.success('Stock movements exported');
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExportingCsv(false);
+    }
+  }, [startDate, endDate, medicineId, typeFilter]);
+
   const pageNumbers = useMemo(() => {
     const pages: number[] = [];
     const maxVisible = 5;
@@ -106,8 +139,15 @@ export function StockMovements() {
           <p className="text-sm text-slate-500 mt-1">Read-only ledger of all stock changes and adjustments</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-            <Download size={13} /> Export CSV
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs"
+            disabled={exportingCsv}
+            onClick={handleExportCsv}
+          >
+            <Download size={13} /> {exportingCsv ? 'Exporting…' : 'Export CSV'}
           </Button>
           <Button size="sm" className="gap-1.5 text-xs bg-teal-600 hover:bg-teal-700" asChild>
             <Link to="/inventory/stock-in">

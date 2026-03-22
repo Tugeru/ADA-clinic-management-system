@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Plus, Search, Package, ArrowRightLeft, PackagePlus, Archive, Trash2, Minus, MoreVertical } from 'lucide-react';
+import { Plus, Search, Package, ArrowRightLeft, PackagePlus, Archive, Trash2, Minus, MoreVertical, Download, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -14,6 +14,7 @@ import { ReduceStockDialog } from '../components/ReduceStockDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { useNavigate } from 'react-router';
+import { downloadCsvExport } from '../lib/exportDownload';
 
 const statusStyles: Record<string, string> = {
   critical: 'bg-red-100 text-red-700 border-red-200',
@@ -36,6 +37,7 @@ export function Inventory() {
   const [confirmArchiveName, setConfirmArchiveName] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteName, setConfirmDeleteName] = useState('');
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   const totalItems = medicines?.length || 0;
   const lowStock = medicines?.filter(m => m.status === 'low').length || 0;
@@ -80,6 +82,22 @@ export function Inventory() {
       toast.error('Failed to delete medicine — it may have stock on hand');
     } finally {
       setConfirmDeleteId(null);
+    }
+  };
+
+  const handleExportMedicines = async (detail: 'summary' | 'batches') => {
+    setExportingCsv(true);
+    try {
+      await downloadCsvExport(
+        '/export/medicines.csv',
+        { includeInactive: false, detail },
+        detail === 'summary' ? 'ada_medicines_summary.csv' : 'ada_medicines_batches.csv',
+      );
+      toast.success('Inventory exported');
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExportingCsv(false);
     }
   };
 
@@ -137,6 +155,23 @@ export function Inventory() {
           <p className="text-slate-500 text-xs">Track and manage clinic medicine stock levels.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9" disabled={exportingCsv}>
+                <Download size={13} />
+                {exportingCsv ? 'Exporting…' : 'Export CSV'}
+                <ChevronDown size={12} className="opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="text-xs">
+              <DropdownMenuItem className="cursor-pointer" onClick={() => handleExportMedicines('summary')}>
+                Summary (one row per medicine)
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onClick={() => handleExportMedicines('batches')}>
+                All batches (one row per batch)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9" asChild>
             <Link to="/inventory/movements"><ArrowRightLeft size={13} /> Stock Movements</Link>
           </Button>

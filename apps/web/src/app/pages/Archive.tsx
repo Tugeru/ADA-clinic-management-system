@@ -28,6 +28,7 @@ import { BulkActionsBar } from '../components/BulkActionsBar';
 import { BulkConfirmDialog } from '../components/BulkConfirmDialog';
 import { BulkPartialFailureDialog } from '../components/BulkPartialFailureDialog';
 import { useTableSelection } from '../hooks/useTableSelection';
+import { downloadCsvExport } from '../lib/exportDownload';
 
 type ArchiveTab = 'patients' | 'medicines';
 
@@ -100,6 +101,7 @@ function ArchivedPatientsTab() {
   const [lastBulkResult, setLastBulkResult] = useState<{ succeeded: string[]; failed: { id: string; error: string }[] } | null>(null);
   const [bulkRestoreOpen, setBulkRestoreOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   const { data, isLoading } = useArchivedPatients();
   const restoreMutation = useRestorePatient();
@@ -274,6 +276,25 @@ function ArchivedPatientsTab() {
     }
   };
 
+  const handleExportArchivedPatientsCsv = async () => {
+    setExportingCsv(true);
+    try {
+      await downloadCsvExport(
+        '/export/patients.csv',
+        {
+          scope: 'archived',
+          ...(search.trim() ? { search: search.trim() } : {}),
+        },
+        'ada_patients_archived.csv',
+      );
+      toast.success('Archived patients exported');
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Bulk Restore confirmation */}
@@ -429,7 +450,20 @@ function ArchivedPatientsTab() {
 
       {/* Title + filters (parity with Patients master list) */}
       <div className="space-y-3">
-        <h3 className="text-xl font-bold text-slate-900">Archived Patients</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h3 className="text-xl font-bold text-slate-900">Archived Patients</h3>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-xs h-9 gap-1.5 w-fit"
+            disabled={exportingCsv}
+            onClick={handleExportArchivedPatientsCsv}
+          >
+            <Download size={14} />
+            {exportingCsv ? 'Exporting…' : 'Export CSV'}
+          </Button>
+        </div>
         <Card className="p-4 gap-0">
           <div className="flex flex-col gap-3">
             <div className="flex flex-col md:flex-row gap-3">
@@ -671,6 +705,7 @@ function ArchivedPatientsTab() {
 // ═══ MEDICINES TAB ═══════════════════════════════════════════
 function ArchivedMedicinesTab() {
   const [search, setSearch] = useState('');
+  const [exportingMedicinesCsv, setExportingMedicinesCsv] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
   const [bulkRestoreOpen, setBulkRestoreOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -740,6 +775,22 @@ function ArchivedMedicinesTab() {
     }
   };
 
+  const handleExportArchivedMedicinesCsv = async () => {
+    setExportingMedicinesCsv(true);
+    try {
+      await downloadCsvExport(
+        '/export/medicines.csv',
+        { includeInactive: true, detail: 'summary' },
+        'ada_medicines_archived_summary.csv',
+      );
+      toast.success('Archived medicines exported (summary)');
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExportingMedicinesCsv(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Bulk Restore confirmation */}
@@ -774,9 +825,22 @@ function ArchivedMedicinesTab() {
         failed={lastBulkResult?.failed ?? []}
       />
 
-      <div>
-        <h3 className="text-xl font-bold text-slate-900">Archived Medicines</h3>
-        <p className="text-sm text-slate-500 mt-1">Manage discontinued items and view history.</p>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900">Archived Medicines</h3>
+          <p className="text-sm text-slate-500 mt-1">Manage discontinued items and view history.</p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="text-xs h-9 gap-1.5 w-fit shrink-0"
+          disabled={exportingMedicinesCsv}
+          onClick={handleExportArchivedMedicinesCsv}
+        >
+          <Download size={14} />
+          {exportingMedicinesCsv ? 'Exporting…' : 'Export CSV'}
+        </Button>
       </div>
 
       {/* Filters */}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Search, Plus, Eye, Edit, ArchiveIcon, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Search, Plus, Eye, Edit, ArchiveIcon, MoreHorizontal, Trash2, Download } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -28,6 +28,7 @@ import { BulkActionsBar } from '../components/BulkActionsBar';
 import { BulkConfirmDialog } from '../components/BulkConfirmDialog';
 import { BulkPartialFailureDialog } from '../components/BulkPartialFailureDialog';
 import { useTableSelection } from '../hooks/useTableSelection';
+import { downloadCsvExport } from '../lib/exportDownload';
 
 const typeColors: Record<string, string> = {
   Student: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -56,6 +57,7 @@ export function PatientsList() {
   const [lastBulkResult, setLastBulkResult] = useState<{ succeeded: string[]; failed: { id: string; error: string }[] } | null>(null);
   const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   const { data, isLoading } = usePatients({
     search,
@@ -81,6 +83,25 @@ export function PatientsList() {
   const handleGradeFilterChange = (v: string) => {
     setGradeFilter(v);
     setSectionFilter('');
+  };
+
+  const handleExportCsv = async () => {
+    setExportingCsv(true);
+    try {
+      await downloadCsvExport(
+        '/export/patients.csv',
+        {
+          scope: 'active',
+          ...(search.trim() ? { search: search.trim() } : {}),
+        },
+        'ada_patients_active.csv',
+      );
+      toast.success('Patient list exported');
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExportingCsv(false);
+    }
   };
 
   const handleResetFilters = () => {
@@ -329,9 +350,22 @@ export function PatientsList() {
           <h2 className="text-lg font-bold text-slate-800">Master List</h2>
           <p className="text-slate-500 text-xs">Manage student, teacher, and NTP records efficiently.</p>
         </div>
-        <Button asChild className="bg-teal-600 hover:bg-teal-700 text-xs h-9">
-          <Link to="/patients/add"><Plus size={15} /> Add Patient</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-xs h-9 gap-1.5"
+            disabled={exportingCsv}
+            onClick={handleExportCsv}
+          >
+            <Download size={14} />
+            {exportingCsv ? 'Exporting…' : 'Export CSV'}
+          </Button>
+          <Button asChild className="bg-teal-600 hover:bg-teal-700 text-xs h-9">
+            <Link to="/patients/add"><Plus size={15} /> Add Patient</Link>
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

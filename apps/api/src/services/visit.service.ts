@@ -103,7 +103,7 @@ export async function createVisit(userId: string, data: LogVisitInput) {
                 timeIn: new Date(data.timeIn),
                 timeOut: data.timeOut ? new Date(data.timeOut) : undefined,
                 complaint: data.complaint,
-                actionTaken: data.actionTaken,
+                actionTaken: data.actionTaken ?? '',
                 disposition: (data.disposition as any) ?? 'RETURNED_TO_CLASS',
                 remarks: data.remarks,
                 temperature: data.temperature,

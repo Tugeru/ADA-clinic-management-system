@@ -9,7 +9,12 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '../components/ui/alert-dialog';
 import { Checkbox } from '../components/ui/checkbox';
 import { cn } from '../components/ui/utils';
@@ -21,6 +26,8 @@ import { useTableSelection } from '../hooks/useTableSelection';
 import { BulkActionsBar } from '../components/BulkActionsBar';
 import { BulkConfirmDialog } from '../components/BulkConfirmDialog';
 import { BulkPartialFailureDialog } from '../components/BulkPartialFailureDialog';
+import { downloadCsvExport } from '../lib/exportDownload';
+import { getVisitExportDateRange } from '../lib/visitExportRange';
 
 const typeColors: Record<string, string> = {
   Student: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -51,6 +58,7 @@ export function VisitsList() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [partialFailureOpen, setPartialFailureOpen] = useState(false);
   const [lastBulkResult, setLastBulkResult] = useState<{ succeeded: string[]; failed: { id: string; error: string }[] } | null>(null);
+  const [exportingKind, setExportingKind] = useState<null | 'visits' | 'medicines'>(null);
 
   const { data, isLoading } = useVisits({ search, type: typeFilter, period: periodFilter, disposition: dispoFilter });
   const deleteMutation = useDeleteVisit();
@@ -134,6 +142,37 @@ export function VisitsList() {
     setTypeFilter('All Types');
     setPeriodFilter('All Time');
     setDispoFilter('All Dispositions');
+  };
+
+  const exportVisitParams = () => {
+    const { startDate, endDate } = getVisitExportDateRange(periodFilter);
+    return { startDate, endDate, includeArchived: false as const };
+  };
+
+  const handleExportVisitsCsv = async () => {
+    setExportingKind('visits');
+    try {
+      const p = exportVisitParams();
+      await downloadCsvExport('/export/visits.csv', p, 'ada_visits.csv');
+      toast.success('Visit log exported (date range matches period filter)');
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExportingKind(null);
+    }
+  };
+
+  const handleExportVisitMedicinesCsv = async () => {
+    setExportingKind('medicines');
+    try {
+      const p = exportVisitParams();
+      await downloadCsvExport('/export/visit-medicines.csv', p, 'ada_visit_medicines.csv');
+      toast.success('Dispensed medicines exported');
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExportingKind(null);
+    }
   };
 
   return (
@@ -269,9 +308,27 @@ export function VisitsList() {
       <Card className="gap-0">
         <div className="px-5 py-3 border-b flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-800">Recent Logs</h3>
-          <Button variant="ghost" size="sm" className="text-xs h-7 text-slate-500 gap-1">
-            <Download size={12} /> Export CSV
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7 text-slate-500 gap-1"
+                disabled={!!exportingKind}
+              >
+                <Download size={12} />
+                {exportingKind === 'visits' || exportingKind === 'medicines' ? 'Exporting…' : 'Export CSV'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="text-xs">
+              <DropdownMenuItem onClick={handleExportVisitsCsv} className="cursor-pointer">
+                Export visits
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportVisitMedicinesCsv} className="cursor-pointer">
+                Export dispensed medicines (lines)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {isLoading ? (
