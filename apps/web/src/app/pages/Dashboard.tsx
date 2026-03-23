@@ -488,7 +488,7 @@ export function Dashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={cn("text-base font-bold leading-none", stockColor)}>{item.stock}</p>
+                      <p className={cn("text-base font-bold leading-none", stockColor)}>{item.alertStock ?? item.stock}</p>
                       <p className={cn("text-[8px] font-bold uppercase", accent)}>
                         {badge}
                       </p>

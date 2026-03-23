@@ -172,6 +172,8 @@ export interface Medicine {
   type?: MedicineType;
   dosage?: string;
   stock: number;
+  /** Stock quantity relevant to the badge shown on dashboard "Stock & Expiry Alerts". */
+  alertStock?: number;
   threshold: number;
   unit: string;
   expiry: string;

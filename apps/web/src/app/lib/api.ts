@@ -175,12 +175,18 @@ export const inventoryApi = {
       else if (hasExpiringToday || hasExpiringSoon) status = 'expiring';
       else status = 'good';
 
+      const expiredQty = expiredBatches.reduce((sum, b) => sum + (b.quantityOnHand ?? 0), 0);
+      const expiringQty = expiringTodayBatches.reduce((sum, b) => sum + (b.quantityOnHand ?? 0), 0)
+        + expiringSoonBatches.reduce((sum, b) => sum + (b.quantityOnHand ?? 0), 0);
+      const alertStock = status === 'expired' ? expiredQty : status === 'expiring' ? expiringQty : stock;
+
       return {
         id: m.medicineId ?? m.id,
         name: m.name,
         sku: m.medicineId ?? m.id,
         category: 'Medicine',
         stock,
+        alertStock,
         threshold,
         unit: 'pcs',
         expiry: 'N/A',
