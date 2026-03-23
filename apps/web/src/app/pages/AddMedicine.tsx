@@ -10,6 +10,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useCreateMedicine, useStockIn, useInventory } from '../lib/hooks';
 import type { MedicineType } from '../lib/types';
 import { toast } from 'sonner';
+import { EXPIRY_WARNING_DAYS } from '@ada/shared';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 const medicineTypes: MedicineType[] = ['Tablet', 'Capsule', 'Liquid', 'Injection', 'Topical', 'Effervescent', 'Inhaler'];
 
@@ -33,6 +44,8 @@ export function AddMedicine() {
   const [expiryError, setExpiryError] = useState('');
   const [amountError, setAmountError] = useState('');
 
+  const [showExpiryTodayConfirm, setShowExpiryTodayConfirm] = useState(false);
+
   const nameExists = existing?.some(m => m.name.toLowerCase() === name.toLowerCase()) || false;
   const isPending = createMutation.isPending || stockInMutation.isPending;
 
@@ -43,7 +56,7 @@ export function AddMedicine() {
       setExpiryError('Expiry date is required.');
       valid = false;
     } else if (expiryDate < todayStr()) {
-      setExpiryError('Expiry date must be today or a future date.');
+      setExpiryError('Cannot stock in expired medicine.');
       valid = false;
     } else {
       setExpiryError('');
@@ -63,10 +76,13 @@ export function AddMedicine() {
     return valid;
   };
 
-  const handleSubmit = async () => {
-    if (!name || nameExists) return;
-    if (!validate()) return;
+  function diffDaysFromToday(dateStr: string): number {
+    const base = Date.parse(`${todayStr()}T00:00:00Z`);
+    const target = Date.parse(`${dateStr}T00:00:00Z`);
+    return Math.round((target - base) / 86400000);
+  }
 
+  const doCreateAndInitialStockIn = async () => {
     try {
       const created = await createMutation.mutateAsync({
         name,
@@ -84,8 +100,19 @@ export function AddMedicine() {
           expirationDate: expiryDate,
         });
         toast.success('Medicine added with initial stock!');
-      } catch {
-        toast.error('Medicine was added, but initial stock-in failed. You can retry from the Inventory page.');
+      } catch (err: any) {
+        const data = err?.response?.data;
+        const details = Array.isArray(data?.details) ? data.details : undefined;
+        const detailMsg = details?.length
+          ? details
+              .map((d: any) => d?.message)
+              .filter(Boolean)
+              .join(': ')
+          : undefined;
+
+        toast.error(
+          detailMsg ?? 'Medicine was added, but initial stock-in failed. You can retry from the Inventory page.',
+        );
       }
 
       navigate('/inventory');
@@ -94,8 +121,54 @@ export function AddMedicine() {
     }
   };
 
+  const handleSubmit = async () => {
+    if (!name || nameExists) return;
+    if (!validate()) return;
+
+    const diffDays = diffDaysFromToday(expiryDate);
+    if (diffDays < 0) return; // defensive; validate should already block
+
+    if (diffDays === 0) {
+      setShowExpiryTodayConfirm(true);
+      return;
+    }
+
+    if (diffDays > 0 && diffDays <= EXPIRY_WARNING_DAYS) {
+      toast.info('This batch will expire within 30 days.');
+    }
+
+    await doCreateAndInitialStockIn();
+  };
+
   return (
     <div className="max-w-2xl mx-auto">
+      <AlertDialog
+        open={showExpiryTodayConfirm}
+        onOpenChange={(open) => setShowExpiryTodayConfirm(open)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Expiry Today</AlertDialogTitle>
+            <AlertDialogDescription>This batch expires today.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowExpiryTodayConfirm(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setShowExpiryTodayConfirm(false);
+                await doCreateAndInitialStockIn();
+              }}
+              disabled={isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Confirm Stock-in
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <button
         onClick={() => navigate('/inventory')}
         className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors mb-4"

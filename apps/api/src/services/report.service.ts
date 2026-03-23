@@ -63,21 +63,55 @@ export async function lowStockReport() {
     })
 
     const now = new Date()
+    // Use UTC date-only comparisons to avoid timezone drift between FE and BE.
+    const todayStr = now.toISOString().slice(0, 10)
     const warningDate = new Date(now.getTime() + EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000)
+    const warningStr = warningDate.toISOString().slice(0, 10)
+
+    const toDateOnlyUTC = (d: Date) => d.toISOString().slice(0, 10)
 
     return medicines
         .map((m) => {
             const totalStock = m.batches.reduce((sum, b) => sum + b.quantityOnHand, 0)
-            const expiringBatches = m.batches.filter(
-                (b) => b.expirationDate && b.expirationDate <= warningDate
+
+            const expiredBatches = m.batches.filter(
+                (b) => b.expirationDate && toDateOnlyUTC(b.expirationDate) < todayStr,
             )
+
+            const expiringTodayBatches = m.batches.filter(
+                (b) => b.expirationDate && toDateOnlyUTC(b.expirationDate) === todayStr,
+            )
+
+            // tomorrow .. warningStr (inclusive)
+            const expiringSoonBatches = m.batches.filter(
+                (b) =>
+                    b.expirationDate &&
+                    toDateOnlyUTC(b.expirationDate) > todayStr &&
+                    toDateOnlyUTC(b.expirationDate) <= warningStr,
+            )
+
             return {
                 medicineId: m.id,
                 name: m.name,
                 totalStock,
                 reorderThreshold: m.reorderThreshold,
                 isLowStock: totalStock <= m.reorderThreshold,
-                expiringBatches: expiringBatches.map((b) => ({
+
+                expiredBatches: expiredBatches.map((b) => ({
+                    batchId: b.id,
+                    batchNumber: b.batchNumber,
+                    expirationDate: b.expirationDate,
+                    quantityOnHand: b.quantityOnHand,
+                })),
+
+                expiringTodayBatches: expiringTodayBatches.map((b) => ({
+                    batchId: b.id,
+                    batchNumber: b.batchNumber,
+                    expirationDate: b.expirationDate,
+                    quantityOnHand: b.quantityOnHand,
+                })),
+
+                expiringSoonBatches: expiringSoonBatches.map((b) => ({
                     batchId: b.id,
                     batchNumber: b.batchNumber,
                     expirationDate: b.expirationDate,
@@ -85,7 +119,7 @@ export async function lowStockReport() {
                 })),
             }
         })
-        .filter((m) => m.isLowStock || m.expiringBatches.length > 0)
+        .filter((m) => m.isLowStock || m.expiredBatches.length > 0 || m.expiringTodayBatches.length > 0 || m.expiringSoonBatches.length > 0)
 }
 
 export async function usageRankings(startDate: string, endDate: string) {

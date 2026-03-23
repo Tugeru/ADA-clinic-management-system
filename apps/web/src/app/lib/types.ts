@@ -8,7 +8,15 @@ export type Gender = 'Male' | 'Female' | 'Other';
 export type DispositionType = 'Returned to Class' | 'Returned to Work' | 'Sent Home' | 'Sent to Hospital';
 export type DispositionColor = 'green' | 'orange' | 'red';
 /** `expiring` = stock OK but batch(es) within expiry warning window (see lowStockReport) */
-export type InventoryStatus = 'good' | 'low' | 'critical' | 'expiring';
+/** `expired` = at least one batch has already expired */
+export type InventoryStatus = 'good' | 'low' | 'critical' | 'expiring' | 'expired';
+
+export interface ExpiryAlertBatch {
+  batchId: string;
+  batchNumber: string | null;
+  expirationDate: string; // ISO
+  quantityOnHand: number;
+}
 export type MovementType = 'IN' | 'OUT';
 export type MedicineType = 'Tablet' | 'Capsule' | 'Liquid' | 'Injection' | 'Topical' | 'Effervescent' | 'Inhaler';
 export type UserRole = 'ADMIN' | 'CLINIC_INCHARGE' | 'STAFF';
@@ -171,6 +179,10 @@ export interface Medicine {
   supplier?: string;
   notes?: string;
   hasExpiringSoon?: boolean;
+  // Batch-level buckets used by the dashboard "Stock & Expiry Alerts" card.
+  expiredBatches?: ExpiryAlertBatch[];
+  expiringTodayBatches?: ExpiryAlertBatch[];
+  expiringSoonBatches?: ExpiryAlertBatch[];
   isArchived?: boolean;
   dateArchived?: string;
   archivedBy?: string;
@@ -198,7 +210,7 @@ export interface StockInFormData {
   medicineId: string;     // UUID string
   quantity: number;
   batchNumber?: string;
-  expirationDate?: string; // YYYY-MM-DD
+  expirationDate: string; // YYYY-MM-DD
 }
 
 export interface MedicineFormData {

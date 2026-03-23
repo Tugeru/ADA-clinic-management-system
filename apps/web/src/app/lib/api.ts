@@ -160,12 +160,19 @@ export const inventoryApi = {
     return items.map((m: any) => {
       const stock = m.totalStock ?? 0;
       const threshold = m.reorderThreshold ?? 0;
-      const hasExpiring = (m.expiringBatches?.length ?? 0) > 0;
+      const expiredBatches = (m.expiredBatches ?? []) as any[];
+      const expiringTodayBatches = (m.expiringTodayBatches ?? []) as any[];
+      const expiringSoonBatches = (m.expiringSoonBatches ?? []) as any[];
+
+      const hasExpired = expiredBatches.length > 0;
+      const hasExpiringToday = expiringTodayBatches.length > 0;
+      const hasExpiringSoon = expiringSoonBatches.length > 0;
       const isLow = m.isLowStock === true;
       let status: InventoryStatus;
       if (isLow && stock === 0) status = 'critical';
+      else if (hasExpired) status = 'expired';
       else if (isLow) status = 'low';
-      else if (hasExpiring) status = 'expiring';
+      else if (hasExpiringToday || hasExpiringSoon) status = 'expiring';
       else status = 'good';
 
       return {
@@ -177,7 +184,25 @@ export const inventoryApi = {
         threshold,
         unit: 'pcs',
         expiry: 'N/A',
-        hasExpiringSoon: hasExpiring,
+        hasExpiringSoon: hasExpiringToday || hasExpiringSoon,
+        expiredBatches: expiredBatches.map((b) => ({
+          batchId: b.batchId ?? b.batch_id ?? b.id,
+          batchNumber: b.batchNumber ?? null,
+          expirationDate: b.expirationDate,
+          quantityOnHand: b.quantityOnHand ?? 0,
+        })),
+        expiringTodayBatches: expiringTodayBatches.map((b) => ({
+          batchId: b.batchId ?? b.batch_id ?? b.id,
+          batchNumber: b.batchNumber ?? null,
+          expirationDate: b.expirationDate,
+          quantityOnHand: b.quantityOnHand ?? 0,
+        })),
+        expiringSoonBatches: expiringSoonBatches.map((b) => ({
+          batchId: b.batchId ?? b.batch_id ?? b.id,
+          batchNumber: b.batchNumber ?? null,
+          expirationDate: b.expirationDate,
+          quantityOnHand: b.quantityOnHand ?? 0,
+        })),
         status,
       };
     });

@@ -14,8 +14,15 @@ export const UpdateMedicineSchema = CreateMedicineSchema.partial().extend({
 export const StockInSchema = z.object({
     medicineId: z.string().uuid(),
     batchNumber: z.string().optional(),
-    expirationDate: z.string().date().optional(),
+    expirationDate: z.string().date(),
     quantity: z.number().int().positive('Quantity must be at least 1'),
+}).refine((data) => {
+    // Compare by date-only (YYYY-MM-DD) to avoid time-of-day / timezone issues.
+    const todayStr = new Date().toISOString().slice(0, 10)
+    return data.expirationDate >= todayStr
+}, {
+    path: ['expirationDate'],
+    message: 'Cannot stock in expired medicine.',
 })
 
 export const AdjustStockSchema = z.object({

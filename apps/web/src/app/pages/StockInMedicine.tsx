@@ -6,13 +6,34 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 import { useInventory, useStockIn } from '../lib/hooks';
 import { toast } from 'sonner';
+import { EXPIRY_WARNING_DAYS } from '@ada/shared';
 
 export function StockInMedicine() {
   const navigate = useNavigate();
   const { data: medicines } = useInventory();
   const stockInMutation = useStockIn();
+
+  function todayStr(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function diffDaysFromToday(dateStr: string): number {
+    const base = Date.parse(`${todayStr()}T00:00:00Z`);
+    const target = Date.parse(`${dateStr}T00:00:00Z`);
+    return Math.round((target - base) / 86400000);
+  }
 
   // medicineId stores the UUID string directly from medicine.id
   const [medicineId, setMedicineId] = useState('');
@@ -20,25 +41,79 @@ export function StockInMedicine() {
   const [batchNumber, setBatchNumber] = useState('');
   const [expirationDate, setExpirationDate] = useState('');
 
-  const handleSubmit = async () => {
-    if (!medicineId || !quantity) return;
+  const [showExpiryTodayConfirm, setShowExpiryTodayConfirm] = useState(false);
+
+  const submitStockIn = async () => {
     try {
       await stockInMutation.mutateAsync({
-        medicineId,                          // UUID string — matches StockInSchema
+        medicineId, // UUID string — matches StockInSchema
         quantity: Number(quantity),
         batchNumber: batchNumber || undefined,
-        expirationDate: expirationDate || undefined, // YYYY-MM-DD — matches schema
+        expirationDate, // YYYY-MM-DD — matches schema
       });
       toast.success('Stock-in recorded successfully!');
       navigate('/inventory');
     } catch (err: any) {
-      const msg = err?.response?.data?.errors?.[0]?.message ?? err?.response?.data?.error ?? 'Failed to record stock-in.';
+      const data = err?.response?.data;
+      const details = Array.isArray(data?.details) ? data.details : undefined;
+      const detailMsg = details?.length
+        ? details
+          .map((d: any) => d?.message)
+          .filter(Boolean)
+          .join(': ')
+        : undefined;
+
+      const msg = detailMsg ?? data?.error ?? 'Failed to record stock-in.';
       toast.error(msg);
     }
   };
 
+  const handleSubmit = async () => {
+    if (!medicineId || !quantity || !expirationDate) return;
+
+    const diffDays = diffDaysFromToday(expirationDate);
+
+    if (diffDays < 0) {
+      toast.error('Cannot stock in expired medicine.');
+      return;
+    }
+
+    if (diffDays === 0) {
+      setShowExpiryTodayConfirm(true);
+      return;
+    }
+
+    if (diffDays > 0 && diffDays <= EXPIRY_WARNING_DAYS) {
+      toast.info('This batch will expire within 30 days.');
+    }
+
+    await submitStockIn();
+  };
+
   return (
     <div className="max-w-2xl mx-auto">
+      <AlertDialog open={showExpiryTodayConfirm} onOpenChange={(open) => setShowExpiryTodayConfirm(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Expiry Today</AlertDialogTitle>
+            <AlertDialogDescription>This batch expires today.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setShowExpiryTodayConfirm(false);
+                await submitStockIn();
+              }}
+              disabled={stockInMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Confirm Stock-in
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Back Navigation */}
       <button
         onClick={() => navigate('/inventory')}
@@ -121,6 +196,7 @@ export function StockInMedicine() {
                 value={expirationDate}
                 onChange={(e) => setExpirationDate(e.target.value)}
                 className="h-11 pl-9"
+                min={todayStr()}
               />
             </div>
           </div>
@@ -134,7 +210,7 @@ export function StockInMedicine() {
           <Button
             className="bg-teal-600 hover:bg-teal-700 gap-2 text-sm px-6"
             onClick={handleSubmit}
-            disabled={!medicineId || !quantity || stockInMutation.isPending}
+            disabled={!medicineId || !quantity || !expirationDate || stockInMutation.isPending}
           >
             <Download size={14} /> {stockInMutation.isPending ? 'Saving...' : 'Save Stock-in'}
           </Button>

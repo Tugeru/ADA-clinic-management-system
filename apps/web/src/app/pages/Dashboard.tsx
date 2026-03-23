@@ -410,16 +410,57 @@ export function Dashboard() {
                 lowStock?.slice(0, 4).map((item) => {
                   const st = item.status as InventoryStatus;
                   const isCrit = st === 'critical';
-                  const isExp = st === 'expiring';
-                  const borderBg = isCrit
+                  const isExpired = st === 'expired';
+                  const isExpiring = st === 'expiring';
+
+                  const borderBg = isCrit || isExpired
                     ? 'bg-red-50 border-red-100'
-                    : isExp
+                    : isExpiring
                       ? 'bg-amber-50 border-amber-100'
                       : 'bg-orange-50 border-orange-100';
-                  const accent = isCrit ? 'text-red-500' : isExp ? 'text-amber-600' : 'text-orange-500';
-                  const stockColor = isCrit ? 'text-red-600' : isExp ? 'text-amber-700' : 'text-orange-600';
+
+                  const accent = isCrit || isExpired
+                    ? 'text-red-500'
+                    : isExpiring
+                      ? 'text-amber-600'
+                      : 'text-orange-500';
+
+                  const stockColor = isCrit || isExpired
+                    ? 'text-red-600'
+                    : isExpiring
+                      ? 'text-amber-700'
+                      : 'text-orange-600';
+
+                  const expiredCount = item.expiredBatches?.length ?? 0;
+                  const expiringTodayCount = item.expiringTodayBatches?.length ?? 0;
+                  const expiringSoonCount = item.expiringSoonBatches?.length ?? 0;
+
+                  const formatBatchDate = (d: unknown) => {
+                    if (!d) return '—';
+                    const dt = new Date(String(d));
+                    if (isNaN(dt.getTime())) return '—';
+                    return dt.toISOString().slice(0, 10);
+                  };
+
+                  const previewBatches = (batches: any[], limit: number) =>
+                    batches
+                      .slice(0, limit)
+                      .map((b) => `${b.batchNumber ?? '—'} (${formatBatchDate(b.expirationDate)})`)
+                      .join(', ');
+
+                  const previewExpired = previewBatches(item.expiredBatches ?? [], 2);
+                  const previewExpiringToday = previewBatches(item.expiringTodayBatches ?? [], 2);
+                  const previewExpiringSoon = previewBatches(item.expiringSoonBatches ?? [], 2);
+
                   const badge =
-                    isCrit ? 'CRITICAL' : isExp ? 'EXPIRING' : 'LOW';
+                    isCrit
+                      ? 'CRITICAL'
+                      : isExpired
+                        ? 'EXPIRED'
+                        : isExpiring
+                          ? 'EXPIRING'
+                          : 'LOW';
+
                   return (
                   <div key={item.id} className={cn("p-3 rounded-lg border flex items-center justify-between", borderBg)}>
                     <div className="flex items-center gap-2.5">
@@ -429,10 +470,21 @@ export function Dashboard() {
                       <div>
                         <p className="font-bold text-slate-800 text-xs">{item.name}</p>
                         <p className="text-[9px] text-slate-500">
-                          {isExp && !isCrit
-                            ? `Batch expiring within ${EXPIRY_WARNING_DAYS} days · Threshold: ${item.threshold}`
-                            : `Threshold: ${item.threshold}`}
+                          {expiredCount > 0 && `Expired: ${expiredCount} batch(es)`}
+                          {expiringTodayCount > 0 &&
+                            `${expiredCount > 0 ? ' · ' : ''}Expires today: ${expiringTodayCount}`}
+                          {expiringSoonCount > 0 &&
+                            `${(expiredCount > 0 || expiringTodayCount > 0) ? ' · ' : ''}Expires within ${EXPIRY_WARNING_DAYS} days: ${expiringSoonCount}`}
+                          {expiredCount === 0 && expiringTodayCount === 0 && expiringSoonCount === 0 && `Threshold: ${item.threshold}`}
+                          {expiredCount > 0 || expiringTodayCount > 0 || expiringSoonCount > 0 ? ` · Threshold: ${item.threshold}` : ''}
                         </p>
+                        {(expiredCount > 0 || expiringTodayCount > 0 || expiringSoonCount > 0) && (
+                          <p className="text-[8px] text-slate-500">
+                            {expiredCount > 0 && `Expired: ${previewExpired}`}
+                            {expiringTodayCount > 0 && `${expiredCount > 0 ? ' · ' : ''}Expires today: ${previewExpiringToday}`}
+                            {expiringSoonCount > 0 && `${(expiredCount > 0 || expiringTodayCount > 0) ? ' · ' : ''}Expires within ${EXPIRY_WARNING_DAYS} days: ${previewExpiringSoon}`}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
@@ -469,7 +521,7 @@ export function Dashboard() {
               </Button>
               <Separator className="my-3" />
               <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 cursor-pointer hover:text-slate-600 uppercase tracking-wide">
-                <HelpCircle size={13} /> Need Help? View Manual
+                <HelpCircle size={13} />
               </div>
             </CardContent>
           </Card>
