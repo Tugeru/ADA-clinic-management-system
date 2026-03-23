@@ -253,9 +253,9 @@ export function EditVisit() {
             </CardContent>
           </Card>
 
-          {/* Prescribed Medicine */}
+          {/* Medicine Administered */}
           <MedicineLinesCard
-            title="Prescribed Medicine"
+            title="Medicine Administered"
             medicines={medicines as MedicineLine[]}
             availableMeds={availableMeds as any}
             onAdd={addMedicine}
