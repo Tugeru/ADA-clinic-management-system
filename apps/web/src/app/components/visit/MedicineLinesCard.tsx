@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pill, Info, AlertCircle, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
@@ -27,6 +28,8 @@ interface MedicineLinesCardProps {
   onRemove: (index: number) => void;
   onChange: (index: number, patch: Partial<Pick<MedicineLine, 'medicineId' | 'quantity'>>) => void;
   showInventoryAlert?: boolean;
+  /** When true, show validation errors even if the user is still typing. */
+  showErrors?: boolean;
 }
 
 export function MedicineLinesCard({
@@ -37,7 +40,41 @@ export function MedicineLinesCard({
   onRemove,
   onChange,
   showInventoryAlert = true,
+  showErrors = false,
 }: MedicineLinesCardProps) {
+  // Qty input needs "empty while typing" UX. We keep a draft string for each row.
+  const [qtyDraftByIndex, setQtyDraftByIndex] = useState<Record<number, string>>({});
+  const [qtyTouchedByIndex, setQtyTouchedByIndex] = useState<Record<number, boolean>>({});
+
+  const getQtyString = (med: MedicineLine, i: number) => {
+    if (Object.prototype.hasOwnProperty.call(qtyDraftByIndex, i)) return qtyDraftByIndex[i];
+    // If parent quantity is 0, show empty so user can retype naturally.
+    return med.quantity > 0 ? String(med.quantity) : '';
+  };
+
+  const getComputedError = (med: MedicineLine) => {
+    const medicineId = med.medicineId.trim();
+    const qty = med.quantity;
+
+    if (!medicineId) {
+      // Pair rule 1: qty > 0 requires a selected medicine
+      return qty > 0 ? 'Select a medicine first.' : undefined;
+    }
+
+    // Pair rule 2: selected medicine requires qty > 0
+    if (!Number.isFinite(qty) || qty <= 0) {
+      return 'Quantity must be greater than 0.';
+    }
+
+    // Stock-limit validation (if we know the stock for the selected medicine)
+    const stock = availableMeds?.find((m) => m.id === medicineId)?.stock;
+    if (typeof stock === 'number' && qty > stock) {
+      return `Exceeds stock (max: ${stock}).`;
+    }
+
+    return undefined;
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2 flex-row items-center justify-between">
@@ -65,10 +102,16 @@ export function MedicineLinesCard({
               )}
               <Select
                 value={med.medicineId}
-                onValueChange={(v) => onChange(i, { medicineId: v })}
+                onValueChange={(v) => {
+                  setQtyDraftByIndex((prev) => ({ ...prev, [i]: prev[i] ?? '' }));
+                  onChange(i, { medicineId: v });
+                }}
               >
                 <SelectTrigger
-                  className={cn('h-9 text-xs', med.error && 'border-red-300 bg-red-50')}
+                  className={cn(
+                    'h-9 text-xs',
+                    (showErrors || qtyTouchedByIndex[i]) && getComputedError(med) && 'border-red-300 bg-red-50',
+                  )}
                 >
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
@@ -88,14 +131,29 @@ export function MedicineLinesCard({
               )}
               <Input
                 type="number"
-                value={med.quantity}
-                onChange={(e) =>
-                  onChange(i, {
-                    quantity: parseInt(e.target.value || '0', 10) || 0,
-                  })
-                }
-                min={1}
-                className={cn('h-9 text-xs', med.error && 'border-red-300 bg-red-50')}
+                inputMode="numeric"
+                // Controlled by draft string so the user can clear/backspace to empty.
+                value={getQtyString(med, i)}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setQtyDraftByIndex((prev) => ({ ...prev, [i]: raw }));
+
+                  // Normalize for parent state:
+                  // - empty => 0 (draft handles the empty UI)
+                  // - otherwise => integer >= 0
+                  if (raw === '') {
+                    onChange(i, { quantity: 0 });
+                    return;
+                  }
+                  const int = parseInt(raw, 10);
+                  onChange(i, { quantity: Number.isFinite(int) && int >= 0 ? int : 0 });
+                }}
+                // Avoid native validation red-state while typing. Pair rules are enforced via `showErrors`.
+                className={cn(
+                  'h-9 text-xs',
+                  (showErrors || qtyTouchedByIndex[i]) && getComputedError(med) && 'border-red-300 bg-red-50',
+                )}
+                onBlur={() => setQtyTouchedByIndex((prev) => ({ ...prev, [i]: true }))}
               />
             </div>
             <div className="col-span-1 flex justify-end">
@@ -108,9 +166,9 @@ export function MedicineLinesCard({
                 <Trash2 size={14} />
               </Button>
             </div>
-            {med.error && (
+            {(showErrors || qtyTouchedByIndex[i]) && getComputedError(med) && (
               <p className="text-[10px] text-red-500 flex items-center gap-0.5 sm:hidden">
-                <AlertCircle size={10} /> {med.error}
+                <AlertCircle size={10} /> {getComputedError(med)}
               </p>
             )}
           </div>

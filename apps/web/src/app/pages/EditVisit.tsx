@@ -50,6 +50,7 @@ export function EditVisit() {
   const [temp, setTemp] = useState('');
   const [rr, setRr] = useState('');
   const [medicines, setMedicines] = useState<MedRow[]>([]);
+  const [showMedicineLineErrors, setShowMedicineLineErrors] = useState(false);
   const [disposition, setDisposition] = useState<'returned' | 'sentHome' | 'hospital'>('sentHome');
   const [notifiedPerson, setNotifiedPerson] = useState('');
   const [relationship, setRelationship] = useState('');
@@ -107,10 +108,16 @@ export function EditVisit() {
     }
   }, [visit]);
 
-  const addMedicine = () => setMedicines([...medicines, { medicineId: '', quantity: 1 }]);
-  const removeMedicine = (i: number) =>
+  const addMedicine = () => {
+    setShowMedicineLineErrors(false);
+    setMedicines([...medicines, { medicineId: '', quantity: 1 }]);
+  };
+  const removeMedicine = (i: number) => {
+    setShowMedicineLineErrors(false);
     setMedicines(medicines.filter((_row: MedRow, idx: number) => idx !== i));
+  };
   const updateMedicine = (i: number, field: keyof MedRow, value: any) => {
+    setShowMedicineLineErrors(false);
     const updated = [...medicines];
     (updated[i] as any)[field] = field === 'quantity' ? parseInt(value, 10) || 0 : value;
     setMedicines(updated);
@@ -135,6 +142,32 @@ export function EditVisit() {
   const handleSave = async () => {
     if (!id) return;
     try {
+      setShowMedicineLineErrors(true);
+
+      const hasInvalidMedicineLines = medicines.some((m: MedRow) => {
+        const medicineId = m.medicineId.trim();
+        const qty = m.quantity;
+
+        // Pair rule 1: qty > 0 but no medicine selected
+        if (!medicineId && qty > 0) return true;
+
+        // Pair rule 2: medicine selected but qty <= 0
+        if (medicineId && qty <= 0) return true;
+
+        // Stock limit validation (if stock is available)
+        if (medicineId && qty > 0) {
+          const stock = availableMeds?.find((x) => x.id === medicineId)?.stock;
+          if (typeof stock === 'number' && qty > stock) return true;
+        }
+
+        return false;
+      });
+
+      if (hasInvalidMedicineLines) {
+        toast.error('Please fix medicine entries (medicine + quantity).');
+        return;
+      }
+
       // Build payload — only include timeOut if the user set it
       const payload: {
         timeIn?: string;
@@ -180,9 +213,9 @@ export function EditVisit() {
       // Medicines payload — always send current list so backend can
       // reconcile stock and visit-medicine links.
       payload.medicines = medicines
-        .filter((m: MedRow) => m.medicineId && m.quantity > 0)
+        .filter((m: MedRow) => m.medicineId.trim() && m.quantity > 0)
         .map((m: MedRow) => ({
-          medicineId: m.medicineId,
+          medicineId: m.medicineId.trim(),
           quantity: m.quantity,
         }));
 
@@ -269,6 +302,7 @@ export function EditVisit() {
               }
             }}
             showInventoryAlert
+            showErrors={showMedicineLineErrors}
           />
 
           {/* Disposition */}

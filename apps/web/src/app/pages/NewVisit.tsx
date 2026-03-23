@@ -123,6 +123,7 @@ export function NewVisit() {
 
   // Medicines
   const { data: availableMeds } = useDispensableMedicines();
+  const [showMedicineLineErrors, setShowMedicineLineErrors] = useState(false);
   const [medicines, setMedicines] = useState<MedRow[]>([
     { medicineId: '', quantity: 1, maxStock: 0, error: undefined },
   ]);
@@ -148,10 +149,13 @@ export function NewVisit() {
     setShowDropdown(false);
   };
 
-  const addMedicine = () =>
+  const addMedicine = () => {
+    setShowMedicineLineErrors(false);
     setMedicines([...medicines, { medicineId: '', quantity: 1, maxStock: 0, error: undefined }]);
+  };
 
   const updateMedicine = (i: number, patch: Partial<MedRow>) => {
+    setShowMedicineLineErrors(false);
     const updated = [...medicines];
     const current = updated[i];
     const next: MedRow = {
@@ -178,8 +182,10 @@ export function NewVisit() {
     setMedicines(updated);
   };
 
-  const removeMedicine = (i: number) =>
+  const removeMedicine = (i: number) => {
+    setShowMedicineLineErrors(false);
     setMedicines(medicines.filter((_, idx) => idx !== i));
+  };
 
   const getDispositionValue = (): DispositionType => {
     if (disposition === 'returned') return selectedPatient?.type === 'Student' ? 'Returned to Class' : 'Returned to Work';
@@ -190,7 +196,32 @@ export function NewVisit() {
   const handleSubmit = async () => {
     if (!selectedPatient) { toast.error('Please select a patient'); return; }
     if (!complaint.trim()) { setComplaintError(true); toast.error('Chief Complaint is required'); return; }
-    if (medicines.some(m => m.error)) { toast.error('Fix medicine stock errors'); return; }
+    setShowMedicineLineErrors(true);
+
+    const hasInvalidMedicineLines = medicines.some((m) => {
+      const medicineId = m.medicineId.trim();
+      const qty = m.quantity;
+
+      // Pair rule 1: qty > 0 but no medicine selected
+      if (!medicineId && qty > 0) return true;
+
+      // Pair rule 2: medicine selected but qty <= 0
+      if (medicineId && qty <= 0) return true;
+
+      // Stock limit validation (only if we know stock for this medicine)
+      if (medicineId && qty > 0) {
+        const stock = availableMeds?.find((x) => x.id === medicineId)?.stock ?? m.maxStock;
+        if (typeof stock === 'number' && qty > stock) return true;
+      }
+
+      return false;
+    });
+
+    if (hasInvalidMedicineLines) {
+      toast.error('Please fix medicine entries (medicine + quantity).');
+      return;
+    }
+
     setComplaintError(false);
 
     // V-1: build proper ISO 8601 datetime from date + editable timeIn
@@ -222,8 +253,8 @@ export function NewVisit() {
         heartRate: hr || undefined,
         respiratoryRate: rr || undefined,
         medicines: medicines
-          .filter(m => m.medicineId)          // only rows where a medicine UUID was selected
-          .map(m => ({ medicineId: m.medicineId, quantity: m.quantity })),
+          .filter((m) => m.medicineId.trim() && m.quantity > 0)
+          .map((m) => ({ medicineId: m.medicineId.trim(), quantity: m.quantity })),
         disposition: getDispositionValue(),
         guardianName,
         relationship,
@@ -413,6 +444,7 @@ export function NewVisit() {
             } as Partial<MedRow>);
           }}
           showInventoryAlert
+        showErrors={showMedicineLineErrors}
         />
 
         {/* Disposition */}
