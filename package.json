@@ -3,9 +3,10 @@
   "private": true,
   "version": "0.0.1",
   "scripts": {
-    "dev": "pnpm --filter @ada/web dev",
+    "dev:web": " pnpm --filter @ada/web dev",
+    "dev:api": "pnpm --filter @ada/api dev",
+    "dev": "concurrently -k -n API,WEB -c cyan,teal \"pnpm run dev:api\" \"pnpm run dev:web\"",
     "build": "pnpm --filter @ada/web build",
-    "dev:api": "pnpm --filter @ada/shared build && pnpm --filter @ada/db build && pnpm --filter @ada/api dev",
     "build:all": "pnpm -r build",
     "prod:api": "pnpm --filter @ada/api start",
     "prod:web": "pnpm --filter @ada/web preview -- --port 5173",
