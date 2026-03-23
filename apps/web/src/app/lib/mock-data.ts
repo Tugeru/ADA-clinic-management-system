@@ -2,7 +2,7 @@
 // Mock database (simulating PostgreSQL + Prisma seed data)
 // ─────────────────────────────────────────────────────────────
 
-import type { Patient, Visit, Medicine, User, StockMovement, MedicineUsageRanking, ConsumptionSummaryItem, ArchivedVisit, ArchivedMedicine, ClinicProfile, AuditLogEntry } from './types';
+import type { Patient, Visit, Medicine, User, StockMovement, MedicineUsageRanking, ArchivedVisit, ArchivedMedicine, ClinicProfile, AuditLogEntry } from './types';
 
 export const mockUser: User = {
   id: 'usr_001',
@@ -105,24 +105,6 @@ export const mockUsageRankings: MedicineUsageRanking[] = [
   { rank: 4, name: 'Cetirizine', description: '10mg Tablets', qtyDispensed: 85, percentOfTotal: 5 },
   { rank: 5, name: 'Aspirin', description: '81mg Low Dose', qtyDispensed: 60, percentOfTotal: 3 },
   { rank: 6, name: 'Loratadine', description: '10mg Tablets', qtyDispensed: 45, percentOfTotal: 2.5 },
-];
-
-// ─── Consumption Summary Data ────────────────────────────────
-export const mockConsumptionSummary: ConsumptionSummaryItem[] = [
-  { id: 1, medicineName: 'Amoxicillin 500mg', period: 'Oct 2024', qtyUsed: 1240, status: 'In Stock', icon: '💊', iconColor: 'bg-blue-100' },
-  { id: 2, medicineName: 'Ibuprofen 400mg', period: 'Oct 2024', qtyUsed: 850, status: 'In Stock', icon: '💉', iconColor: 'bg-amber-100' },
-  { id: 3, medicineName: 'Paracetamol 500mg', period: 'Oct 2024', qtyUsed: 2100, status: 'Low Stock', icon: '🏥', iconColor: 'bg-red-100' },
-  { id: 4, medicineName: 'Cetirizine 10mg', period: 'Oct 2024', qtyUsed: 320, status: 'In Stock', icon: '💊', iconColor: 'bg-green-100' },
-  { id: 5, medicineName: 'Mefenamic Acid 500mg', period: 'Oct 2024', qtyUsed: 450, status: 'In Stock', icon: '💊', iconColor: 'bg-purple-100' },
-];
-
-export const consumptionTrend = [
-  { month: 'May', units: 1200 },
-  { month: 'Jun', units: 1350 },
-  { month: 'Jul', units: 1100 },
-  { month: 'Aug', units: 1450 },
-  { month: 'Sep', units: 1700 },
-  { month: 'Oct', units: 2450 },
 ];
 
 // ─── Archived Visits Data ────────────────────────────────────

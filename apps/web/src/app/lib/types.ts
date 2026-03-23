@@ -233,16 +233,6 @@ export interface MedicineUsageRanking {
   percentOfTotal: number;
 }
 
-export interface ConsumptionSummaryItem {
-  id: number;
-  medicineName: string;
-  period: string;
-  qtyUsed: number;
-  status: 'In Stock' | 'Low Stock' | 'Out of Stock';
-  icon: string;
-  iconColor: string;
-}
-
 // ─── Archive ─────────────────────────────────────────────────
 export interface ArchivedVisit {
   id: number;

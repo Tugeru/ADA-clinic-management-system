@@ -565,10 +565,6 @@ function ArchivedPatientsTab() {
         />
       )}
 
-      <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-        <Download size={13} /> Export
-      </Button>
-
       {/* Table */}
       <Card className="gap-0">
         {isLoading ? (

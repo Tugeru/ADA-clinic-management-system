@@ -21,41 +21,6 @@ export async function clinicSummary(startDate: string, endDate: string) {
     }
 }
 
-export async function consumptionReport(startDate: string, endDate: string) {
-    const records = await prisma.visitMedicine.findMany({
-        where: {
-            createdAt: {
-                gte: new Date(startDate),
-                lte: new Date(endDate),
-            },
-        },
-        include: {
-            medicine: { select: { name: true } },
-            visit: { select: { visitDate: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-    })
-
-    // Aggregate by medicine
-    const byMedicine = new Map<string, { name: string; totalDispensed: number }>()
-    for (const r of records) {
-        const existing = byMedicine.get(r.medicineId) ?? {
-            name: r.medicine.name,
-            totalDispensed: 0,
-        }
-        existing.totalDispensed += r.quantityDispensed
-        byMedicine.set(r.medicineId, existing)
-    }
-
-    return {
-        dateRange: { startDate, endDate },
-        medicines: Array.from(byMedicine.entries()).map(([id, data]) => ({
-            medicineId: id,
-            ...data,
-        })),
-    }
-}
-
 export async function lowStockReport() {
     const medicines = await prisma.medicine.findMany({
         where: { isActive: true },

@@ -37,7 +37,6 @@ export const queryKeys = {
   },
   analytics: {
     usageRankings: (period?: string) => ['analytics', 'usageRankings', period] as const,
-    consumptionSummary: (period?: string) => ['analytics', 'consumptionSummary', period] as const,
   },
   archive: {
     patients: (params?: Record<string, any>) => ['archive', 'patients', params] as const,
@@ -428,13 +427,6 @@ export function useUsageRankings(period?: string) {
   return useQuery({
     queryKey: queryKeys.analytics.usageRankings(period),
     queryFn: () => analyticsApi.getUsageRankings(period),
-  });
-}
-
-export function useConsumptionSummary(period?: string) {
-  return useQuery({
-    queryKey: queryKeys.analytics.consumptionSummary(period),
-    queryFn: () => analyticsApi.getConsumptionSummary(period),
   });
 }
 

@@ -12,13 +12,6 @@ router.get('/clinic-summary', validateQuery(ReportQuerySchema), async (req, res,
     } catch (err) { next(err) }
 })
 
-router.get('/consumption', validateQuery(ReportQuerySchema), async (req, res, next) => {
-    try {
-        const { startDate, endDate } = req.query as { startDate: string; endDate: string }
-        res.json(await svc.consumptionReport(startDate, endDate))
-    } catch (err) { next(err) }
-})
-
 router.get('/low-stock', async (_req, res, next) => {
     try { res.json(await svc.lowStockReport()) } catch (err) { next(err) }
 })
