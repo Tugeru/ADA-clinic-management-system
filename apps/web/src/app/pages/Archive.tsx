@@ -91,6 +91,7 @@ function ArchivedPatientsTab() {
   const [sectionFilter, setSectionFilter] = useState('');
   const [schoolYearFilter, setSchoolYearFilter] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; fullName: string } | null>(null);
+  const [confirmRestore, setConfirmRestore] = useState<{ id: string; fullName: string } | null>(null);
   const [updateSchoolYearOpen, setUpdateSchoolYearOpen] = useState(false);
   const [bulkSchoolYearValue, setBulkSchoolYearValue] = useState('');
   const [confirmSchoolYearOpen, setConfirmSchoolYearOpen] = useState(false);
@@ -350,6 +351,39 @@ function ArchivedPatientsTab() {
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm Restore Dialog (single row) */}
+      <AlertDialog open={!!confirmRestore} onOpenChange={(open: boolean) => { if (!open) setConfirmRestore(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore Patient Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to restore <span className="font-semibold text-slate-700">{confirmRestore?.fullName}</span>.
+              This record will be returned to the active patients list.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!confirmRestore) return;
+                try {
+                  await restoreMutation.mutateAsync(confirmRestore.id);
+                  toast.success(`${confirmRestore.fullName} restored.`);
+                } catch {
+                  toast.error('Failed to restore patient.');
+                } finally {
+                  setConfirmRestore(null);
+                }
+              }}
+              disabled={restoreMutation.isPending}
+              className="bg-teal-600 hover:bg-teal-700 text-white"
+            >
+              {restoreMutation.isPending ? 'Restoring...' : 'Yes, Restore'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -659,12 +693,7 @@ function ArchivedPatientsTab() {
                             className="h-7 w-7"
                             title="Restore"
                             disabled={restoreMutation.isPending}
-                            onClick={() => {
-                              restoreMutation.mutate(p.id, {
-                                onSuccess: () => toast.success(`${p.fullName} restored.`),
-                                onError: () => toast.error('Failed to restore patient.'),
-                              });
-                            }}
+                            onClick={() => setConfirmRestore({ id: p.id, fullName: p.fullName })}
                           >
                             <RotateCcw size={13} className="text-slate-500" />
                           </Button>
@@ -703,6 +732,7 @@ function ArchivedMedicinesTab() {
   const [search, setSearch] = useState('');
   const [exportingMedicinesCsv, setExportingMedicinesCsv] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
+  const [confirmRestore, setConfirmRestore] = useState<{ id: string; name: string } | null>(null);
   const [bulkRestoreOpen, setBulkRestoreOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [partialFailureOpen, setPartialFailureOpen] = useState(false);
@@ -898,6 +928,39 @@ function ArchivedMedicinesTab() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Confirm Restore Dialog (single row) */}
+      <AlertDialog open={!!confirmRestore} onOpenChange={(open: boolean) => { if (!open) setConfirmRestore(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore Medicine?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to restore <span className="font-semibold text-slate-700">{confirmRestore?.name}</span>.
+              This medicine will be returned to active inventory.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!confirmRestore) return;
+                try {
+                  await restoreMutation.mutateAsync(confirmRestore.id);
+                  toast.success(`${confirmRestore.name} restored to active inventory.`);
+                } catch {
+                  toast.error('Failed to restore medicine.');
+                } finally {
+                  setConfirmRestore(null);
+                }
+              }}
+              disabled={restoreMutation.isPending}
+              className="bg-teal-600 hover:bg-teal-700 text-white"
+            >
+              {restoreMutation.isPending ? 'Restoring...' : 'Yes, Restore'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Table */}
       <Card className="gap-0">
         {isLoading ? (
@@ -968,12 +1031,7 @@ function ArchivedMedicinesTab() {
                           className="h-7 w-7"
                           title="Restore"
                           disabled={restoreMutation.isPending}
-                          onClick={() => {
-                            restoreMutation.mutate(m.id, {
-                              onSuccess: () => toast.success(`${m.name} restored to active inventory.`),
-                              onError: () => toast.error('Failed to restore medicine.'),
-                            });
-                          }}
+                          onClick={() => setConfirmRestore({ id: m.id, name: m.name })}
                         >
                           <RotateCcw size={13} className="text-slate-500" />
                         </Button>

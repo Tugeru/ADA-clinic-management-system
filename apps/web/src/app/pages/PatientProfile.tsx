@@ -22,6 +22,7 @@ export function PatientProfile() {
   const [visitSearch, setVisitSearch] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
 
   const { data: patient, isLoading } = usePatient(id || '');
   const { data: visitsData, isLoading: visitsLoading } = usePatientVisits(patient?.id || '', {
@@ -85,6 +86,19 @@ export function PatientProfile() {
       toast.error('Failed to delete patient.');
     } finally {
       setShowDeleteConfirm(false);
+    }
+  };
+
+  const confirmRestore = async () => {
+    if (!patient?.id) return;
+    try {
+      await archiveMutation.mutateAsync(patient.id);
+      toast.success(`${patient.fullName} restored.`);
+      navigate('/patients');
+    } catch {
+      toast.error('Failed to restore patient.');
+    } finally {
+      setShowRestoreConfirm(false);
     }
   };
 
@@ -163,7 +177,7 @@ export function PatientProfile() {
                 variant="outline"
                 size="sm"
                 className="gap-1.5 text-xs text-teal-600 border-teal-200 hover:bg-teal-50"
-                onClick={() => archiveMutation.mutate(patient.id)}
+                onClick={() => setShowRestoreConfirm(true)}
               >
                 <RotateCcw size={13} /> Restore
               </Button>
@@ -219,6 +233,29 @@ export function PatientProfile() {
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Restore Confirmation Dialog */}
+      <AlertDialog open={showRestoreConfirm} onOpenChange={setShowRestoreConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore Patient Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to restore <span className="font-semibold text-slate-700">{patient.fullName}</span>.
+              This record will be returned to the active patients list.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRestore}
+              disabled={archiveMutation.isPending}
+              className="bg-teal-600 hover:bg-teal-700 text-white"
+            >
+              {archiveMutation.isPending ? 'Restoring...' : 'Yes, Restore'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
