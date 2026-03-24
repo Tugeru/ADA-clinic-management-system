@@ -374,8 +374,6 @@ export const archiveApi = {
           ? new Date(m.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
           : '—',
         archivedBy: 'Clinic In-Charge',
-        icon: '💊',
-        iconColor: 'bg-slate-50 text-slate-600',
       };
     });
     return { data: mapped, total: mapped.length, page: 1, limit: mapped.length, totalPages: 1 };

@@ -256,8 +256,6 @@ export interface ArchivedMedicine {
   lastStock: number;
   dateArchived: string;
   archivedBy: string;
-  icon: string;
-  iconColor: string;
 }
 
 // ─── Settings / Clinic Profile ───────────────────────────────

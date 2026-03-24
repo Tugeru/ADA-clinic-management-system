@@ -1003,14 +1003,9 @@ function ArchivedMedicinesTab() {
                       />
                     </TableCell>
                     <TableCell className="pl-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <span className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-base", m.iconColor)}>
-                          {m.icon}
-                        </span>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-800">{m.name}</p>
-                          <p className="text-[10px] text-slate-400">{m.medId}</p>
-                        </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-800">{m.name}</p>
+                        <p className="text-[10px] text-slate-400">{m.medId}</p>
                       </div>
                     </TableCell>
                     <TableCell className="py-3.5">

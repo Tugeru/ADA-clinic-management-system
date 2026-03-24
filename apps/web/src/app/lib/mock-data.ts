@@ -119,11 +119,11 @@ export const mockArchivedVisits: ArchivedVisit[] = [
 
 // ─── Archived Medicines Data ─────────────────────────────────
 export const mockArchivedMedicines: ArchivedMedicine[] = [
-  { id: 1, name: 'Amoxicillin Trihydrate', medId: '#MED-29381', form: 'Capsule', dosage: '500mg', lastStock: 0, dateArchived: 'Oct 20, 2023', archivedBy: 'Admin', icon: '💊', iconColor: 'bg-rose-100' },
-  { id: 2, name: 'Cough Syrup (Pediatric)', medId: '#MED-10293', form: 'Liquid', dosage: '120ml', lastStock: 12, dateArchived: 'Oct 15, 2023', archivedBy: 'System', icon: '🧴', iconColor: 'bg-blue-100' },
-  { id: 3, name: 'Insulin Glargine', medId: '#MED-55921', form: 'Injection', dosage: '10ml Vial', lastStock: 3, dateArchived: 'Sep 28, 2023', archivedBy: 'Dr. Jenkins', icon: '💉', iconColor: 'bg-purple-100' },
-  { id: 4, name: 'Paracetamol (Generic)', medId: '#MED-11234', form: 'Tablet', dosage: '500mg', lastStock: 0, dateArchived: 'Sep 12, 2023', archivedBy: 'Admin', icon: '💊', iconColor: 'bg-rose-100' },
-  { id: 5, name: 'Betadine Ointment', medId: '#MED-88392', form: 'Topical', dosage: '20g Tube', lastStock: 5, dateArchived: 'Aug 05, 2023', archivedBy: 'System', icon: '🧴', iconColor: 'bg-amber-100' },
+  { id: 1, name: 'Amoxicillin Trihydrate', medId: '#MED-29381', form: 'Capsule', dosage: '500mg', lastStock: 0, dateArchived: 'Oct 20, 2023', archivedBy: 'Admin' },
+  { id: 2, name: 'Cough Syrup (Pediatric)', medId: '#MED-10293', form: 'Liquid', dosage: '120ml', lastStock: 12, dateArchived: 'Oct 15, 2023', archivedBy: 'System' },
+  { id: 3, name: 'Insulin Glargine', medId: '#MED-55921', form: 'Injection', dosage: '10ml Vial', lastStock: 3, dateArchived: 'Sep 28, 2023', archivedBy: 'Dr. Jenkins' },
+  { id: 4, name: 'Paracetamol (Generic)', medId: '#MED-11234', form: 'Tablet', dosage: '500mg', lastStock: 0, dateArchived: 'Sep 12, 2023', archivedBy: 'Admin' },
+  { id: 5, name: 'Betadine Ointment', medId: '#MED-88392', form: 'Topical', dosage: '20g Tube', lastStock: 5, dateArchived: 'Aug 05, 2023', archivedBy: 'System' },
 ];
 
 // ─── Patient Visit History (for patient profile) ─────────────
