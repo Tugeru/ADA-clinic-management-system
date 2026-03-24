@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Download, Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { Card } from '../components/ui/card';
-import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Skeleton } from '../components/ui/skeleton';
@@ -302,12 +301,6 @@ function UsageRankingsView({
         </div>
       )}
 
-      {/* Export Button */}
-      <div className="flex justify-end">
-        <Button variant="outline" className="gap-2 text-sm text-teal-600 border-teal-200 hover:bg-teal-50">
-          <Download size={14} /> Export CSV
-        </Button>
-      </div>
     </div>
   );
 }
