@@ -43,3 +43,19 @@ export const loginRateLimiter = rateLimit({
   //   })
   // }
 })
+
+export const passwordChangeRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5,
+  message: 'Too many password change attempts from this IP, please try again after a minute.',
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+export const adminPasswordResetRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  message: 'Too many password reset attempts from this IP, please try again after a minute.',
+  standardHeaders: true,
+  legacyHeaders: false,
+})
