@@ -2,7 +2,7 @@
 // Mock database (simulating PostgreSQL + Prisma seed data)
 // ─────────────────────────────────────────────────────────────
 
-import type { Patient, Visit, Medicine, User, StockMovement, MedicineUsageRanking, ArchivedVisit, ArchivedMedicine, ClinicProfile, AuditLogEntry } from './types';
+import type { Patient, Visit, Medicine, User, StockMovement, MedicineUsageRanking, ArchivedVisit, ArchivedMedicine, AuditLogEntry } from './types';
 
 export const mockUser: User = {
   id: 'usr_001',
@@ -134,15 +134,6 @@ export const mockPatientVisits = [
   { id: 104, date: 'Jul 18, 2023', complaint: 'Fever (38.5°C)', complaintColor: 'bg-red-500', timeIn: '09:00 AM', timeOut: '10:30 AM', disposition: 'Hospital Referral', dispositionColor: 'bg-red-100 text-red-700' },
   { id: 105, date: 'Jun 02, 2023', complaint: 'Annual Checkup', complaintColor: 'bg-slate-400', timeIn: '08:00 AM', timeOut: '08:45 AM', disposition: 'Completed', dispositionColor: 'bg-slate-100 text-slate-700' },
 ];
-
-// ─── Clinic Profile Data ─────────────────────────────────────
-export let mockClinicProfile: ClinicProfile = {
-  clinicName: 'Cabantian SHS Clinic',
-  schoolName: 'Cabantian Stand Alone Senior High School',
-  contactNumber: '(082) 123-4567',
-  address: 'Purok 5, Cabantian, Davao City, Davao del Sur 8000',
-  inChargeName: 'Dr. Sarah L.',
-};
 
 // ─── Audit Log Data ──────────────────────────────────────────
 export const mockAuditLog: AuditLogEntry[] = [

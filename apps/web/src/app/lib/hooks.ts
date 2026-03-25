@@ -3,9 +3,9 @@
 // ─────────────────────────────────────────────────────────────
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { patientApi, visitApi, inventoryApi, dashboardApi, analyticsApi, archiveApi, patientVisitsApi, clinicProfileApi, auditLogApi, referenceDataApi, userApi } from './api';
+import { patientApi, visitApi, inventoryApi, dashboardApi, analyticsApi, archiveApi, patientVisitsApi, auditLogApi, referenceDataApi, userApi } from './api';
 import type { MedicineType } from './types';
-import type { PatientFormData, VisitFormData, StockInFormData, MedicineFormData, ClinicProfile, AuditAction, AuditEntity } from './types';
+import type { PatientFormData, VisitFormData, StockInFormData, MedicineFormData, AuditAction, AuditEntity } from './types';
 
 // ─── Query Keys ──────────────────────────────────────────────
 export const queryKeys = {
@@ -44,7 +44,6 @@ export const queryKeys = {
     medicines: (params?: Record<string, any>) => ['archive', 'medicines', params] as const,
   },
   settings: {
-    clinicProfile: ['settings', 'clinicProfile'] as const,
     auditLog: (params?: Record<string, any>) => ['settings', 'auditLog', params] as const,
     users: ['settings', 'users'] as const,
   },
@@ -541,23 +540,6 @@ export function useRestoreMedicine() {
 }
 
 // ─── Settings Hooks ──────────────────────────────────────────
-export function useClinicProfile() {
-  return useQuery({
-    queryKey: queryKeys.settings.clinicProfile,
-    queryFn: () => clinicProfileApi.getProfile(),
-  });
-}
-
-export function useUpdateClinicProfile() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data: Partial<ClinicProfile>) => clinicProfileApi.updateProfile(data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.settings.clinicProfile });
-    },
-  });
-}
-
 export function useAuditLog(params?: { action?: string; entity?: string; page?: number }) {
   return useQuery({
     queryKey: queryKeys.settings.auditLog(params),

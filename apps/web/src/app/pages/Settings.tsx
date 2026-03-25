@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Eye, EyeOff, LogOut, Monitor, Save, X, Download,
-  ShieldCheck, Building2, ScrollText, ChevronLeft, ChevronRight,
+  ShieldCheck, ScrollText, ChevronLeft, ChevronRight,
   Plus, Pencil, Archive, RotateCcw, PackagePlus, PackageMinus,
   GraduationCap, Trash2, Check, Users,
 } from 'lucide-react';
@@ -21,7 +21,7 @@ import {
 } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
 import { useAuth } from '../lib/auth-context';
-import { useClinicProfile, useUpdateClinicProfile, useAuditLog, useReferenceData, useCreateReferenceData, useUpdateReferenceData, useDeleteReferenceData, useUsers, useCreateUser, useResetUserPassword, useSetUserActive, useSetUserCanManageUsers, useDeleteUser, useChangeMyPassword } from '../lib/hooks';
+import { useAuditLog, useReferenceData, useCreateReferenceData, useUpdateReferenceData, useDeleteReferenceData, useUsers, useCreateUser, useResetUserPassword, useSetUserActive, useSetUserCanManageUsers, useDeleteUser, useChangeMyPassword } from '../lib/hooks';
 import { toast } from 'sonner';
 import type { ReferenceDataItem, UserAccount } from '../lib/types';
 import { downloadCsvExport } from '../lib/exportDownload';
@@ -30,7 +30,6 @@ import { downloadCsvExport } from '../lib/exportDownload';
 const tabs = [
   { id: 'account', label: 'Account & Security', icon: ShieldCheck },
   { id: 'users', label: 'User Accounts', icon: Users },
-  { id: 'clinic', label: 'Clinic Profile', icon: Building2 },
   { id: 'reference', label: 'Academic Fields', icon: GraduationCap },
   { id: 'audit', label: 'Audit Log', icon: ScrollText },
 ] as const;
@@ -76,7 +75,6 @@ export function Settings() {
       {/* Tab Content */}
       {activeTab === 'account' && <AccountSecurityTab />}
       {activeTab === 'users' && <UserAccountsTab />}
-      {activeTab === 'clinic' && <ClinicProfileTab />}
       {activeTab === 'reference' && <ReferenceDataTab />}
       {activeTab === 'audit' && <AuditLogTab />}
     </div>
@@ -754,143 +752,7 @@ function UserAccountsTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 2) Clinic Profile Tab
-// ═══════════════════════════════════════════════════════════════
-function ClinicProfileTab() {
-  const { data: profile, isLoading } = useClinicProfile();
-  const updateMutation = useUpdateClinicProfile();
-
-  const [clinicName, setClinicName] = useState('');
-  const [schoolName, setSchoolName] = useState('');
-  const [contactNumber, setContactNumber] = useState('');
-  const [address, setAddress] = useState('');
-  const [inChargeName, setInChargeName] = useState('');
-  const [isDirty, setIsDirty] = useState(false);
-
-  useEffect(() => {
-    if (profile) {
-      setClinicName(profile.clinicName);
-      setSchoolName(profile.schoolName);
-      setContactNumber(profile.contactNumber || '');
-      setAddress(profile.address || '');
-      setInChargeName(profile.inChargeName || '');
-    }
-  }, [profile]);
-
-  const handleFieldChange = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setter(e.target.value);
-    setIsDirty(true);
-  };
-
-  const handleCancel = () => {
-    if (profile) {
-      setClinicName(profile.clinicName);
-      setSchoolName(profile.schoolName);
-      setContactNumber(profile.contactNumber || '');
-      setAddress(profile.address || '');
-      setInChargeName(profile.inChargeName || '');
-      setIsDirty(false);
-    }
-  };
-
-  const handleSave = async () => {
-    try {
-      await updateMutation.mutateAsync({ clinicName, schoolName, contactNumber, address, inChargeName });
-      setIsDirty(false);
-      toast.success('Clinic profile saved');
-    } catch {
-      toast.error('Failed to save profile');
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <Card className="p-6 max-w-2xl space-y-5">
-        {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className="space-y-2">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-11 w-full" />
-          </div>
-        ))}
-      </Card>
-    );
-  }
-
-  return (
-    <div className="max-w-2xl">
-      <Card className="p-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
-            <Building2 size={18} className="text-blue-600" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900">Clinic Information</h3>
-            <p className="text-xs text-slate-500">Update your clinic details and contact information</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <Label className="text-sm font-medium text-slate-700">
-              Clinic Name <span className="text-red-500">*</span>
-            </Label>
-            <Input value={clinicName} onChange={handleFieldChange(setClinicName)} className="mt-1.5 h-11" />
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium text-slate-700">
-              School Name <span className="text-red-500">*</span>
-            </Label>
-            <Input value={schoolName} onChange={handleFieldChange(setSchoolName)} className="mt-1.5 h-11" />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm font-medium text-slate-700">
-                Clinic Contact Number <span className="text-slate-400 font-normal">(Optional)</span>
-              </Label>
-              <Input value={contactNumber} onChange={handleFieldChange(setContactNumber)} placeholder="e.g. (082) 123-4567" className="mt-1.5 h-11" />
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-slate-700">
-                Clinic In-Charge Name <span className="text-slate-400 font-normal">(Optional)</span>
-              </Label>
-              <Input value={inChargeName} onChange={handleFieldChange(setInChargeName)} placeholder="e.g. Dr. Sarah L." className="mt-1.5 h-11" />
-            </div>
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium text-slate-700">
-              Address <span className="text-slate-400 font-normal">(Optional)</span>
-            </Label>
-            <Input value={address} onChange={handleFieldChange(setAddress)} placeholder="Full clinic address" className="mt-1.5 h-11" />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t">
-          <Button variant="ghost" onClick={handleCancel} disabled={!isDirty} className="text-sm">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!isDirty || !clinicName || !schoolName || updateMutation.isPending}
-            className="bg-teal-600 hover:bg-teal-700 gap-2 text-sm"
-          >
-            {updateMutation.isPending ? (
-              <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Save size={14} />
-            )}
-            Save Changes
-          </Button>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 3) Reference Data Tab
+// 2) Reference Data Tab
 // ═══════════════════════════════════════════════════════════════
 const refCategories = [
   { id: 'GRADE_LEVEL', label: 'Grade Levels', hasParent: false },

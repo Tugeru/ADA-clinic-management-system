@@ -397,11 +397,6 @@ export const patientVisitsApi = {
   },
 };
 
-// ─── Clinic profile / audit log (local only) ─────────────────
-export const clinicProfileApi = {
-  async getProfile() { return { name: 'ADA Clinic', schoolCode: 'CSASHS' } as any; },
-  async updateProfile(d: any) { return d as any; },
-};
 export const auditLogApi = {
   async getAuditLog(params?: { action?: string; entity?: string; page?: number; limit?: number }): Promise<PaginatedResponse<any>> {
     const { data } = await http.get('/audit-log', { params });

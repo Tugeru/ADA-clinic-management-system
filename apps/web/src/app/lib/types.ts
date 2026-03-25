@@ -268,15 +268,6 @@ export interface ArchivedMedicine {
   archivedBy: string;
 }
 
-// ─── Settings / Clinic Profile ───────────────────────────────
-export interface ClinicProfile {
-  clinicName: string;
-  schoolName: string;
-  contactNumber?: string;
-  address?: string;
-  inChargeName?: string;
-}
-
 // ─── Audit Log ───────────────────────────────────────────────
 export type AuditAction =
   | 'Create'

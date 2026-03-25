@@ -96,7 +96,7 @@ test.describe('Audit Log (Settings)', () => {
     expect(auditRequests).toBeGreaterThanOrEqual(1);
 
     // Leave Audit tab and come back — should refetch (no hard refresh)
-    await page.getByRole('button', { name: /clinic profile/i }).click();
+    await page.getByRole('button', { name: /account & security/i }).click();
     await page.getByRole('button', { name: /audit log/i }).click();
     await expect.poll(() => auditRequests).toBeGreaterThanOrEqual(2);
 
