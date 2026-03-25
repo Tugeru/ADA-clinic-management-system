@@ -10,6 +10,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { Skeleton } from '../components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { cn } from '../components/ui/utils';
 import { usePatient, usePatientVisits, useArchivePatient, useDeletePatient } from '../lib/hooks';
 import { formatTimeTo12Hour } from '../lib/dateTime';
@@ -34,6 +35,62 @@ export function PatientProfile() {
 
   const visits = visitsData?.data || [];
   const totalVisits = visitsData?.total || 0;
+
+  const [periodFilter, setPeriodFilter] = useState<'Today' | 'This week' | 'This month' | 'All time'>('All time');
+  const [dispositionFilter, setDispositionFilter] = useState<
+    'All dispositions' | 'Returned to Class' | 'Returned to Work' | 'Sent Home' | 'Sent to Hospital'
+  >('All dispositions');
+
+  const normalize = (s: string) => s.trim().toLowerCase();
+  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+  const startOfWeekMonday = (d: Date) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    const day = x.getDay(); // 0=Sun..6=Sat
+    const diff = (day + 6) % 7; // Mon=0, Tue=1, ... Sun=6
+    x.setDate(x.getDate() - diff);
+    return x;
+  };
+
+  const withinPeriod = (visitDate: string) => {
+    if (!visitDate) return true;
+    if (periodFilter === 'All time') return true;
+    if (periodFilter === 'Today') return visitDate === todayStr;
+
+    const dt = new Date(`${visitDate}T00:00:00`);
+    if (Number.isNaN(dt.getTime())) return true;
+
+    if (periodFilter === 'This month') {
+      const now = new Date();
+      return dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth();
+    }
+
+    // This week (Monday-start)
+    const weekStart = startOfWeekMonday(new Date());
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+    return dt >= weekStart && dt <= weekEnd;
+  };
+
+  const filteredVisits = visits.filter((v: any) => {
+    const q = normalize(visitSearch);
+    const date = (v.date ?? '').toString();
+    const complaint = (v.complaint ?? '').toString();
+    const disp = (v.disposition ?? '').toString();
+
+    const matchesSearch =
+      !q ||
+      normalize(date).includes(q) ||
+      normalize(complaint).includes(q) ||
+      normalize(disp).includes(q);
+
+    const matchesDisposition =
+      dispositionFilter === 'All dispositions' ? true : disp === dispositionFilter;
+
+    return matchesSearch && matchesDisposition && withinPeriod(date);
+  });
 
   if (isLoading) {
     return (
@@ -324,11 +381,20 @@ export function PatientProfile() {
         <InformationTab patient={patient} />
       ) : (
         <VisitHistoryTab
-          visits={visits}
+          visits={filteredVisits}
           isLoading={visitsLoading}
-          totalVisits={totalVisits}
+          totalVisits={filteredVisits.length}
+          totalAllVisits={totalVisits}
           search={visitSearch}
           onSearchChange={setVisitSearch}
+          periodFilter={periodFilter}
+          onPeriodChange={setPeriodFilter}
+          dispositionFilter={dispositionFilter}
+          onDispositionChange={setDispositionFilter}
+          onResetFilters={() => {
+            setPeriodFilter('All time');
+            setDispositionFilter('All dispositions');
+          }}
         />
       )}
     </div>
@@ -428,15 +494,39 @@ function VisitHistoryTab({
   visits,
   isLoading,
   totalVisits,
+  totalAllVisits,
   search,
   onSearchChange,
+  periodFilter,
+  onPeriodChange,
+  dispositionFilter,
+  onDispositionChange,
+  onResetFilters,
 }: {
   visits: any[];
   isLoading: boolean;
   totalVisits: number;
+  totalAllVisits: number;
   search: string;
   onSearchChange: (v: string) => void;
+  periodFilter: 'Today' | 'This week' | 'This month' | 'All time';
+  onPeriodChange: (v: 'Today' | 'This week' | 'This month' | 'All time') => void;
+  dispositionFilter: 'All dispositions' | 'Returned to Class' | 'Returned to Work' | 'Sent Home' | 'Sent to Hospital';
+  onDispositionChange: (v: 'All dispositions' | 'Returned to Class' | 'Returned to Work' | 'Sent Home' | 'Sent to Hospital') => void;
+  onResetFilters: () => void;
 }) {
+  const dispColors: Record<string, string> = {
+    green: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    orange: 'bg-orange-50 text-orange-700 border-orange-200',
+    red: 'bg-red-50 text-red-700 border-red-200',
+  };
+
+  const dotColors: Record<string, string> = {
+    green: 'bg-emerald-500',
+    orange: 'bg-orange-500',
+    red: 'bg-red-500',
+  };
+
   return (
     <Card className="gap-0">
       {/* Header */}
@@ -452,8 +542,39 @@ function VisitHistoryTab({
               className="pl-8 h-9 text-xs w-48"
             />
           </div>
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-            <Filter size={13} /> Filter
+          <Select value={periodFilter} onValueChange={(v) => onPeriodChange(v as any)}>
+            <SelectTrigger className="h-9 text-xs w-32">
+              <SelectValue placeholder="Period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All time">All time</SelectItem>
+              <SelectItem value="Today">Today</SelectItem>
+              <SelectItem value="This week">This week</SelectItem>
+              <SelectItem value="This month">This month</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={dispositionFilter} onValueChange={(v) => onDispositionChange(v as any)}>
+            <SelectTrigger className="h-9 text-xs w-44">
+              <SelectValue placeholder="Disposition" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All dispositions">All dispositions</SelectItem>
+              <SelectItem value="Returned to Class">Returned to Class</SelectItem>
+              <SelectItem value="Returned to Work">Returned to Work</SelectItem>
+              <SelectItem value="Sent Home">Sent Home</SelectItem>
+              <SelectItem value="Sent to Hospital">Sent to Hospital</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={onResetFilters}
+            disabled={periodFilter === 'All time' && dispositionFilter === 'All dispositions'}
+          >
+            <Filter size={13} /> Reset
           </Button>
         </div>
       </div>
@@ -493,7 +614,14 @@ function VisitHistoryTab({
                     {formatTimeTo12Hour(visit.timeOut)}
                   </TableCell>
                   <TableCell className="py-3.5">
-                    <Badge variant="outline" className={cn("text-[10px] font-semibold", visit.dispositionColor)}>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] font-semibold inline-flex items-center gap-1",
+                        dispColors[String(visit.dispositionColor)] ?? dispColors.green,
+                      )}
+                    >
+                      <span className={cn("w-1.5 h-1.5 rounded-full", dotColors[String(visit.dispositionColor)] ?? dotColors.green)} />
                       {visit.disposition}
                     </Badge>
                   </TableCell>
@@ -512,7 +640,8 @@ function VisitHistoryTab({
           {/* Pagination */}
           <div className="px-5 py-3 border-t flex items-center justify-between">
             <p className="text-xs text-slate-500">
-              Showing <span className="font-semibold text-slate-800">1</span> to <span className="font-semibold text-slate-800">{visits.length}</span> of <span className="font-semibold text-slate-800">{totalVisits}</span> results
+              Showing <span className="font-semibold text-slate-800">{visits.length}</span> of{' '}
+              <span className="font-semibold text-slate-800">{totalAllVisits}</span> visits
             </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled className="h-7 text-xs">Previous</Button>
