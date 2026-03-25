@@ -55,11 +55,13 @@ model User {
   passwordHash String   @map("password_hash")
   fullName     String   @map("full_name")
   isActive     Boolean  @default(true) @map("is_active")
+  canManageUsers Boolean @default(false) @map("can_manage_users")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // Relations
   visits Visit[]
+  auditLogs AuditLog[]
 
   @@map("users")
 }
@@ -212,4 +214,27 @@ model VisitMedicine {
   batch    InventoryBatch? @relation(fields: [batchId], references: [id])
 
   @@map("visit_medicines")
+}
+
+// ─── AuditLog ──────────────────────────────────────────────────────────────────
+// General audit log of user actions across the system.
+model AuditLog {
+  id               String   @id @default(uuid()) @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  userId           String   @map("user_id") @db.Uuid
+  action           String
+  entity           String
+  entityId         String?  @map("entity_id") @db.Uuid
+  recordIdentifier String?  @map("record_identifier")
+  metadata         Json?
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([entity, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("audit_logs")
 }
