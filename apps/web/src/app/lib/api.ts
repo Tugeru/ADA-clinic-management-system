@@ -7,7 +7,7 @@ import type {
   Patient, Visit, Medicine, StockMovement,
   PaginatedResponse, KPI, MedicineUsageRanking,
   DashboardAnalyticsResponse, DashboardAnalyticsParams,
-  ReferenceDataItem, MedicineType, InventoryStatus,
+  ReferenceDataItem, MedicineType, InventoryStatus, UserAccount,
 } from './types';
 
 // ─── Auth ───────────────────────────────────────────────────
@@ -403,8 +403,9 @@ export const clinicProfileApi = {
   async updateProfile(d: any) { return d as any; },
 };
 export const auditLogApi = {
-  async getAuditLog(_p?: any): Promise<PaginatedResponse<any>> {
-    return { data: [], total: 0, page: 1, limit: 10, totalPages: 0 };
+  async getAuditLog(params?: { action?: string; entity?: string; page?: number; limit?: number }): Promise<PaginatedResponse<any>> {
+    const { data } = await http.get('/audit-log', { params });
+    return data as PaginatedResponse<any>;
   },
 };
 
@@ -429,6 +430,57 @@ export const referenceDataApi = {
 
   async remove(id: string): Promise<void> {
     await http.delete(`/reference-data/${id}`);
+  },
+};
+
+// ─── Users (Account management) ──────────────────────────────
+export const userApi = {
+  async listUsers(): Promise<UserAccount[]> {
+    const { data } = await http.get('/users');
+    const items: any[] = Array.isArray(data) ? data : data.data ?? [];
+    return items.map((u: any) => ({
+      id: u.id,
+      email: u.email,
+      fullName: u.fullName,
+      isActive: !!u.isActive,
+      canManageUsers: !!u.canManageUsers,
+      createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : new Date().toISOString(),
+      updatedAt: u.updatedAt ? new Date(u.updatedAt).toISOString() : new Date().toISOString(),
+    }));
+  },
+
+  async createUser(payload: { email: string; fullName: string; password: string }): Promise<UserAccount> {
+    const { data } = await http.post('/users', payload);
+    return {
+      id: data.id,
+      email: data.email,
+      fullName: data.fullName,
+      isActive: !!data.isActive,
+      canManageUsers: !!data.canManageUsers,
+      createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString(),
+      updatedAt: data.updatedAt ? new Date(data.updatedAt).toISOString() : new Date().toISOString(),
+    };
+  },
+
+  async resetPassword(userId: string, newPassword: string): Promise<void> {
+    await http.patch(`/users/${userId}/password`, { newPassword });
+  },
+
+  async setActive(userId: string, isActive: boolean): Promise<UserAccount> {
+    const { data } = await http.patch(`/users/${userId}/status`, { isActive });
+    return {
+      id: data.id,
+      email: data.email,
+      fullName: data.fullName,
+      isActive: !!data.isActive,
+      canManageUsers: !!data.canManageUsers,
+      createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString(),
+      updatedAt: data.updatedAt ? new Date(data.updatedAt).toISOString() : new Date().toISOString(),
+    };
+  },
+
+  async changeMyPassword(payload: { currentPassword: string; newPassword: string }): Promise<void> {
+    await http.patch('/users/me/password', payload);
   },
 };
 

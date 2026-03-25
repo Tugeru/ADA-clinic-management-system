@@ -3,7 +3,7 @@ import {
   Eye, EyeOff, LogOut, Monitor, Save, X, Download,
   ShieldCheck, Building2, ScrollText, ChevronLeft, ChevronRight,
   Plus, Pencil, Archive, RotateCcw, PackagePlus, PackageMinus,
-  GraduationCap, Trash2, Check,
+  GraduationCap, Trash2, Check, Users,
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -21,13 +21,15 @@ import {
 } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
 import { useAuth } from '../lib/auth-context';
-import { useClinicProfile, useUpdateClinicProfile, useAuditLog, useReferenceData, useCreateReferenceData, useUpdateReferenceData, useDeleteReferenceData } from '../lib/hooks';
+import { useClinicProfile, useUpdateClinicProfile, useAuditLog, useReferenceData, useCreateReferenceData, useUpdateReferenceData, useDeleteReferenceData, useUsers, useCreateUser, useResetUserPassword, useSetUserActive, useChangeMyPassword } from '../lib/hooks';
 import { toast } from 'sonner';
-import type { ReferenceDataItem } from '../lib/types';
+import type { ReferenceDataItem, UserAccount } from '../lib/types';
+import { downloadCsvExport } from '../lib/exportDownload';
 
 // ─── Tab definitions ─────────────────────────────────────────
 const tabs = [
   { id: 'account', label: 'Account & Security', icon: ShieldCheck },
+  { id: 'users', label: 'User Accounts', icon: Users },
   { id: 'clinic', label: 'Clinic Profile', icon: Building2 },
   { id: 'reference', label: 'Academic Fields', icon: GraduationCap },
   { id: 'audit', label: 'Audit Log', icon: ScrollText },
@@ -73,6 +75,7 @@ export function Settings() {
 
       {/* Tab Content */}
       {activeTab === 'account' && <AccountSecurityTab />}
+      {activeTab === 'users' && <UserAccountsTab />}
       {activeTab === 'clinic' && <ClinicProfileTab />}
       {activeTab === 'reference' && <ReferenceDataTab />}
       {activeTab === 'audit' && <AuditLogTab />}
@@ -86,6 +89,7 @@ export function Settings() {
 function AccountSecurityTab() {
   const { logout, user } = useAuth();
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const changeMyPassword = useChangeMyPassword();
 
   // Password form state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -109,14 +113,23 @@ function AccountSecurityTab() {
   const handleUpdatePassword = async () => {
     if (!validatePassword()) return;
     setIsUpdating(true);
-    // Simulate API call
-    await new Promise(r => setTimeout(r, 800));
-    setIsUpdating(false);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setErrors({});
-    toast.success('Password updated successfully');
+    try {
+      await changeMyPassword.mutateAsync({ currentPassword, newPassword });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setErrors({});
+      toast.success('Password updated successfully');
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const msg =
+        status === 401
+          ? 'Current password is incorrect.'
+          : err?.response?.data?.error ?? 'Failed to update password';
+      toast.error(msg);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleSignOut = () => {
@@ -310,6 +323,285 @@ function AccountSecurityTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// User Accounts Tab
+// ═══════════════════════════════════════════════════════════════
+function UserAccountsTab() {
+  const { data: users, isLoading, error } = useUsers();
+  const createMutation = useCreateUser();
+  const resetPasswordMutation = useResetUserPassword();
+  const setActiveMutation = useSetUserActive();
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState<{ id: string; email: string } | null>(null);
+  const [toggleOpen, setToggleOpen] = useState<{ id: string; email: string; nextActive: boolean } | null>(null);
+
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
+  const isForbidden = (error as any)?.response?.status === 403;
+
+  const resetCreateForm = () => {
+    setFullName('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+  };
+
+  const resetResetForm = () => {
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setShowNewPassword(false);
+  };
+
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return '—';
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!fullName.trim()) return toast.error('Full name is required.');
+    if (!email.trim()) return toast.error('Email is required.');
+    if (password.length < 8) return toast.error('Password must be at least 8 characters.');
+    if (password !== confirmPassword) return toast.error('Passwords do not match.');
+    try {
+      await createMutation.mutateAsync({ fullName: fullName.trim(), email: email.trim(), password });
+      toast.success('Account created.');
+      setCreateOpen(false);
+      resetCreateForm();
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const msg =
+        status === 409 ? 'Email already in use.' :
+        err?.response?.data?.error ?? 'Failed to create account.';
+      toast.error(msg);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetOpen) return;
+    if (newPassword.length < 8) return toast.error('Password must be at least 8 characters.');
+    if (newPassword !== confirmNewPassword) return toast.error('Passwords do not match.');
+    try {
+      await resetPasswordMutation.mutateAsync({ userId: resetOpen.id, newPassword });
+      toast.success(`Password reset for ${resetOpen.email}.`);
+      setResetOpen(null);
+      resetResetForm();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error ?? 'Failed to reset password.');
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    if (!toggleOpen) return;
+    try {
+      await setActiveMutation.mutateAsync({ userId: toggleOpen.id, isActive: toggleOpen.nextActive });
+      toast.success(toggleOpen.nextActive ? 'Account activated.' : 'Account deactivated.');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error ?? 'Failed to update account status.');
+    } finally {
+      setToggleOpen(null);
+    }
+  };
+
+  if (isForbidden) {
+    return (
+      <Card className="p-6">
+        <p className="text-sm font-semibold text-slate-800">User Accounts</p>
+        <p className="text-xs text-slate-500 mt-1">You don’t have permission to manage accounts.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Dialog open={createOpen} onOpenChange={(open: boolean) => { setCreateOpen(open); if (!open) resetCreateForm(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Account</DialogTitle>
+            <DialogDescription>Add a new Clinic In‑Charge account.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs text-slate-600">Full Name</Label>
+              <Input value={fullName} onChange={(e: { target: { value: string } }) => setFullName(e.target.value)} className="h-10 mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs text-slate-600">Email</Label>
+              <Input value={email} onChange={(e: { target: { value: string } }) => setEmail(e.target.value)} className="h-10 mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs text-slate-600">Initial Password</Label>
+              <Input type="password" value={password} onChange={(e: { target: { value: string } }) => setPassword(e.target.value)} className="h-10 mt-1" />
+              <p className="text-[11px] text-slate-400 mt-1">At least 8 characters.</p>
+            </div>
+            <div>
+              <Label className="text-xs text-slate-600">Confirm Password</Label>
+              <Input type="password" value={confirmPassword} onChange={(e: { target: { value: string } }) => setConfirmPassword(e.target.value)} className="h-10 mt-1" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button className="bg-teal-600 hover:bg-teal-700" onClick={handleCreate} disabled={createMutation.isPending}>
+              {createMutation.isPending ? 'Creating...' : 'Create Account'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!resetOpen} onOpenChange={(open: boolean) => { if (!open) { setResetOpen(null); resetResetForm(); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for <span className="font-medium text-slate-700">{resetOpen?.email}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs text-slate-600">New Password</Label>
+              <div className="relative mt-1">
+                <Input
+                  type={showNewPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e: { target: { value: string } }) => setNewPassword(e.target.value)}
+                  className="h-10 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword((v: boolean) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">At least 8 characters.</p>
+            </div>
+            <div>
+              <Label className="text-xs text-slate-600">Confirm New Password</Label>
+              <Input
+                type={showNewPassword ? 'text' : 'password'}
+                value={confirmNewPassword}
+                onChange={(e: { target: { value: string } }) => setConfirmNewPassword(e.target.value)}
+                className="h-10 mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setResetOpen(null)}>Cancel</Button>
+            <Button className="bg-teal-600 hover:bg-teal-700" onClick={handleResetPassword} disabled={resetPasswordMutation.isPending}>
+              {resetPasswordMutation.isPending ? 'Saving...' : 'Reset Password'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!toggleOpen} onOpenChange={(open) => { if (!open) setToggleOpen(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{toggleOpen?.nextActive ? 'Activate Account?' : 'Deactivate Account?'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {toggleOpen?.nextActive
+                ? <>Activate <span className="font-semibold text-slate-700">{toggleOpen?.email}</span>?</>
+                : <>Deactivate <span className="font-semibold text-slate-700">{toggleOpen?.email}</span>? They will not be able to log in.</>
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleToggleStatus}
+              className={toggleOpen?.nextActive ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}
+              disabled={setActiveMutation.isPending}
+            >
+              {setActiveMutation.isPending ? 'Saving...' : (toggleOpen?.nextActive ? 'Activate' : 'Deactivate')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Card className="p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">User Accounts</h3>
+            <p className="text-xs text-slate-500 mt-1">Create accounts and manage access to ADA.</p>
+          </div>
+          <Button size="sm" className="h-8 text-xs bg-teal-600 hover:bg-teal-700 gap-1" onClick={() => setCreateOpen(true)}>
+            <Plus size={12} /> Add Account
+          </Button>
+        </div>
+
+        <div className="mt-4">
+          {isLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+            </div>
+          ) : !users?.length ? (
+            <p className="text-xs text-slate-400 text-center py-10">No user accounts found.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50/80">
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Full Name</TableHead>
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Email</TableHead>
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9 text-center">Status</TableHead>
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Created</TableHead>
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map((u: UserAccount) => (
+                  <TableRow key={u.id} className={cn(!u.isActive && 'opacity-60')}>
+                    <TableCell className="text-xs font-semibold text-slate-800 py-3">{u.fullName}</TableCell>
+                    <TableCell className="text-xs text-slate-600 py-3">{u.email}</TableCell>
+                    <TableCell className="text-center py-3">
+                      <Badge variant="outline" className={cn('text-[9px]',
+                        u.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'
+                      )}>
+                        {u.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-500 py-3">{formatDate(u.createdAt)}</TableCell>
+                    <TableCell className="text-right py-3">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setResetOpen({ id: u.id, email: u.email })}
+                        >
+                          Reset password
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn('h-7 text-xs', u.isActive ? 'text-red-600 hover:text-red-700' : 'text-teal-600 hover:text-teal-700')}
+                          onClick={() => setToggleOpen({ id: u.id, email: u.email, nextActive: !u.isActive })}
+                        >
+                          {u.isActive ? 'Deactivate' : 'Activate'}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }
@@ -773,9 +1065,19 @@ function AuditLogTab() {
   const total = data?.total || 0;
   const totalPages = data?.totalPages || 1;
 
-  const handleExport = () => {
-    toast.info('Preparing export...');
-    setTimeout(() => toast.success('Export ready — CSV downloaded'), 1500);
+  const handleExport = async () => {
+    const params = {
+      action: actionFilter !== 'All Actions' ? actionFilter : undefined,
+      entity: entityFilter !== 'All Entities' ? entityFilter : undefined,
+    };
+
+    try {
+      toast.info('Preparing export...');
+      await downloadCsvExport('/export/audit-log.csv', params, 'ada_audit_log.csv');
+      toast.success('Audit log CSV downloaded');
+    } catch {
+      toast.error('Failed to export audit log CSV');
+    }
   };
 
   const clearFilters = () => {
