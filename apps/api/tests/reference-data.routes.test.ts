@@ -27,16 +27,23 @@ vi.mock('../src/services/reference-data.service.js', () => ({
 }))
 
 vi.mock('../src/middlewares/auth.js', () => ({
-  authGuard: (_req: any, _res: any, next: any) => next(),
+  authGuard: (req: any, _res: any, next: any) => {
+    req.user = {
+      userId: '11111111-1111-1111-1111-111111111111',
+      email: 'clinic@example.com',
+    }
+    next()
+  },
 }))
 
 import referenceDataRoutes from '../src/routes/reference-data.routes.js'
 import { errorHandler } from '../src/middlewares/errorHandler.js'
+import { authGuard } from '../src/middlewares/auth.js'
 
 function makeApp() {
   const app = express()
   app.use(express.json())
-  app.use('/api/reference-data', referenceDataRoutes)
+  app.use('/api/reference-data', authGuard, referenceDataRoutes)
   app.use(errorHandler)
   return app
 }
@@ -136,7 +143,7 @@ describe('Reference Data Routes', () => {
 
       expect(res.status).toBe(200)
       expect(res.body.label).toBe('Grade Eleven')
-      expect(update).toHaveBeenCalledWith('id-1', { label: 'Grade Eleven' })
+      expect(update).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111', 'id-1', { label: 'Grade Eleven' })
     })
 
     it('can toggle isActive', async () => {
@@ -161,7 +168,7 @@ describe('Reference Data Routes', () => {
       const res = await request(app).delete('/api/reference-data/id-1')
 
       expect(res.status).toBe(204)
-      expect(remove).toHaveBeenCalledWith('id-1')
+      expect(remove).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111', 'id-1')
     })
   })
 })

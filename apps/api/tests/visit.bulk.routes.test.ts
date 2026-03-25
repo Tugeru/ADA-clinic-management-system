@@ -14,16 +14,23 @@ vi.mock('../src/services/visit.service.js', () => ({
 }))
 
 vi.mock('../src/middlewares/auth.js', () => ({
-    authGuard: (_req: any, _res: any, next: any) => next(),
+    authGuard: (req: any, _res: any, next: any) => {
+        req.user = {
+            userId: '11111111-1111-1111-1111-111111111111',
+            email: 'clinic@example.com',
+        }
+        next()
+    },
 }))
 
 import visitRoutes from '../src/routes/visit.routes.js'
 import { errorHandler } from '../src/middlewares/errorHandler.js'
+import { authGuard } from '../src/middlewares/auth.js'
 
 function makeApp() {
     const app = express()
     app.use(express.json())
-    app.use('/api/visits', visitRoutes)
+    app.use('/api/visits', authGuard, visitRoutes)
     app.use(errorHandler)
     return app
 }
@@ -47,7 +54,7 @@ describe('Visit bulk routes', () => {
 
             expect(res.status).toBe(200)
             expect(res.body).toEqual({ succeeded: [validId1, validId2], failed: [] })
-            expect(deleteVisits).toHaveBeenCalledWith([validId1, validId2])
+            expect(deleteVisits).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111', [validId1, validId2])
         })
 
         it('returns 200 with partial failure when some ids fail', async () => {

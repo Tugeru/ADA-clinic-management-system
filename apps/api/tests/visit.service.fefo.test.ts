@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../src/config/db.js', () => ({
   default: {
     $transaction: vi.fn(),
+    auditLog: {
+      create: vi.fn(),
+    },
   },
 }))
 
@@ -23,7 +26,7 @@ type MockTx = {
 
 function makeTx(): MockTx {
   return {
-    student: { findUnique: vi.fn().mockResolvedValue({ isArchived: false }) },
+    student: { findUnique: vi.fn().mockResolvedValue({ isArchived: false, fullName: 'Test Student' }) },
     visit: { create: vi.fn().mockResolvedValue({ id: 'visit-1' }) },
     inventoryBatch: {
       findMany: vi.fn(),
