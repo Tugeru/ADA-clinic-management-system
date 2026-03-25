@@ -2,11 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../src/config/db.js', () => ({
   default: {
+    $transaction: vi.fn(),
     user: {
       findUnique: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    auditLog: {
+      create: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    visit: {
+      count: vi.fn(),
     },
   },
 }))
@@ -22,13 +32,23 @@ vi.mock('bcrypt', () => ({
 
 import prisma from '../src/config/db.js'
 import bcrypt from 'bcrypt'
-import { changeMyPassword, createUser, requireUserManager } from '../src/services/user.service.js'
+import { changeMyPassword, createUser, deleteUser, requireUserManager } from '../src/services/user.service.js'
 
 const db = prisma as unknown as {
+  $transaction: ReturnType<typeof vi.fn>
   user: {
     findUnique: ReturnType<typeof vi.fn>
     create: ReturnType<typeof vi.fn>
     update: ReturnType<typeof vi.fn>
+    delete: ReturnType<typeof vi.fn>
+    count: ReturnType<typeof vi.fn>
+  }
+  auditLog: {
+    create: ReturnType<typeof vi.fn>
+    deleteMany: ReturnType<typeof vi.fn>
+  }
+  visit: {
+    count: ReturnType<typeof vi.fn>
   }
 }
 
@@ -53,7 +73,7 @@ describe('user.service', () => {
       updatedAt: new Date(),
     })
 
-    const created = await createUser('admin', { email: 'NEW@ada.clinic', fullName: 'New User', password: 'password123' })
+    const created = await createUser('admin', { email: 'NEW@ada.clinic', fullName: 'New User', password: 'password123', canManageUsers: true })
     expect(bcrypt.hash).toHaveBeenCalled()
     expect(db.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -61,12 +81,27 @@ describe('user.service', () => {
       }),
     )
     expect(created.email).toBe('new@ada.clinic')
+    expect(db.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: 'Create',
+          entity: 'User',
+          recordIdentifier: 'new@ada.clinic',
+        }),
+      }),
+    )
+  })
+
+  it('deleteUser rejects self delete', async () => {
+    db.user.findUnique.mockResolvedValue({ id: 'admin', isActive: true, canManageUsers: true })
+    await expect(deleteUser('admin', 'admin')).rejects.toMatchObject({ status: 400 })
   })
 
   it('changeMyPassword verifies current password before updating', async () => {
     db.user.findUnique.mockResolvedValue({
       id: 'u1',
       isActive: true,
+      email: 'u1@ada.clinic',
       passwordHash: 'oldhash',
     })
     ;(bcrypt.compare as any).mockResolvedValue(true)
@@ -79,6 +114,16 @@ describe('user.service', () => {
       where: { id: 'u1' },
       data: { passwordHash: 'newhash' },
     })
+    expect(db.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: 'Change-password',
+          entity: 'User',
+          entityId: 'u1',
+          recordIdentifier: 'u1@ada.clinic',
+        }),
+      }),
+    )
   })
 })
 

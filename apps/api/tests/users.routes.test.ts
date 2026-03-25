@@ -12,19 +12,31 @@ vi.mock('../src/middlewares/auth.js', () => ({
   },
 }))
 
-vi.mock('../src/config/db.js', () => ({
-  default: {
+vi.mock('../src/config/db.js', () => {
+  const db = {
     user: {
       findUnique: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
     },
     auditLog: {
       create: vi.fn(),
+      deleteMany: vi.fn(),
     },
-  },
-}))
+    visit: {
+      count: vi.fn(),
+    },
+  }
+  return {
+    default: {
+      ...db,
+      $transaction: (fn: any) => fn(db),
+    },
+  }
+})
 
 vi.mock('bcrypt', () => ({
   default: {
@@ -46,6 +58,15 @@ const db = prisma as unknown as {
     findMany: ReturnType<typeof vi.fn>
     create: ReturnType<typeof vi.fn>
     update: ReturnType<typeof vi.fn>
+    delete: ReturnType<typeof vi.fn>
+    count: ReturnType<typeof vi.fn>
+  }
+  auditLog: {
+    create: ReturnType<typeof vi.fn>
+    deleteMany: ReturnType<typeof vi.fn>
+  }
+  visit: {
+    count: ReturnType<typeof vi.fn>
   }
 }
 
@@ -109,6 +130,39 @@ describe('Users routes', () => {
     expect(res.status).toBe(409)
   })
 
+  it('POST /api/users records an audit log entry on create', async () => {
+    db.user.findUnique.mockResolvedValue({ ...adminUser, canManageUsers: true })
+    db.user.create.mockResolvedValue({
+      id: '22222222-2222-2222-2222-222222222222',
+      email: 'new@ada.clinic',
+      fullName: 'New User',
+      isActive: true,
+      canManageUsers: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    const app = makeApp()
+
+    const res = await request(app).post('/api/users').send({
+      email: 'new@ada.clinic',
+      fullName: 'New User',
+      password: 'password123',
+      canManageUsers: true,
+    })
+
+    expect(res.status).toBe(201)
+    expect((prisma as any).auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: 'Create',
+          entity: 'User',
+          entityId: '22222222-2222-2222-2222-222222222222',
+          recordIdentifier: 'new@ada.clinic',
+        }),
+      }),
+    )
+  })
+
   it('PATCH /api/users/:id/status rejects deactivating self', async () => {
     db.user.findUnique.mockResolvedValue({ ...adminUser, canManageUsers: true })
     const app = makeApp()
@@ -116,6 +170,48 @@ describe('Users routes', () => {
       .patch(`/api/users/${adminUser.id}/status`)
       .send({ isActive: false })
     expect(res.status).toBe(400)
+  })
+
+  it('PATCH /api/users/:id/status records audit on deactivate', async () => {
+    db.user.findUnique.mockResolvedValue({ ...adminUser, canManageUsers: true })
+    db.user.update.mockResolvedValue({ ...adminUser, isActive: false })
+    const app = makeApp()
+
+    const res = await request(app)
+      .patch(`/api/users/99999999-9999-9999-9999-999999999999/status`)
+      .send({ isActive: false })
+
+    expect(res.status).toBe(200)
+    expect((prisma as any).auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: 'Deactivate',
+          entity: 'User',
+        }),
+      }),
+    )
+  })
+
+  it('DELETE /api/users/:id records audit on delete', async () => {
+    db.user.findUnique
+      .mockResolvedValueOnce({ ...adminUser, canManageUsers: true }) // requireUserManager
+      .mockResolvedValueOnce({ id: 'u2', email: 'u2@ada.clinic', isActive: true, canManageUsers: false }) // target lookup
+    db.visit.count.mockResolvedValue(0)
+    db.auditLog.deleteMany.mockResolvedValue({ count: 0 } as any)
+    db.user.delete.mockResolvedValue({} as any)
+    const app = makeApp()
+
+    const res = await request(app).delete('/api/users/22222222-2222-2222-2222-222222222222')
+    expect(res.status).toBe(204)
+    expect((prisma as any).auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: 'Delete',
+          entity: 'User',
+          recordIdentifier: 'u2@ada.clinic',
+        }),
+      }),
+    )
   })
 })
 

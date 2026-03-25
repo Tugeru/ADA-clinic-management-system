@@ -6,6 +6,7 @@ export const CreateUserSchema = z.object({
   email: z.string().email('Invalid email address'),
   fullName: z.string().min(1, 'Full name is required'),
   password: passwordSchema,
+  canManageUsers: z.boolean().optional().default(false),
 })
 
 export type CreateUserInput = z.infer<typeof CreateUserSchema>

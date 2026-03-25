@@ -44,12 +44,22 @@ test.describe('Settings - User Accounts', () => {
           email: body.email,
           fullName: body.fullName,
           isActive: true,
-          canManageUsers: false,
+          canManageUsers: !!body.canManageUsers,
           createdAt: new Date('2026-03-25T00:00:00.000Z').toISOString(),
           updatedAt: new Date('2026-03-25T00:00:00.000Z').toISOString(),
         };
         users = [created, ...users];
         await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(created) });
+        return;
+      }
+      await route.fallback();
+    });
+
+    await page.route('**/users/**', async (route) => {
+      if (route.request().method() === 'DELETE') {
+        const id = route.request().url().split('/users/')[1].split('?')[0];
+        users = users.filter((u) => u.id !== id);
+        await route.fulfill({ status: 204, body: '' });
         return;
       }
       await route.fallback();
@@ -83,6 +93,28 @@ test.describe('Settings - User Accounts', () => {
       await route.fallback();
     });
 
+    // Audit Log mock — used to validate that User actions can display/filter in Settings → Audit Log
+    await page.route('**/audit-log**', async (route) => {
+      const url = new URL(route.request().url());
+      const action = url.searchParams.get('action');
+      const entity = url.searchParams.get('entity');
+
+      const all = [
+        { id: 'au1', timestamp: new Date().toISOString(), action: 'Create', entity: 'User', entityId: '22222222-2222-2222-2222-222222222222', recordIdentifier: 'new@ada.clinic', performedBy: 'Clinic Admin (admin@ada.clinic)', metadata: null },
+        { id: 'au2', timestamp: new Date().toISOString(), action: 'Reset-password', entity: 'User', entityId: '22222222-2222-2222-2222-222222222222', recordIdentifier: 'new@ada.clinic', performedBy: 'Clinic Admin (admin@ada.clinic)', metadata: null },
+        { id: 'au3', timestamp: new Date().toISOString(), action: 'Deactivate', entity: 'User', entityId: '22222222-2222-2222-2222-222222222222', recordIdentifier: 'new@ada.clinic', performedBy: 'Clinic Admin (admin@ada.clinic)', metadata: null },
+        { id: 'au4', timestamp: new Date().toISOString(), action: 'Delete', entity: 'User', entityId: '22222222-2222-2222-2222-222222222222', recordIdentifier: 'new@ada.clinic', performedBy: 'Clinic Admin (admin@ada.clinic)', metadata: null },
+      ];
+
+      const filtered = all.filter((r) => (action ? r.action === action : true) && (entity ? r.entity === entity : true));
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: filtered, total: filtered.length, page: 1, limit: 10, totalPages: 1 }),
+      });
+    });
+
     // Login
     await page.goto('/login');
     await page.getByTestId('login-email').fill('admin@ada.clinic');
@@ -96,10 +128,11 @@ test.describe('Settings - User Accounts', () => {
 
     // Create account
     await page.getByRole('button', { name: /add account/i }).click();
-    await page.getByLabel('Full Name').fill('New User');
-    await page.getByLabel('Email').fill('new@ada.clinic');
-    await page.getByLabel('Initial Password').fill('password123');
-    await page.getByLabel('Confirm Password').fill('password123');
+    await page.getByText('Full Name').locator('..').locator('input').fill('New User');
+    await page.getByText('Email').locator('..').locator('input').fill('new@ada.clinic');
+    await page.getByText('Initial Password').locator('..').locator('input').fill('password123');
+    await page.getByText('Confirm Password').locator('..').locator('input').fill('password123');
+    await page.getByText('Can manage users').click();
     await page.getByRole('button', { name: /create account/i }).click();
 
     await expect(page.getByText('Account created.')).toBeVisible();
@@ -109,8 +142,9 @@ test.describe('Settings - User Accounts', () => {
 
     // Reset password (row action)
     await newUserRow.getByRole('button', { name: /reset password/i }).click();
-    await page.getByLabel('New Password').fill('password123');
-    await page.getByLabel('Confirm New Password').fill('password123');
+    const resetDialog = page.getByRole('dialog').filter({ hasText: 'Reset Password' });
+    await resetDialog.locator('input').nth(0).fill('password123');
+    await resetDialog.locator('input').nth(1).fill('password123');
     await page.getByRole('button', { name: /^reset password$/i }).click();
     await expect(page.getByText(/password reset/i)).toBeVisible();
 
@@ -118,6 +152,30 @@ test.describe('Settings - User Accounts', () => {
     await newUserRow.getByRole('button', { name: /deactivate/i }).click();
     await page.getByRole('button', { name: /^deactivate$/i }).click();
     await expect(page.getByText('Account deactivated.')).toBeVisible();
+
+    // Delete user
+    await newUserRow.getByRole('button', { name: /^delete$/i }).click();
+    await page.getByRole('button', { name: /^delete$/i }).click();
+    await expect(page.getByText('Account deleted.')).toBeVisible();
+
+    // Verify Audit Log can display/filter User actions
+    await page.getByRole('button', { name: /audit log/i }).click();
+    await expect(page.getByRole('cell', { name: 'new@ada.clinic' }).first()).toBeVisible();
+
+    // Filter entity -> User
+    await page.getByText('Entity Type').locator('..').locator('button').click();
+    await page.getByRole('option', { name: 'User' }).click();
+    await expect(page.getByRole('cell', { name: 'new@ada.clinic' }).first()).toBeVisible();
+
+    // Filter action -> Reset-password
+    await page.getByText('Action Type').locator('..').locator('button').click();
+    await page.getByRole('option', { name: 'Reset-password' }).click();
+    await expect(page.getByRole('cell', { name: 'new@ada.clinic' }).first()).toBeVisible();
+
+    // Filter action -> Delete
+    await page.getByText('Action Type').locator('..').locator('button').click();
+    await page.getByRole('option', { name: 'Delete' }).click();
+    await expect(page.getByRole('cell', { name: 'new@ada.clinic' }).first()).toBeVisible();
   });
 });
 

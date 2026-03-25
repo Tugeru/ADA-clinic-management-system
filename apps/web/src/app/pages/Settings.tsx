@@ -21,7 +21,7 @@ import {
 } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
 import { useAuth } from '../lib/auth-context';
-import { useClinicProfile, useUpdateClinicProfile, useAuditLog, useReferenceData, useCreateReferenceData, useUpdateReferenceData, useDeleteReferenceData, useUsers, useCreateUser, useResetUserPassword, useSetUserActive, useChangeMyPassword } from '../lib/hooks';
+import { useClinicProfile, useUpdateClinicProfile, useAuditLog, useReferenceData, useCreateReferenceData, useUpdateReferenceData, useDeleteReferenceData, useUsers, useCreateUser, useResetUserPassword, useSetUserActive, useDeleteUser, useChangeMyPassword } from '../lib/hooks';
 import { toast } from 'sonner';
 import type { ReferenceDataItem, UserAccount } from '../lib/types';
 import { downloadCsvExport } from '../lib/exportDownload';
@@ -331,10 +331,12 @@ function AccountSecurityTab() {
 // User Accounts Tab
 // ═══════════════════════════════════════════════════════════════
 function UserAccountsTab() {
+  const { user } = useAuth();
   const { data: users, isLoading, error } = useUsers();
   const createMutation = useCreateUser();
   const resetPasswordMutation = useResetUserPassword();
   const setActiveMutation = useSetUserActive();
+  const deleteUserMutation = useDeleteUser();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState<{ id: string; email: string } | null>(null);
@@ -344,6 +346,9 @@ function UserAccountsTab() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [canManageUsers, setCanManageUsers] = useState(false);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [showCreateConfirmPassword, setShowCreateConfirmPassword] = useState(false);
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -356,6 +361,9 @@ function UserAccountsTab() {
     setEmail('');
     setPassword('');
     setConfirmPassword('');
+    setCanManageUsers(false);
+    setShowCreatePassword(false);
+    setShowCreateConfirmPassword(false);
   };
 
   const resetResetForm = () => {
@@ -378,7 +386,7 @@ function UserAccountsTab() {
     if (password.length < 8) return toast.error('Password must be at least 8 characters.');
     if (password !== confirmPassword) return toast.error('Passwords do not match.');
     try {
-      await createMutation.mutateAsync({ fullName: fullName.trim(), email: email.trim(), password });
+      await createMutation.mutateAsync({ fullName: fullName.trim(), email: email.trim(), password, canManageUsers });
       toast.success('Account created.');
       setCreateOpen(false);
       resetCreateForm();
@@ -417,6 +425,20 @@ function UserAccountsTab() {
     }
   };
 
+  const [deleteOpen, setDeleteOpen] = useState<{ id: string; email: string } | null>(null);
+
+  const handleDeleteUser = async () => {
+    if (!deleteOpen) return;
+    try {
+      await deleteUserMutation.mutateAsync(deleteOpen.id);
+      toast.success('Account deleted.');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error ?? 'Failed to delete account.');
+    } finally {
+      setDeleteOpen(null);
+    }
+  };
+
   if (isForbidden) {
     return (
       <Card className="p-6">
@@ -445,12 +467,52 @@ function UserAccountsTab() {
             </div>
             <div>
               <Label className="text-xs text-slate-600">Initial Password</Label>
-              <Input type="password" value={password} onChange={(e: { target: { value: string } }) => setPassword(e.target.value)} className="h-10 mt-1" />
+              <div className="relative mt-1">
+                <Input
+                  type={showCreatePassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e: { target: { value: string } }) => setPassword(e.target.value)}
+                  className="h-10 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCreatePassword((v: boolean) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showCreatePassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
               <p className="text-[11px] text-slate-400 mt-1">At least 8 characters.</p>
             </div>
             <div>
               <Label className="text-xs text-slate-600">Confirm Password</Label>
-              <Input type="password" value={confirmPassword} onChange={(e: { target: { value: string } }) => setConfirmPassword(e.target.value)} className="h-10 mt-1" />
+              <div className="relative mt-1">
+                <Input
+                  type={showCreateConfirmPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e: { target: { value: string } }) => setConfirmPassword(e.target.value)}
+                  className="h-10 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCreateConfirmPassword((v: boolean) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showCreateConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Input
+                id="can-manage-users"
+                type="checkbox"
+                checked={canManageUsers}
+                onChange={(e: any) => setCanManageUsers(!!e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="can-manage-users" className="text-xs text-slate-600">
+                Can manage users
+              </Label>
             </div>
           </div>
           <DialogFooter className="gap-2">
@@ -533,6 +595,27 @@ function UserAccountsTab() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={!!deleteOpen} onOpenChange={(open) => { if (!open) setDeleteOpen(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Permanently delete <span className="font-semibold text-slate-700">{deleteOpen?.email}</span>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={deleteUserMutation.isPending}
+            >
+              {deleteUserMutation.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Card className="p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -592,6 +675,15 @@ function UserAccountsTab() {
                           onClick={() => setToggleOpen({ id: u.id, email: u.email, nextActive: !u.isActive })}
                         >
                           {u.isActive ? 'Deactivate' : 'Activate'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs text-red-600 hover:text-red-700"
+                          disabled={u.id === user?.id}
+                          onClick={() => setDeleteOpen({ id: u.id, email: u.email })}
+                        >
+                          Delete
                         </Button>
                       </div>
                     </TableCell>
@@ -1038,16 +1130,34 @@ function RefCategoryPanel({ category, config }: { category: string; config: type
 // ═══════════════════════════════════════════════════════════════
 // 4) Audit Log Tab
 // ═══════════════════════════════════════════════════════════════
-const actionTypes = ['All Actions', 'Create', 'Edit', 'Archive', 'Restore', 'Stock-in', 'Stock-out'];
-const entityTypes = ['All Entities', 'Patient', 'Visit', 'Medicine'];
+const actionTypes = [
+  'All Actions',
+  'Create',
+  'Delete',
+  'Edit',
+  'Archive',
+  'Restore',
+  'Stock-in',
+  'Stock-out',
+  'Activate',
+  'Deactivate',
+  'Reset-password',
+  'Change-password',
+];
+const entityTypes = ['All Entities', 'Patient', 'Visit', 'Medicine', 'User'];
 
 const actionBadgeConfig: Record<string, { className: string; icon: React.ReactNode }> = {
   Create: { className: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <Plus size={10} /> },
+  Delete: { className: 'bg-red-50 text-red-700 border-red-200', icon: <Trash2 size={10} /> },
   Edit: { className: 'bg-blue-50 text-blue-700 border-blue-200', icon: <Pencil size={10} /> },
   Archive: { className: 'bg-orange-50 text-orange-700 border-orange-200', icon: <Archive size={10} /> },
   Restore: { className: 'bg-violet-50 text-violet-700 border-violet-200', icon: <RotateCcw size={10} /> },
   'Stock-in': { className: 'bg-teal-50 text-teal-700 border-teal-200', icon: <PackagePlus size={10} /> },
   'Stock-out': { className: 'bg-rose-50 text-rose-700 border-rose-200', icon: <PackageMinus size={10} /> },
+  Activate: { className: 'bg-teal-50 text-teal-700 border-teal-200', icon: <Check size={10} /> },
+  Deactivate: { className: 'bg-red-50 text-red-700 border-red-200', icon: <X size={10} /> },
+  'Reset-password': { className: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Pencil size={10} /> },
+  'Change-password': { className: 'bg-slate-50 text-slate-700 border-slate-200', icon: <Pencil size={10} /> },
 };
 
 function AuditLogTab() {

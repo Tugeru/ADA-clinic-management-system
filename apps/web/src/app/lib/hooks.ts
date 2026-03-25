@@ -65,9 +65,10 @@ export function useUsers() {
 export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { email: string; fullName: string; password: string }) => userApi.createUser(data),
+    mutationFn: (data: { email: string; fullName: string; password: string; canManageUsers?: boolean }) => userApi.createUser(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.settings.users });
+      qc.invalidateQueries({ queryKey: ['settings', 'auditLog'] });
     },
   });
 }
@@ -84,6 +85,18 @@ export function useSetUserActive() {
     mutationFn: (data: { userId: string; isActive: boolean }) => userApi.setActive(data.userId, data.isActive),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.settings.users });
+      qc.invalidateQueries({ queryKey: ['settings', 'auditLog'] });
+    },
+  });
+}
+
+export function useDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => userApi.deleteUser(userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.settings.users });
+      qc.invalidateQueries({ queryKey: ['settings', 'auditLog'] });
     },
   });
 }

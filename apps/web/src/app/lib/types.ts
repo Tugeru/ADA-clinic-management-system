@@ -278,8 +278,19 @@ export interface ClinicProfile {
 }
 
 // ─── Audit Log ───────────────────────────────────────────────
-export type AuditAction = 'Create' | 'Edit' | 'Archive' | 'Restore' | 'Stock-in' | 'Stock-out';
-export type AuditEntity = 'Patient' | 'Visit' | 'Medicine';
+export type AuditAction =
+  | 'Create'
+  | 'Delete'
+  | 'Edit'
+  | 'Archive'
+  | 'Restore'
+  | 'Stock-in'
+  | 'Stock-out'
+  | 'Activate'
+  | 'Deactivate'
+  | 'Reset-password'
+  | 'Change-password';
+export type AuditEntity = 'Patient' | 'Visit' | 'Medicine' | 'User';
 
 export interface AuditLogEntry {
   id: number;

@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { validate } from '../middlewares/validate.js'
 import { adminPasswordResetRateLimiter, passwordChangeRateLimiter } from '../middlewares/rateLimiter.js'
 import { AdminResetPasswordSchema, ChangeOwnPasswordSchema, CreateUserSchema, UpdateUserStatusSchema } from '@ada/shared'
-import { adminResetPassword, changeMyPassword, createUser, listUsers, setUserStatus } from '../services/user.service.js'
+import { adminResetPassword, changeMyPassword, createUser, deleteUser, listUsers, setUserStatus } from '../services/user.service.js'
 
 const router = Router()
 
@@ -23,6 +23,17 @@ router.post('/', validate(CreateUserSchema), async (req, res, next) => {
     if (!userId) return res.status(401).json({ error: 'Unauthorized' })
     const created = await createUser(userId, req.body)
     res.status(201).json(created)
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const userId = req.user?.userId
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
+    await deleteUser(userId, req.params.id)
+    res.status(204).end()
   } catch (err) {
     next(err)
   }

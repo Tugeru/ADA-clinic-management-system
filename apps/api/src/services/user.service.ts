@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt'
 import prisma from '../config/db.js'
+import { recordAudit } from './audit.service.js'
 
 const SALT_ROUNDS = 12
 
@@ -26,7 +27,7 @@ function toPublicUser(u: any): PublicUser {
 }
 
 export async function requireUserManager(userId: string) {
-  const me = await prisma.user.findUnique({ where: { id: userId } })
+  const me = await (prisma.user as any).findUnique({ where: { id: userId } })
   if (!me || !me.isActive || !me.canManageUsers) {
     throw Object.assign(new Error('Forbidden'), { status: 403 })
   }
@@ -35,25 +36,37 @@ export async function requireUserManager(userId: string) {
 
 export async function listUsers(requesterId: string): Promise<PublicUser[]> {
   await requireUserManager(requesterId)
-  const users = await prisma.user.findMany({ orderBy: { createdAt: 'desc' } })
+  const users = await (prisma.user as any).findMany({ orderBy: { createdAt: 'desc' } })
   return users.map(toPublicUser)
 }
 
 export async function createUser(
   requesterId: string,
-  data: { email: string; fullName: string; password: string },
+  data: { email: string; fullName: string; password: string; canManageUsers?: boolean },
 ): Promise<PublicUser> {
   await requireUserManager(requesterId)
   const email = data.email.trim().toLowerCase()
   const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS)
   try {
-    const created = await prisma.user.create({
+    const created = await (prisma.user as any).create({
       data: {
         email,
         fullName: data.fullName.trim(),
         passwordHash,
         isActive: true,
-        canManageUsers: false,
+        canManageUsers: data.canManageUsers === true,
+      },
+    })
+    await recordAudit({
+      userId: requesterId,
+      action: 'Create',
+      entity: 'User',
+      entityId: created.id,
+      recordIdentifier: created.email,
+      metadata: {
+        targetEmail: created.email,
+        targetFullName: created.fullName,
+        canManageUsers: created.canManageUsers,
       },
     })
     return toPublicUser(created)
@@ -65,6 +78,59 @@ export async function createUser(
   }
 }
 
+export async function deleteUser(requesterId: string, targetUserId: string): Promise<void> {
+  await requireUserManager(requesterId)
+  if (requesterId === targetUserId) {
+    throw Object.assign(new Error('You cannot delete your own account.'), { status: 400 })
+  }
+
+  await prisma.$transaction(async (tx: any) => {
+    const target = await (tx.user as any).findUnique({
+      where: { id: targetUserId },
+      select: { id: true, email: true, isActive: true, canManageUsers: true },
+    })
+    if (!target) {
+      throw Object.assign(new Error('User not found'), { status: 404 })
+    }
+
+    if (target.canManageUsers) {
+      const remainingManagers = await (tx.user as any).count({
+        where: {
+          id: { not: targetUserId },
+          isActive: true,
+          canManageUsers: true,
+        },
+      })
+      if (remainingManagers === 0) {
+        throw Object.assign(new Error('Cannot delete the last active user manager.'), { status: 409 })
+      }
+    }
+
+    const visitCount = await (tx.visit as any).count({ where: { loggedByUserId: targetUserId } })
+    if (visitCount > 0) {
+      throw Object.assign(
+        new Error('Cannot delete a user who has recorded visits. Deactivate instead.'),
+        { status: 409 },
+      )
+    }
+
+    // Remove dependent audit log rows first to satisfy FK constraint.
+    await (tx.auditLog as any).deleteMany({ where: { userId: targetUserId } })
+    await (tx.user as any).delete({ where: { id: targetUserId } })
+
+    await (tx.auditLog as any).create({
+      data: {
+        userId: requesterId,
+        action: 'Delete',
+        entity: 'User',
+        entityId: target.id,
+        recordIdentifier: target.email,
+        metadata: { targetEmail: target.email, targetCanManageUsers: target.canManageUsers },
+      },
+    })
+  })
+}
+
 export async function adminResetPassword(
   requesterId: string,
   userId: string,
@@ -72,7 +138,19 @@ export async function adminResetPassword(
 ): Promise<void> {
   await requireUserManager(requesterId)
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS)
-  await prisma.user.update({ where: { id: userId }, data: { passwordHash } })
+  const updated = await (prisma.user as any).update({
+    where: { id: userId },
+    data: { passwordHash },
+    select: { id: true, email: true },
+  })
+  await recordAudit({
+    userId: requesterId,
+    action: 'Reset-password',
+    entity: 'User',
+    entityId: updated.id,
+    recordIdentifier: updated.email,
+    metadata: { initiatedBy: 'admin', targetEmail: updated.email },
+  })
 }
 
 export async function setUserStatus(
@@ -84,7 +162,23 @@ export async function setUserStatus(
   if (requesterId === targetUserId && !isActive) {
     throw Object.assign(new Error('You cannot deactivate your own account.'), { status: 400 })
   }
-  const updated = await prisma.user.update({ where: { id: targetUserId }, data: { isActive } })
+  const previous = await (prisma.user as any).findUnique({
+    where: { id: targetUserId },
+    select: { id: true, email: true, isActive: true },
+  })
+  const updated = await (prisma.user as any).update({ where: { id: targetUserId }, data: { isActive } })
+  await recordAudit({
+    userId: requesterId,
+    action: isActive ? 'Activate' : 'Deactivate',
+    entity: 'User',
+    entityId: updated.id,
+    recordIdentifier: (previous as any)?.email ?? updated.email,
+    metadata: {
+      targetEmail: (previous as any)?.email ?? updated.email,
+      from: (previous as any)?.isActive,
+      to: isActive,
+    },
+  })
   return toPublicUser(updated)
 }
 
@@ -93,7 +187,7 @@ export async function changeMyPassword(
   currentPassword: string,
   newPassword: string,
 ): Promise<void> {
-  const me = await prisma.user.findUnique({ where: { id: requesterId } })
+  const me = await (prisma.user as any).findUnique({ where: { id: requesterId } })
   if (!me || !me.isActive) {
     throw Object.assign(new Error('Forbidden'), { status: 403 })
   }
@@ -102,6 +196,14 @@ export async function changeMyPassword(
     throw Object.assign(new Error('Invalid email or password'), { status: 401 })
   }
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS)
-  await prisma.user.update({ where: { id: requesterId }, data: { passwordHash } })
+  await (prisma.user as any).update({ where: { id: requesterId }, data: { passwordHash } })
+  await recordAudit({
+    userId: requesterId,
+    action: 'Change-password',
+    entity: 'User',
+    entityId: requesterId,
+    recordIdentifier: me.email,
+    metadata: { initiatedBy: 'self' },
+  })
 }
 

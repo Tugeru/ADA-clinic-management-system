@@ -449,7 +449,7 @@ export const userApi = {
     }));
   },
 
-  async createUser(payload: { email: string; fullName: string; password: string }): Promise<UserAccount> {
+  async createUser(payload: { email: string; fullName: string; password: string; canManageUsers?: boolean }): Promise<UserAccount> {
     const { data } = await http.post('/users', payload);
     return {
       id: data.id,
@@ -477,6 +477,10 @@ export const userApi = {
       createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString(),
       updatedAt: data.updatedAt ? new Date(data.updatedAt).toISOString() : new Date().toISOString(),
     };
+  },
+
+  async deleteUser(userId: string): Promise<void> {
+    await http.delete(`/users/${userId}`);
   },
 
   async changeMyPassword(payload: { currentPassword: string; newPassword: string }): Promise<void> {
