@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Eye, EyeOff, LogOut, Monitor, Save, X, Download,
+  Eye, EyeOff, LogOut, Save, X, Download,
   ShieldCheck, ScrollText, ChevronLeft, ChevronRight,
   Plus, Pencil, Archive, RotateCcw, PackagePlus, PackageMinus,
   GraduationCap, Trash2, Check, Users,
@@ -261,43 +261,16 @@ function AccountSecurityTab() {
         </div>
       </Card>
 
-      {/* Card B: Session Controls */}
-      <Card className="p-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
-            <Monitor size={18} className="text-slate-600" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900">Session Controls</h3>
-            <p className="text-xs text-slate-500">Manage your active sessions and sign-out options</p>
-          </div>
-        </div>
-
-        <div className="bg-slate-50 rounded-lg p-4 mb-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-800">Current Session</p>
-              <p className="text-xs text-slate-500 mt-0.5">Logged in as <span className="font-medium text-slate-700">{user?.name || 'Clinic In-Charge'}</span> &middot; {user?.email}</p>
-            </div>
-            <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50 text-[10px]">Active</Badge>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button
-            variant="destructive"
-            className="gap-2 text-sm"
-            onClick={() => setShowSignOutModal(true)}
-          >
-            <LogOut size={14} />
-            Sign Out
-          </Button>
-          <Button variant="outline" className="gap-2 text-sm text-slate-500" disabled>
-            <LogOut size={14} />
-            Sign out of all sessions
-          </Button>
-        </div>
-      </Card>
+      <div className="flex justify-start">
+        <Button
+          variant="destructive"
+          className="gap-2 text-sm"
+          onClick={() => setShowSignOutModal(true)}
+        >
+          <LogOut size={14} />
+          Sign Out
+        </Button>
+      </div>
 
       {/* Sign-out Confirmation Modal */}
       <Dialog open={showSignOutModal} onOpenChange={setShowSignOutModal}>
