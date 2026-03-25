@@ -85,7 +85,7 @@ The Clinic In-Charge:
 -   Must be cost-efficient
 -   Must comply with Data Privacy Act of 2012
 -   Must be simple and user-friendly
--   Must operate with a single authenticated user account
+-   Must operate with a single operational role (Clinic In-Charge). Multiple user accounts may exist for administration/continuity, but no multi-role workflows are included in this version.
 
 ------------------------------------------------------------------------
 

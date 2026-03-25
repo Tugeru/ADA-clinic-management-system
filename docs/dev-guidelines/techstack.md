@@ -1,6 +1,6 @@
 ## **Frontend**
 
-* **React 18 (TypeScript)** – Component-based UI library with static typing  
+* **React (TypeScript)** – Component-based UI library with static typing  
 * **Vite** – Fast development server and optimized production build tool  
 * **React Router (Data Router Mode)** – Client-side routing with nested layouts  
 * **Tailwind CSS v4** – Utility-first styling framework  
@@ -16,7 +16,7 @@
 
 * **Node.js** – JavaScript runtime environment  
 * **Express.js (TypeScript)** – REST API framework with structured routing  
-* **express-validator** – Request validation and input sanitization
+* **Zod** – Request validation (shared schemas via `@ada/shared`, validated in API middleware)
 
 ## **Database**
 
@@ -27,7 +27,7 @@
 
 * **JWT (JSON Web Tokens)** – Stateless authentication mechanism  
 * **bcrypt** – Secure password hashing  
-* **Custom Role-Based Access Control (RBAC)** – Middleware-based authorization system
+* **Authorization (capability gates)** – Middleware/service checks (e.g., `canManageUsers`) without multi-role RBAC in the MVP
 
 ## **Hosting / Deployment**
 

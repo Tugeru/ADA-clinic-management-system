@@ -18,6 +18,7 @@ This document matches the real schema only—no invented tables or columns.
 | StockTransaction | `stock_transactions` | `id` (UUID) |
 | Visit            | `visits`             | `id` (UUID) |
 | VisitMedicine    | `visit_medicines`    | `id` (UUID) |
+| AuditLog         | `audit_logs`         | `id` (UUID) |
 
 **Standalone:** `reference_data` has no foreign keys to other entities (lookup values for grades, strands, sections, school years, etc.).
 
@@ -28,6 +29,7 @@ This document matches the real schema only—no invented tables or columns.
 | Relationship | Cardinality | FK / notes |
 | ------------ | ----------- | ---------- |
 | User → Visit | 1 : M | `visits.logged_by_user_id` → `users.id` (required) |
+| User → AuditLog | 1 : M | `audit_logs.user_id` → `users.id` (required) |
 | Student → Visit | 1 : M | `visits.student_id` → `students.id` (required). Domain: row may be Student / Teacher / NTP via `patient_type`. |
 | Medicine → InventoryBatch | 1 : M | `inventory_batches.medicine_id` → `medicines.id` (required). Unique `(medicine_id, batch_number, expiration_date)`. |
 | InventoryBatch → StockTransaction | 1 : M | `stock_transactions.batch_id` → `inventory_batches.id` (required) |
@@ -45,6 +47,7 @@ No 1:1 relationships are modeled.
 | -------------------- | -------------------- | ------------------- | -------- |
 | `visits`             | `student_id`         | `students`          | Yes      |
 | `visits`             | `logged_by_user_id`  | `users`             | Yes      |
+| `audit_logs`         | `user_id`            | `users`             | Yes      |
 | `inventory_batches`  | `medicine_id`        | `medicines`         | Yes      |
 | `stock_transactions` | `batch_id`           | `inventory_batches` | Yes      |
 | `stock_transactions` | `reference_visit_id` | `visits`            | **No**   |
@@ -114,7 +117,14 @@ erDiagram
     uuid batch_id FK_optional
   }
 
+  audit_logs {
+    uuid id PK
+    timestamptz created_at
+    uuid user_id FK
+  }
+
   users ||--o{ visits : "logs"
+  users ||--o{ audit_logs : "audits"
   students ||--o{ visits : "patient_of"
   medicines ||--o{ inventory_batches : "batches"
   inventory_batches ||--o{ stock_transactions : "txn"

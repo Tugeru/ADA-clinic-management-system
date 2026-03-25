@@ -4,16 +4,17 @@
 ## System Architecture Overview
 
 ### Frontend
-- **Framework:** Next.js (React) — JavaScript
+- **Framework:** React (TypeScript) + Vite
+- **Routing:** React Router (Data Router)
 - **UI/Styling:** Tailwind CSS, shadcn/ui, Lucide React
 - **State/Data:** TanStack Query (API data fetching & caching)
 - **Notifications:** Sonner (toasts)
 - **Charts (optional for reports dashboard):** Chart.js
 
 ### Backend
-- **Runtime:** Node.js
+- **Runtime:** Node.js (TypeScript)
 - **Framework:** Express.js
-- **Validation:** express-validator (request validation)
+- **Validation:** Zod (shared schemas via `@ada/shared`, validated in API middleware)
 - **Authentication:** JWT (access token), bcrypt (password hashing)
 - **Logging (recommended):** pino or winston
 
@@ -33,53 +34,24 @@
 ### Technology stack
 - Node.js + Express for REST API
 - PostgreSQL + Prisma for data persistence
-- JWT + bcrypt for single-user authentication
+- JWT + bcrypt for authentication (single operational role: Clinic In-Charge)
 - Express middleware for validation, error handling, and request logging
 
-### Folder structure (proposed)
+### Folder structure (current monorepo)
 ```text
-ada-backend/
-├─ prisma/
-│  ├─ schema.prisma
-│  └─ migrations/
-├─ src/
-│  ├─ app.js
-│  ├─ server.js
-│  ├─ config/
-│  │  ├─ env.js
-│  │  └─ cors.js
-│  ├─ middleware/
-│  │  ├─ auth.js
-│  │  ├─ errorHandler.js
-│  │  └─ validate.js
-│  ├─ modules/
-│  │  ├─ auth/
-│  │  │  ├─ auth.routes.js
-│  │  │  ├─ auth.controller.js
-│  │  │  └─ auth.service.js
-│  │  ├─ students/
-│  │  │  ├─ students.routes.js
-│  │  │  ├─ students.controller.js
-│  │  │  └─ students.service.js
-│  │  ├─ visits/
-│  │  │  ├─ visits.routes.js
-│  │  │  ├─ visits.controller.js
-│  │  │  └─ visits.service.js
-│  │  ├─ inventory/
-│  │  │  ├─ inventory.routes.js
-│  │  │  ├─ inventory.controller.js
-│  │  │  └─ inventory.service.js
-│  │  ├─ reports/
-│  │  │  ├─ reports.routes.js
-│  │  │  ├─ reports.controller.js
-│  │  │  └─ reports.service.js
-│  ├─ utils/
-│  │  ├─ dates.js
-│  │  └─ pagination.js
-│  └─ db/
-│     └─ prismaClient.js
-├─ package.json
-└─ README.md
+ada-clinic-management-system/
+├─ apps/
+│  ├─ api/                 # Express REST API (TypeScript)
+│  │  └─ src/
+│  │     ├─ app.ts         # Express app + route wiring
+│  │     ├─ server.ts      # HTTP server entry point
+│  │     ├─ middlewares/   # auth, validate, error handler, rate limiting, etc.
+│  │     ├─ routes/        # route definitions
+│  │     └─ services/      # business logic + Prisma queries
+│  └─ web/                 # React + Vite frontend (TypeScript)
+└─ packages/
+   ├─ db/                  # Prisma schema/migrations + Prisma client singleton + seed
+   └─ shared/              # shared Zod schemas and utilities
 ```
 
 ### API layer structure
@@ -94,6 +66,8 @@ ada-backend/
 3. Backend issues JWT access token (short expiry) and optional refresh token.
 4. Frontend stores token securely (recommended: httpOnly cookie or secure storage strategy).
 5. Protected endpoints require a valid JWT (Authorization: Bearer <token>).
+
+> Note: The system is **single-role** (Clinic In-Charge workflow). It may support multiple user accounts for administration/continuity, but does not implement multi-role RBAC for the MVP.
 
 ---
 

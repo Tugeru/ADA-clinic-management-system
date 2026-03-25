@@ -50,8 +50,9 @@
 - **D5 – Inventory Batches** (`inventory_batches`)  
 - **D6 – Stock Transactions** (`stock_transactions`)  
 - **D7 – Medicines** (`medicines`)  
+- **D8 – Audit Logs** (`audit_logs`)  
 
-*(D1 User Account is not directly decomposed here since Level 2 focuses on 3.0, 4.0, 5.0.)*
+*(D1 User Account is not directly decomposed here since Level 2 focuses on 3.0, 4.0, 5.0. D8 is included because these processes record auditable actions.)*
 
 ---
 

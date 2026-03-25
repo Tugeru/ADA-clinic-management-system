@@ -302,10 +302,27 @@ Naming note:
 | `passwordHash` | `password_hash` | String | No | hashed password storage |
 | `fullName` | `full_name` | String | No | user display name |
 | `isActive` | `is_active` | Boolean | No | default true |
+| `canManageUsers` | `can_manage_users` | Boolean | No | default false; capability gate for account management |
 | `createdAt` | `created_at` | DateTime (timestamptz) | No | default now() |
 | `updatedAt` | `updated_at` | DateTime (timestamptz) | No | `@updatedAt` |
 
 **Table map:** `@@map("users")`
+
+---
+
+### AuditLog (`audit_logs`)
+| Prisma field | DB column | Type | Optional | Notes |
+|---|---|---|---|---|
+| `id` | `id` | String (UUID) | No | PK |
+| `createdAt` | `created_at` | DateTime (timestamptz) | No | default now(); indexed (desc) |
+| `userId` | `user_id` | String (UUID) | No | FK → `users.id` |
+| `action` | `action` | String | No | e.g., Create/Edit/Archive/Restore/Stock-in |
+| `entity` | `entity` | String | No | e.g., Patient/Visit/Medicine/User |
+| `entityId` | `entity_id` | String (UUID) | Yes | nullable |
+| `recordIdentifier` | `record_identifier` | String | Yes | nullable |
+| `metadata` | `metadata` | Json | Yes | nullable |
+
+**Table map:** `@@map("audit_logs")`
 
 ---
 

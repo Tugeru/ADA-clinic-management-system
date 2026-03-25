@@ -27,7 +27,10 @@
 ### Data Stores
 
 - **D1 – User Account**  
-  `users` table: Clinic In-Charge credentials and profile (email, password_hash, full_name, status, timestamps).
+  `users` table: credentials and profile (email, password_hash, full_name, is_active, can_manage_users, timestamps).
+
+- **D8 – Audit Logs**  
+  `audit_logs` table: append-only record of user actions (created_at, user_id, action, entity, entity_id?, record_identifier?, metadata?).
 
 - **D2 – Patients**  
   `students` table: patient profiles (students, teachers, and non‑teaching personnel), including identity, classification (e.g., patient type/role), grade/section where applicable, medical info, archive flag, timestamps.

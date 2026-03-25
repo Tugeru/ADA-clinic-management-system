@@ -1,3 +1,6 @@
+# ⚠️ Legacy document
+This file is kept for historical reference. **Do not use it as current workflow guidance** for the ADA monorepo. Prefer the non-legacy agent docs under `docs/agents/*` and the engineering conventions under `docs/dev-guidelines/`.
+
 # Software Architect - Implementation Agent
 
 ## Role Description
