@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { patientApi, visitApi, inventoryApi, dashboardApi, analyticsApi, archiveApi, patientVisitsApi, clinicProfileApi, auditLogApi, referenceDataApi } from './api';
+import { patientApi, visitApi, inventoryApi, dashboardApi, analyticsApi, archiveApi, patientVisitsApi, clinicProfileApi, auditLogApi, referenceDataApi, userApi } from './api';
 import type { MedicineType } from './types';
 import type { PatientFormData, VisitFormData, StockInFormData, MedicineFormData, ClinicProfile, AuditAction, AuditEntity } from './types';
 
@@ -46,12 +46,53 @@ export const queryKeys = {
   settings: {
     clinicProfile: ['settings', 'clinicProfile'] as const,
     auditLog: (params?: Record<string, any>) => ['settings', 'auditLog', params] as const,
+    users: ['settings', 'users'] as const,
   },
   referenceData: {
     byCategory: (category: string, parentValue?: string) =>
       ['referenceData', category, parentValue] as const,
   },
 };
+
+// ─── User accounts (Settings) ────────────────────────────────
+export function useUsers() {
+  return useQuery({
+    queryKey: queryKeys.settings.users,
+    queryFn: () => userApi.listUsers(),
+  });
+}
+
+export function useCreateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { email: string; fullName: string; password: string }) => userApi.createUser(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.settings.users });
+    },
+  });
+}
+
+export function useResetUserPassword() {
+  return useMutation({
+    mutationFn: (data: { userId: string; newPassword: string }) => userApi.resetPassword(data.userId, data.newPassword),
+  });
+}
+
+export function useSetUserActive() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { userId: string; isActive: boolean }) => userApi.setActive(data.userId, data.isActive),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.settings.users });
+    },
+  });
+}
+
+export function useChangeMyPassword() {
+  return useMutation({
+    mutationFn: (data: { currentPassword: string; newPassword: string }) => userApi.changeMyPassword(data),
+  });
+}
 
 // ─── Patient Hooks ───────────────────────────────────────────
 export function usePatients(params?: { search?: string; includeArchived?: boolean }) {
@@ -496,6 +537,10 @@ export function useAuditLog(params?: { action?: string; entity?: string; page?: 
   return useQuery({
     queryKey: queryKeys.settings.auditLog(params),
     queryFn: () => auditLogApi.getAuditLog(params as any),
+    // Override global QueryClient defaults so Audit Log refreshes
+    // when the Settings → Audit Log tab remounts.
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 }
 
