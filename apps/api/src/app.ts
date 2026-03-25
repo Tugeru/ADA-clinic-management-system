@@ -10,6 +10,8 @@ import inventoryRoutes from './routes/inventory.routes.js'
 import reportRoutes from './routes/report.routes.js'
 import referenceDataRoutes from './routes/reference-data.routes.js'
 import exportRoutes from './routes/export.routes.js'
+import userRoutes from './routes/user.routes.js'
+import auditRoutes from './routes/audit.routes.js'
 
 const app = express()
 
@@ -33,6 +35,8 @@ app.use('/api/inventory', authGuard, inventoryRoutes)
 app.use('/api/reports', authGuard, reportRoutes)
 app.use('/api/reference-data', authGuard, referenceDataRoutes)
 app.use('/api/export', authGuard, exportRoutes)
+app.use('/api/users', authGuard, userRoutes)
+app.use('/api/audit-log', authGuard, auditRoutes)
 
 // ─── Error handler (must be last) ─────────────────────────────────────────────
 app.use(errorHandler)
