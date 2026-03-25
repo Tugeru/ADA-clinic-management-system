@@ -18,8 +18,9 @@ The ADA system replaces the manual, paper-based clinic records at Cabantian Stan
 - Log **clinic visits** — complaints, actions taken, and medicines dispensed
 - Manage a **medicine inventory** with batch tracking, expiry dates, and low-stock alerts
 - Generate **reports** — visit summaries, consumption trends, and inventory status
+- Manage **user accounts** (create accounts, reset passwords, activate/deactivate) for authorized users
 
-The system is single-role: one Clinic In-Charge account manages all data.
+The system is single-role in operations: the Clinic In-Charge manages all clinic data. For administration, user account management is restricted to accounts with `canManageUsers=true`.
 
 ---
 
@@ -27,7 +28,7 @@ The system is single-role: one Clinic In-Charge account manages all data.
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | React 19 + Vite, TanStack Query, Axios, React Hook Form, Zod, Chart.js |
+| **Frontend** | React + Vite, React Router, TanStack Query, Axios, React Hook Form, Tailwind CSS, shadcn/ui, Sonner, Chart.js |
 | **Backend** | Node.js 22, Express 4, TypeScript |
 | **Database** | PostgreSQL 17, Prisma ORM 7 |
 | **Auth** | JWT (`jsonwebtoken`), bcrypt |
@@ -42,7 +43,7 @@ The system is single-role: one Clinic In-Charge account manages all data.
 ada-clinic-management-system/
 ├─ apps/
 │  ├─ api/           # Express REST API (Node.js + TypeScript)
-│  └─ web/           # React + Vite frontend (WIP)
+│  └─ web/           # React + Vite frontend
 ├─ packages/
 │  ├─ db/            # Prisma schema, migrations, client singleton, seed script
 │  └─ shared/        # Zod schemas and TypeScript types shared by API + web
@@ -53,6 +54,8 @@ ada-clinic-management-system/
 ```
 
 AI / Cursor project context and conventions live in `.cursor/rules/` and `docs/dev-guidelines/`.
+
+> Note: `dist/` folders are build outputs and should generally not be committed.
 
 ### `apps/api/src/` structure
 
@@ -156,16 +159,28 @@ pnpm --filter @ada/api dev
 pnpm --filter @ada/api build
 ```
 
-### Frontend (when implemented)
+### Frontend
 
 ```bash
 pnpm --filter @ada/web dev    # http://localhost:5173
 pnpm --filter @ada/web build
+pnpm --filter @ada/web preview -- --port 5173
 ```
 
 ### Run all dev servers at once (root shortcut)
 
-> Add `"dev:api"` and `"dev:web"` scripts to `package.json` as needed.
+```bash
+pnpm dev
+```
+
+Other useful root scripts:
+
+```bash
+pnpm run dev:api
+pnpm run dev:web
+pnpm run build:all
+pnpm run prod:all
+```
 
 ---
 
@@ -190,6 +205,8 @@ pnpm --filter @ada/db db:studio
 pnpm --filter @ada/db seed
 ```
 
+> Common pitfall: after changing `packages/db/prisma/schema.prisma`, regenerate Prisma Client (`db:generate`) and restart your API dev server. Otherwise the API may run with a stale Prisma Client.
+
 ---
 
 ## API Quick Reference
@@ -203,6 +220,11 @@ All routes except `POST /api/auth/login` require `Authorization: Bearer <token>`
 | Health | GET | `/api/health` | ❌ | Server health check |
 | Auth | POST | `/api/auth/login` | ❌ | Login and receive JWT |
 | Auth | POST | `/api/auth/logout` | ✅ | Stateless logout (client discards JWT) |
+| Users | GET | `/api/users` | ✅ | List user accounts *(requires `canManageUsers`)* |
+| Users | POST | `/api/users` | ✅ | Create user account *(requires `canManageUsers`)* |
+| Users | PATCH | `/api/users/:id/password` | ✅ | Admin reset user password *(requires `canManageUsers`)* |
+| Users | PATCH | `/api/users/:id/status` | ✅ | Activate/deactivate user *(requires `canManageUsers`)* |
+| Users | PATCH | `/api/users/me/password` | ✅ | Change your own password |
 | Students | GET | `/api/students` | ✅ | List / search students |
 | Students | POST | `/api/students` | ✅ | Create student |
 | Students | GET | `/api/students/:id` | ✅ | Get student details |
@@ -231,6 +253,7 @@ All routes except `POST /api/auth/login` require `Authorization: Bearer <token>`
 | Password | `ada_admin_2025` |
 
 > ⚠️ Change these in any non-development environment.
+> The seeded admin is also a user manager (`canManageUsers=true`).
 
 ---
 
@@ -244,7 +267,7 @@ All routes except `POST /api/auth/login` require `Authorization: Bearer <token>`
 | `JWT_SECRET` | **Yes** | — | Secret key for signing JWT tokens |
 | `JWT_EXPIRES_IN` | No | `7d` | JWT expiry duration |
 | `CORS_ORIGIN` | No | `http://localhost:5173` | Allowed CORS origin |
-| `VITE_API_BASE_URL` | No | `http://localhost:3000/api/v1` | API base URL for the frontend |
+| `VITE_API_BASE_URL` | **Yes (web)** | `http://localhost:3000/api` | API base URL for the frontend |
 
 ---
 
@@ -302,8 +325,7 @@ pnpm --filter @ada/api test
 The React app has Playwright-based E2E tests that exercise login/logout, core clinic flows (add patient, log visit with medicines, inventory updates), and analytics/reports using mocked API responses:
 
 ```bash
-cd apps/web
-pnpm test:e2e
+pnpm --filter @ada/web test:e2e
 ```
 
 ---
