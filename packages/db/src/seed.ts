@@ -75,6 +75,7 @@ async function main() {
       passwordHash,
       fullName: 'Clinic Admin',
       isActive: true,
+      canManageUsers: true,
     },
   })
   console.log(`✅ User: ${user.fullName} (${user.email})`)
