@@ -32,7 +32,7 @@ vi.mock('bcrypt', () => ({
 
 import prisma from '../src/config/db.js'
 import bcrypt from 'bcrypt'
-import { changeMyPassword, createUser, deleteUser, requireUserManager } from '../src/services/user.service.js'
+import { changeMyPassword, createUser, deleteUser, requireUserManager, setUserCanManageUsers } from '../src/services/user.service.js'
 
 const db = prisma as unknown as {
   $transaction: ReturnType<typeof vi.fn>
@@ -95,6 +95,39 @@ describe('user.service', () => {
   it('deleteUser rejects self delete', async () => {
     db.user.findUnique.mockResolvedValue({ id: 'admin', isActive: true, canManageUsers: true })
     await expect(deleteUser('admin', 'admin')).rejects.toMatchObject({ status: 400 })
+  })
+
+  it('setUserCanManageUsers rejects self-demotion', async () => {
+    db.user.findUnique.mockResolvedValue({ id: 'admin', isActive: true, canManageUsers: true })
+    await expect(setUserCanManageUsers('admin', 'admin', false)).rejects.toMatchObject({ status: 400 })
+  })
+
+  it('setUserCanManageUsers updates and records audit', async () => {
+    db.user.findUnique
+      .mockResolvedValueOnce({ id: 'admin', isActive: true, canManageUsers: true }) // requireUserManager
+      .mockResolvedValueOnce({ id: 'u2', email: 'u2@ada.clinic', canManageUsers: false }) // previous
+    db.user.update.mockResolvedValue({
+      id: 'u2',
+      email: 'u2@ada.clinic',
+      fullName: 'U2',
+      isActive: true,
+      canManageUsers: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    const updated = await setUserCanManageUsers('admin', 'u2', true)
+    expect(updated).toMatchObject({ id: 'u2', canManageUsers: true })
+    expect(db.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: 'Edit',
+          entity: 'User',
+          entityId: 'u2',
+          recordIdentifier: 'u2@ada.clinic',
+        }),
+      }),
+    )
   })
 
   it('changeMyPassword verifies current password before updating', async () => {

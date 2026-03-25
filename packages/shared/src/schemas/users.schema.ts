@@ -23,6 +23,12 @@ export const UpdateUserStatusSchema = z.object({
 
 export type UpdateUserStatusInput = z.infer<typeof UpdateUserStatusSchema>
 
+export const UpdateUserPermissionsSchema = z.object({
+  canManageUsers: z.boolean(),
+})
+
+export type UpdateUserPermissionsInput = z.infer<typeof UpdateUserPermissionsSchema>
+
 export const ChangeOwnPasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: passwordSchema,

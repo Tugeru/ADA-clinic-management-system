@@ -21,7 +21,7 @@ import {
 } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
 import { useAuth } from '../lib/auth-context';
-import { useClinicProfile, useUpdateClinicProfile, useAuditLog, useReferenceData, useCreateReferenceData, useUpdateReferenceData, useDeleteReferenceData, useUsers, useCreateUser, useResetUserPassword, useSetUserActive, useDeleteUser, useChangeMyPassword } from '../lib/hooks';
+import { useClinicProfile, useUpdateClinicProfile, useAuditLog, useReferenceData, useCreateReferenceData, useUpdateReferenceData, useDeleteReferenceData, useUsers, useCreateUser, useResetUserPassword, useSetUserActive, useSetUserCanManageUsers, useDeleteUser, useChangeMyPassword } from '../lib/hooks';
 import { toast } from 'sonner';
 import type { ReferenceDataItem, UserAccount } from '../lib/types';
 import { downloadCsvExport } from '../lib/exportDownload';
@@ -336,6 +336,7 @@ function UserAccountsTab() {
   const createMutation = useCreateUser();
   const resetPasswordMutation = useResetUserPassword();
   const setActiveMutation = useSetUserActive();
+  const setCanManageUsersMutation = useSetUserCanManageUsers();
   const deleteUserMutation = useDeleteUser();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -426,6 +427,7 @@ function UserAccountsTab() {
   };
 
   const [deleteOpen, setDeleteOpen] = useState<{ id: string; email: string } | null>(null);
+  const [permissionOpen, setPermissionOpen] = useState<{ id: string; email: string; next: boolean } | null>(null);
 
   const handleDeleteUser = async () => {
     if (!deleteOpen) return;
@@ -436,6 +438,18 @@ function UserAccountsTab() {
       toast.error(err?.response?.data?.error ?? 'Failed to delete account.');
     } finally {
       setDeleteOpen(null);
+    }
+  };
+
+  const handleTogglePermission = async () => {
+    if (!permissionOpen) return;
+    try {
+      await setCanManageUsersMutation.mutateAsync({ userId: permissionOpen.id, canManageUsers: permissionOpen.next });
+      toast.success(permissionOpen.next ? 'User management enabled.' : 'User management disabled.');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error ?? 'Failed to update permission.');
+    } finally {
+      setPermissionOpen(null);
     }
   };
 
@@ -571,7 +585,7 @@ function UserAccountsTab() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!toggleOpen} onOpenChange={(open) => { if (!open) setToggleOpen(null); }}>
+      <AlertDialog open={!!toggleOpen} onOpenChange={(open: boolean) => { if (!open) setToggleOpen(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{toggleOpen?.nextActive ? 'Activate Account?' : 'Deactivate Account?'}</AlertDialogTitle>
@@ -595,7 +609,7 @@ function UserAccountsTab() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!deleteOpen} onOpenChange={(open) => { if (!open) setDeleteOpen(null); }}>
+      <AlertDialog open={!!deleteOpen} onOpenChange={(open: boolean) => { if (!open) setDeleteOpen(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Account?</AlertDialogTitle>
@@ -611,6 +625,30 @@ function UserAccountsTab() {
               disabled={deleteUserMutation.isPending}
             >
               {deleteUserMutation.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!permissionOpen} onOpenChange={(open: boolean) => { if (!open) setPermissionOpen(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{permissionOpen?.next ? 'Enable User Management?' : 'Disable User Management?'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {permissionOpen?.next
+                ? <>Allow <span className="font-semibold text-slate-700">{permissionOpen?.email}</span> to manage user accounts?</>
+                : <>Remove user management access for <span className="font-semibold text-slate-700">{permissionOpen?.email}</span>?</>
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleTogglePermission}
+              className={permissionOpen?.next ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}
+              disabled={setCanManageUsersMutation.isPending}
+            >
+              {setCanManageUsersMutation.isPending ? 'Saving...' : (permissionOpen?.next ? 'Enable' : 'Disable')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -641,6 +679,7 @@ function UserAccountsTab() {
                   <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Full Name</TableHead>
                   <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Email</TableHead>
                   <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9 text-center">Status</TableHead>
+                  <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9 text-center">Manage Users</TableHead>
                   <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Created</TableHead>
                   <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9 text-right">Actions</TableHead>
                 </TableRow>
@@ -655,6 +694,13 @@ function UserAccountsTab() {
                         u.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'
                       )}>
                         {u.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center py-3">
+                      <Badge variant="outline" className={cn('text-[9px]',
+                        u.canManageUsers ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-slate-100 text-slate-500 border-slate-200'
+                      )}>
+                        {u.canManageUsers ? 'Allowed' : 'Not allowed'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-slate-500 py-3">{formatDate(u.createdAt)}</TableCell>
@@ -675,6 +721,15 @@ function UserAccountsTab() {
                           onClick={() => setToggleOpen({ id: u.id, email: u.email, nextActive: !u.isActive })}
                         >
                           {u.isActive ? 'Deactivate' : 'Activate'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn('h-7 text-xs', u.canManageUsers ? 'text-red-600 hover:text-red-700' : 'text-teal-600 hover:text-teal-700')}
+                          disabled={u.id === user?.id && u.canManageUsers}
+                          onClick={() => setPermissionOpen({ id: u.id, email: u.email, next: !u.canManageUsers })}
+                        >
+                          {u.canManageUsers ? 'Disable manage users' : 'Allow manage users'}
                         </Button>
                         <Button
                           variant="ghost"

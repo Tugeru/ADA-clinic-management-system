@@ -192,6 +192,39 @@ describe('Users routes', () => {
     )
   })
 
+  it('PATCH /api/users/:id/permissions rejects self-demotion', async () => {
+    db.user.findUnique.mockResolvedValue({ ...adminUser, canManageUsers: true })
+    const app = makeApp()
+    const res = await request(app)
+      .patch(`/api/users/${adminUser.id}/permissions`)
+      .send({ canManageUsers: false })
+    expect(res.status).toBe(400)
+  })
+
+  it('PATCH /api/users/:id/permissions updates and records audit', async () => {
+    db.user.findUnique
+      .mockResolvedValueOnce({ ...adminUser, canManageUsers: true }) // requireUserManager
+      .mockResolvedValueOnce({ id: 'u2', email: 'u2@ada.clinic', canManageUsers: false }) // previous target
+    db.user.update.mockResolvedValue({ ...adminUser, id: 'u2', email: 'u2@ada.clinic', canManageUsers: true })
+    const app = makeApp()
+
+    const res = await request(app)
+      .patch('/api/users/22222222-2222-2222-2222-222222222222/permissions')
+      .send({ canManageUsers: true })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ id: 'u2', canManageUsers: true })
+    expect((prisma as any).auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: 'Edit',
+          entity: 'User',
+          recordIdentifier: 'u2@ada.clinic',
+        }),
+      }),
+    )
+  })
+
   it('DELETE /api/users/:id records audit on delete', async () => {
     db.user.findUnique
       .mockResolvedValueOnce({ ...adminUser, canManageUsers: true }) // requireUserManager

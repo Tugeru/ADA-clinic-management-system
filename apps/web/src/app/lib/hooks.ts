@@ -90,6 +90,18 @@ export function useSetUserActive() {
   });
 }
 
+export function useSetUserCanManageUsers() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { userId: string; canManageUsers: boolean }) =>
+      userApi.setCanManageUsers(data.userId, data.canManageUsers),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.settings.users });
+      qc.invalidateQueries({ queryKey: ['settings', 'auditLog'] });
+    },
+  });
+}
+
 export function useDeleteUser() {
   const qc = useQueryClient();
   return useMutation({

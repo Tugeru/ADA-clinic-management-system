@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { validate } from '../middlewares/validate.js'
 import { adminPasswordResetRateLimiter, passwordChangeRateLimiter } from '../middlewares/rateLimiter.js'
-import { AdminResetPasswordSchema, ChangeOwnPasswordSchema, CreateUserSchema, UpdateUserStatusSchema } from '@ada/shared'
-import { adminResetPassword, changeMyPassword, createUser, deleteUser, listUsers, setUserStatus } from '../services/user.service.js'
+import { AdminResetPasswordSchema, ChangeOwnPasswordSchema, CreateUserSchema, UpdateUserPermissionsSchema, UpdateUserStatusSchema } from '@ada/shared'
+import { adminResetPassword, changeMyPassword, createUser, deleteUser, listUsers, setUserCanManageUsers, setUserStatus } from '../services/user.service.js'
 
 const router = Router()
 
@@ -55,6 +55,17 @@ router.patch('/:id/status', validate(UpdateUserStatusSchema), async (req, res, n
     const userId = req.user?.userId
     if (!userId) return res.status(401).json({ error: 'Unauthorized' })
     const updated = await setUserStatus(userId, req.params.id, req.body.isActive)
+    res.json(updated)
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.patch('/:id/permissions', validate(UpdateUserPermissionsSchema), async (req, res, next) => {
+  try {
+    const userId = req.user?.userId
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
+    const updated = await setUserCanManageUsers(userId, req.params.id, req.body.canManageUsers)
     res.json(updated)
   } catch (err) {
     next(err)

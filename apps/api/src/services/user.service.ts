@@ -131,6 +131,46 @@ export async function deleteUser(requesterId: string, targetUserId: string): Pro
   })
 }
 
+export async function setUserCanManageUsers(
+  requesterId: string,
+  targetUserId: string,
+  canManageUsers: boolean,
+): Promise<PublicUser> {
+  await requireUserManager(requesterId)
+
+  if (requesterId === targetUserId && canManageUsers === false) {
+    throw Object.assign(new Error('You cannot remove your own user management permission.'), { status: 400 })
+  }
+
+  const previous = await (prisma.user as any).findUnique({
+    where: { id: targetUserId },
+    select: { id: true, email: true, canManageUsers: true },
+  })
+  if (!previous) {
+    throw Object.assign(new Error('User not found'), { status: 404 })
+  }
+
+  const updated = await (prisma.user as any).update({
+    where: { id: targetUserId },
+    data: { canManageUsers },
+  })
+
+  await recordAudit({
+    userId: requesterId,
+    action: 'Edit',
+    entity: 'User',
+    entityId: updated.id,
+    recordIdentifier: previous.email ?? updated.email,
+    metadata: {
+      targetEmail: previous.email ?? updated.email,
+      fromCanManageUsers: previous.canManageUsers,
+      toCanManageUsers: canManageUsers,
+    },
+  })
+
+  return toPublicUser(updated)
+}
+
 export async function adminResetPassword(
   requesterId: string,
   userId: string,

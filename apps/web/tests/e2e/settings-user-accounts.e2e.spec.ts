@@ -85,6 +85,18 @@ test.describe('Settings - User Accounts', () => {
       await route.fallback();
     });
 
+    await page.route('**/users/**/permissions', async (route) => {
+      if (route.request().method() === 'PATCH') {
+        const body = await route.request().postDataJSON();
+        const id = route.request().url().split('/users/')[1].split('/permissions')[0];
+        users = users.map((u) => (u.id === id ? { ...u, canManageUsers: body.canManageUsers } : u));
+        const updated = users.find((u) => u.id === id)!;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(updated) });
+        return;
+      }
+      await route.fallback();
+    });
+
     await page.route('**/users/me/password', async (route) => {
       if (route.request().method() === 'PATCH') {
         await route.fulfill({ status: 204, body: '' });
@@ -152,6 +164,11 @@ test.describe('Settings - User Accounts', () => {
     await newUserRow.getByRole('button', { name: /deactivate/i }).click();
     await page.getByRole('button', { name: /^deactivate$/i }).click();
     await expect(page.getByText('Account deactivated.')).toBeVisible();
+
+    // Toggle "can manage users"
+    await newUserRow.getByRole('button', { name: /disable manage users/i }).click();
+    await page.getByRole('button', { name: /^disable$/i }).click();
+    await expect(page.getByText('User management disabled.')).toBeVisible();
 
     // Delete user
     await newUserRow.getByRole('button', { name: /^delete$/i }).click();

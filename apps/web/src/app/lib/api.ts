@@ -479,6 +479,19 @@ export const userApi = {
     };
   },
 
+  async setCanManageUsers(userId: string, canManageUsers: boolean): Promise<UserAccount> {
+    const { data } = await http.patch(`/users/${userId}/permissions`, { canManageUsers });
+    return {
+      id: data.id,
+      email: data.email,
+      fullName: data.fullName,
+      isActive: !!data.isActive,
+      canManageUsers: !!data.canManageUsers,
+      createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString(),
+      updatedAt: data.updatedAt ? new Date(data.updatedAt).toISOString() : new Date().toISOString(),
+    };
+  },
+
   async deleteUser(userId: string): Promise<void> {
     await http.delete(`/users/${userId}`);
   },
