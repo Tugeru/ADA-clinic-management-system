@@ -39,6 +39,17 @@ router.delete('/:id', async (req, res, next) => {
   }
 })
 
+router.patch('/me/password', passwordChangeRateLimiter, validate(ChangeOwnPasswordSchema), async (req, res, next) => {
+  try {
+    const userId = req.user?.userId
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
+    await changeMyPassword(userId, req.body.currentPassword, req.body.newPassword)
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
+})
+
 router.patch('/:id/password', adminPasswordResetRateLimiter, validate(AdminResetPasswordSchema), async (req, res, next) => {
   try {
     const userId = req.user?.userId
@@ -67,17 +78,6 @@ router.patch('/:id/permissions', validate(UpdateUserPermissionsSchema), async (r
     if (!userId) return res.status(401).json({ error: 'Unauthorized' })
     const updated = await setUserCanManageUsers(userId, req.params.id, req.body.canManageUsers)
     res.json(updated)
-  } catch (err) {
-    next(err)
-  }
-})
-
-router.patch('/me/password', passwordChangeRateLimiter, validate(ChangeOwnPasswordSchema), async (req, res, next) => {
-  try {
-    const userId = req.user?.userId
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
-    await changeMyPassword(userId, req.body.currentPassword, req.body.newPassword)
-    res.status(204).end()
   } catch (err) {
     next(err)
   }

@@ -48,6 +48,7 @@ vi.mock('bcrypt', () => ({
 }))
 
 import prisma from '../src/config/db.js'
+import bcrypt from 'bcrypt'
 import { authGuard } from '../src/middlewares/auth.js'
 import userRoutes from '../src/routes/user.routes.js'
 import { errorHandler } from '../src/middlewares/errorHandler.js'
@@ -223,6 +224,38 @@ describe('Users routes', () => {
         }),
       }),
     )
+  })
+
+  it('PATCH /api/users/me/password does not route to admin reset', async () => {
+    // changeMyPassword path: requires finding self + bcrypt compare/hash + update
+    db.user.findUnique.mockResolvedValue({ ...adminUser, canManageUsers: true })
+    ;(bcrypt.compare as any).mockResolvedValue(true)
+    ;(bcrypt.hash as any).mockResolvedValue('newhash')
+    db.user.update.mockResolvedValue({ ...adminUser } as any)
+
+    const app = makeApp()
+    const res = await request(app)
+      .patch('/api/users/me/password')
+      .send({ currentPassword: 'oldpass', newPassword: 'newpass123' })
+
+    expect(res.status).toBe(204)
+    // If it incorrectly hit admin reset, it would try to update where id === 'me'.
+    expect(db.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: adminUser.id } }),
+    )
+  })
+
+  it('PATCH /api/users/me/password returns 400 on wrong current password (no logout semantics)', async () => {
+    db.user.findUnique.mockResolvedValue({ ...adminUser, canManageUsers: true })
+    ;(bcrypt.compare as any).mockResolvedValue(false)
+
+    const app = makeApp()
+    const res = await request(app)
+      .patch('/api/users/me/password')
+      .send({ currentPassword: 'wrongpass', newPassword: 'newpass123' })
+
+    expect(res.status).toBe(400)
+    expect(res.body).toMatchObject({ error: 'Current password is incorrect.' })
   })
 
   it('DELETE /api/users/:id records audit on delete', async () => {

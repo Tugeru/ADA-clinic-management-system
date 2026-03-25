@@ -103,8 +103,15 @@ export function MedicineLinesCard({
               <Select
                 value={med.medicineId}
                 onValueChange={(v) => {
-                  setQtyDraftByIndex((prev) => ({ ...prev, [i]: prev[i] ?? '' }));
-                  onChange(i, { medicineId: v });
+                  // If the user previously cleared qty (draft ''), selecting a medicine should
+                  // show the default quantity again (UX: visible Qty=1).
+                  setQtyDraftByIndex((prev) => {
+                    if (!Object.prototype.hasOwnProperty.call(prev, i)) return prev;
+                    const next = { ...prev };
+                    delete next[i];
+                    return next;
+                  });
+                  onChange(i, { medicineId: v, quantity: med.quantity > 0 ? med.quantity : 1 });
                 }}
               >
                 <SelectTrigger

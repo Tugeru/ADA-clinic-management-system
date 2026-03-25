@@ -233,7 +233,9 @@ export async function changeMyPassword(
   }
   const valid = await bcrypt.compare(currentPassword, me.passwordHash)
   if (!valid) {
-    throw Object.assign(new Error('Invalid email or password'), { status: 401 })
+    // User is authenticated; this is a validation error, not an auth/session error.
+    // Returning 400 avoids global 401 handlers on the web client logging the user out.
+    throw Object.assign(new Error('Current password is incorrect.'), { status: 400 })
   }
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS)
   await (prisma.user as any).update({ where: { id: requesterId }, data: { passwordHash } })
