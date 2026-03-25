@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import prisma from '../config/db.js'
 import { env } from '../config/env.js'
+import { recordAudit } from './audit.service.js'
 
 export async function loginUser(email: string, password: string) {
     const user = await prisma.user.findUnique({ where: { email } })
@@ -33,6 +34,10 @@ export async function logoutUser(userId: string, email: string) {
     // JWT auth is stateless for the MVP; this hook exists so that
     // future implementations can record audit events or token
     // invalidation without changing route handlers.
-    void userId
-    void email
+    await recordAudit({
+        userId,
+        action: 'Logout',
+        entity: 'Auth',
+        recordIdentifier: email,
+    })
 }

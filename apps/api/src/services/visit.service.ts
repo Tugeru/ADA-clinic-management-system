@@ -2,6 +2,7 @@ import prisma from '../config/db.js'
 import type { LogVisitInput, UpdateVisitInput } from '@ada/shared'
 import type { BatchResult } from '@ada/shared'
 import { TransactionType } from '@ada/shared'
+import { recordAudit } from './audit.service.js'
 
 type BatchAllocation = { batchId: string; quantity: number }
 
@@ -83,10 +84,10 @@ export async function getVisit(id: string) {
  * Stock deduction runs inside a transaction using FEFO (first-expiring-first-out).
  */
 export async function createVisit(userId: string, data: LogVisitInput) {
-    return prisma.$transaction(async (tx) => {
+    const created = await prisma.$transaction(async (tx) => {
         const student = await tx.student.findUnique({
             where: { id: data.studentId },
-            select: { id: true, isArchived: true },
+            select: { id: true, fullName: true, isArchived: true },
         })
         if (!student) {
             throw Object.assign(new Error('Student not found'), { status: 404 })
@@ -195,10 +196,19 @@ export async function createVisit(userId: string, data: LogVisitInput) {
 
         return visit
     })
+    await recordAudit({
+        userId,
+        action: 'Create',
+        entity: 'Visit',
+        entityId: created.id,
+        recordIdentifier: `Visit ${created.id}`,
+        metadata: { studentId: data.studentId },
+    })
+    return created
 }
 
-export async function updateVisit(id: string, data: UpdateVisitInput) {
-    return prisma.$transaction(async (tx) => {
+export async function updateVisit(userId: string, id: string, data: UpdateVisitInput) {
+    const updated = await prisma.$transaction(async (tx) => {
         const existingVisit = await tx.visit.findUnique({
             where: { id },
             include: { visitMedicines: true },
@@ -328,10 +338,19 @@ export async function updateVisit(id: string, data: UpdateVisitInput) {
 
         return updatedVisit
     })
+    await recordAudit({
+        userId,
+        action: 'Edit',
+        entity: 'Visit',
+        entityId: updated.id,
+        recordIdentifier: `Visit ${updated.id}`,
+        metadata: { fields: Object.keys(data ?? {}) },
+    })
+    return updated
 }
 
-export async function deleteVisit(id: string) {
-    return prisma.$transaction(async (tx) => {
+export async function deleteVisit(userId: string, id: string) {
+    const deleted = await prisma.$transaction(async (tx) => {
         // 0. Guard — visit must exist
         const visit = await tx.visit.findUnique({ where: { id } })
         if (!visit) {
@@ -361,14 +380,22 @@ export async function deleteVisit(id: string) {
         // 4. Delete the visit itself
         return tx.visit.delete({ where: { id } })
     })
+    await recordAudit({
+        userId,
+        action: 'Delete',
+        entity: 'Visit',
+        entityId: deleted.id,
+        recordIdentifier: `Visit ${deleted.id}`,
+    })
+    return deleted
 }
 
-export async function deleteVisits(ids: string[]): Promise<BatchResult> {
+export async function deleteVisits(userId: string, ids: string[]): Promise<BatchResult> {
     const succeeded: string[] = []
     const failed: { id: string; error: string }[] = []
     for (const id of ids) {
         try {
-            await deleteVisit(id)
+            await deleteVisit(userId, id)
             succeeded.push(id)
         } catch (err: any) {
             const message = err?.message ?? 'Unknown error'
@@ -379,5 +406,12 @@ export async function deleteVisits(ids: string[]): Promise<BatchResult> {
             })
         }
     }
+    await recordAudit({
+        userId,
+        action: 'Delete',
+        entity: 'Visit',
+        recordIdentifier: `${succeeded.length} visit(s) deleted`,
+        metadata: { ids, succeeded, failed },
+    })
     return { succeeded, failed }
 }

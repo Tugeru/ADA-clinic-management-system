@@ -19,19 +19,19 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', validate(CreateReferenceDataSchema), async (req, res, next) => {
     try {
-        res.status(201).json(await svc.create(req.body))
+        res.status(201).json(await svc.create(req.user!.userId, req.body))
     } catch (err) { next(err) }
 })
 
 router.patch('/:id', validate(UpdateReferenceDataSchema), async (req, res, next) => {
     try {
-        res.json(await svc.update(req.params.id, req.body))
+        res.json(await svc.update(req.user!.userId, req.params.id, req.body))
     } catch (err) { next(err) }
 })
 
 router.delete('/:id', async (req, res, next) => {
     try {
-        await svc.remove(req.params.id)
+        await svc.remove(req.user!.userId, req.params.id)
         res.status(204).send()
     } catch (err) { next(err) }
 })

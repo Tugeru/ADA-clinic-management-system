@@ -2,6 +2,7 @@ import prisma from '../config/db.js'
 import { TransactionType, EXPIRY_WARNING_DAYS } from '@ada/shared'
 import type { BatchResult } from '@ada/shared'
 import type { CreateMedicineInput, UpdateMedicineInput, StockInInput, AdjustStockInput } from '@ada/shared'
+import { recordAudit } from './audit.service.js'
 
 // ─── Medicine catalog ──────────────────────────────────────────────────────────
 
@@ -41,45 +42,86 @@ export async function getMedicineById(id: string) {
     })
 }
 
-export async function createMedicine(data: CreateMedicineInput) {
-    return prisma.medicine.create({ data })
+export async function createMedicine(userId: string, data: CreateMedicineInput) {
+    const created = await prisma.medicine.create({ data })
+    await recordAudit({
+        userId,
+        action: 'Create',
+        entity: 'Medicine',
+        entityId: created.id,
+        recordIdentifier: created.name,
+    })
+    return created
 }
 
-export async function updateMedicine(id: string, data: UpdateMedicineInput) {
-    return prisma.medicine.update({ where: { id }, data })
+export async function updateMedicine(userId: string, id: string, data: UpdateMedicineInput) {
+    const updated = await prisma.medicine.update({ where: { id }, data })
+    await recordAudit({
+        userId,
+        action: 'Edit',
+        entity: 'Medicine',
+        entityId: updated.id,
+        recordIdentifier: updated.name,
+        metadata: { fields: Object.keys(data ?? {}) },
+    })
+    return updated
 }
 
-export async function deleteMedicine(id: string) {
+export async function deleteMedicine(userId: string, id: string) {
     const medicine = await prisma.medicine.findUnique({ where: { id } })
     if (!medicine) {
         throw Object.assign(new Error('Medicine not found'), { status: 404 })
     }
     if (medicine.isActive) {
-        return prisma.medicine.update({ where: { id }, data: { isActive: false } })
+        const archived = await prisma.medicine.update({ where: { id }, data: { isActive: false } })
+        await recordAudit({
+            userId,
+            action: 'Archive',
+            entity: 'Medicine',
+            entityId: archived.id,
+            recordIdentifier: archived.name,
+        })
+        return archived
     }
     // Already archived: permanent delete (used when deleting from Archive page)
-    return prisma.$transaction(async (tx) => {
+    const deleted = await prisma.$transaction(async (tx) => {
         await tx.stockTransaction.deleteMany({ where: { batch: { medicineId: id } } })
         await tx.visitMedicine.deleteMany({ where: { medicineId: id } })
         await tx.inventoryBatch.deleteMany({ where: { medicineId: id } })
         await tx.medicine.delete({ where: { id } })
     })
+    await recordAudit({
+        userId,
+        action: 'Delete',
+        entity: 'Medicine',
+        entityId: id,
+        recordIdentifier: medicine.name,
+    })
+    return deleted
 }
 
-export async function restoreMedicine(id: string) {
+export async function restoreMedicine(userId: string, id: string) {
     const medicine = await prisma.medicine.findUnique({ where: { id } })
     if (!medicine) {
         throw Object.assign(new Error('Medicine not found'), { status: 404 })
     }
-    return prisma.medicine.update({ where: { id }, data: { isActive: true } })
+    const restored = await prisma.medicine.update({ where: { id }, data: { isActive: true } })
+    await recordAudit({
+        userId,
+        action: 'Restore',
+        entity: 'Medicine',
+        entityId: restored.id,
+        recordIdentifier: restored.name,
+    })
+    return restored
 }
 
-export async function restoreMedicines(ids: string[]): Promise<BatchResult> {
+export async function restoreMedicines(userId: string, ids: string[]): Promise<BatchResult> {
     const succeeded: string[] = []
     const failed: { id: string; error: string }[] = []
     for (const id of ids) {
         try {
-            await restoreMedicine(id)
+            await restoreMedicine(userId, id)
             succeeded.push(id)
         } catch (err: any) {
             const message = err?.message ?? 'Unknown error'
@@ -90,15 +132,22 @@ export async function restoreMedicines(ids: string[]): Promise<BatchResult> {
             })
         }
     }
+    await recordAudit({
+        userId,
+        action: 'Restore',
+        entity: 'Medicine',
+        recordIdentifier: `${succeeded.length} medicine(s) restored`,
+        metadata: { ids, succeeded, failed },
+    })
     return { succeeded, failed }
 }
 
-export async function deleteMedicines(ids: string[]): Promise<BatchResult> {
+export async function deleteMedicines(userId: string, ids: string[]): Promise<BatchResult> {
     const succeeded: string[] = []
     const failed: { id: string; error: string }[] = []
     for (const id of ids) {
         try {
-            await deleteMedicine(id)
+            await deleteMedicine(userId, id)
             succeeded.push(id)
         } catch (err: any) {
             const message = err?.message ?? 'Unknown error'
@@ -109,13 +158,20 @@ export async function deleteMedicines(ids: string[]): Promise<BatchResult> {
             })
         }
     }
+    await recordAudit({
+        userId,
+        action: 'Delete',
+        entity: 'Medicine',
+        recordIdentifier: `${succeeded.length} medicine(s) deleted`,
+        metadata: { ids, succeeded, failed },
+    })
     return { succeeded, failed }
 }
 
 // ─── Stock operations ──────────────────────────────────────────────────────────
 
-export async function stockIn(data: StockInInput) {
-    return prisma.$transaction(async (tx) => {
+export async function stockIn(userId: string, data: StockInInput) {
+    const batch = await prisma.$transaction(async (tx) => {
         // Find or create batch
         let batch = await tx.inventoryBatch.findFirst({
             where: {
@@ -151,6 +207,21 @@ export async function stockIn(data: StockInInput) {
 
         return batch
     })
+    await recordAudit({
+        userId,
+        action: 'Stock-in',
+        entity: 'Medicine',
+        entityId: data.medicineId,
+        recordIdentifier: `Stock-in ${data.quantity}`,
+        metadata: {
+            medicineId: data.medicineId,
+            batchId: batch.id,
+            batchNumber: data.batchNumber,
+            expirationDate: data.expirationDate,
+            quantity: data.quantity,
+        },
+    })
+    return batch
 }
 
 // ─── Stock movements ledger ────────────────────────────────────────────────────
@@ -232,8 +303,8 @@ export async function listStockMovements(filters: {
     }
 }
 
-export async function adjustStock(data: AdjustStockInput) {
-    return prisma.$transaction(async (tx) => {
+export async function adjustStock(userId: string, data: AdjustStockInput) {
+    const batch = await prisma.$transaction(async (tx) => {
         const batch = await tx.inventoryBatch.update({
             where: { id: data.batchId },
             data: { quantityOnHand: data.quantity },
@@ -250,4 +321,12 @@ export async function adjustStock(data: AdjustStockInput) {
 
         return batch
     })
+    await recordAudit({
+        userId,
+        action: 'Edit',
+        entity: 'Medicine',
+        recordIdentifier: `Stock adjustment`,
+        metadata: { batchId: data.batchId, quantity: data.quantity, notes: data.notes },
+    })
+    return batch
 }

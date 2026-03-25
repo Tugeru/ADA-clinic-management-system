@@ -8,14 +8,14 @@ const router = Router()
 router.post('/bulk/restore', validate(BatchIdsSchema), async (req, res, next) => {
     try {
         const { ids } = req.body as { ids: string[] }
-        res.json(await svc.restoreMedicines(ids))
+        res.json(await svc.restoreMedicines(req.user!.userId, ids))
     } catch (err) { next(err) }
 })
 
 router.post('/bulk/delete', validate(BatchIdsSchema), async (req, res, next) => {
     try {
         const { ids } = req.body as { ids: string[] }
-        res.json(await svc.deleteMedicines(ids))
+        res.json(await svc.deleteMedicines(req.user!.userId, ids))
     } catch (err) { next(err) }
 })
 
@@ -53,29 +53,29 @@ router.get('/:id', async (req, res, next) => {
 })
 
 router.post('/', validate(CreateMedicineSchema), async (req, res, next) => {
-    try { res.status(201).json(await svc.createMedicine(req.body)) } catch (err) { next(err) }
+    try { res.status(201).json(await svc.createMedicine(req.user!.userId, req.body)) } catch (err) { next(err) }
 })
 
 router.patch('/:id', validate(UpdateMedicineSchema), async (req, res, next) => {
-    try { res.json(await svc.updateMedicine(req.params.id, req.body)) } catch (err) { next(err) }
+    try { res.json(await svc.updateMedicine(req.user!.userId, req.params.id, req.body)) } catch (err) { next(err) }
 })
 
 router.delete('/:id', async (req, res, next) => {
-    try { await svc.deleteMedicine(req.params.id); res.status(204).send() } catch (err) { next(err) }
+    try { await svc.deleteMedicine(req.user!.userId, req.params.id); res.status(204).send() } catch (err) { next(err) }
 })
 
 router.patch('/:id/restore', async (req, res, next) => {
-    try { res.json(await svc.restoreMedicine(req.params.id)) } catch (err) { next(err) }
+    try { res.json(await svc.restoreMedicine(req.user!.userId, req.params.id)) } catch (err) { next(err) }
 })
 
 // ─── Stock operations ──────────────────────────────────────────────────────────
 
 router.post('/stock-in', validate(StockInSchema), async (req, res, next) => {
-    try { res.status(201).json(await svc.stockIn(req.body)) } catch (err) { next(err) }
+    try { res.status(201).json(await svc.stockIn(req.user!.userId, req.body)) } catch (err) { next(err) }
 })
 
 router.post('/adjust', validate(AdjustStockSchema), async (req, res, next) => {
-    try { res.json(await svc.adjustStock(req.body)) } catch (err) { next(err) }
+    try { res.json(await svc.adjustStock(req.user!.userId, req.body)) } catch (err) { next(err) }
 })
 
 export default router

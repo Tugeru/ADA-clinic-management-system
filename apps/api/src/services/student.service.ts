@@ -1,6 +1,7 @@
 import prisma from '../config/db.js'
 import type { CreateStudentInput, UpdateStudentInput } from '@ada/shared'
 import type { BatchResult } from '@ada/shared'
+import { recordAudit } from './audit.service.js'
 
 // Prisma client regenerated after add_strand_field migration
 
@@ -20,8 +21,8 @@ export async function getStudent(id: string) {
     return prisma.student.findUnique({ where: { id } })
 }
 
-export async function createStudent(data: CreateStudentInput) {
-    return prisma.student.create({
+export async function createStudent(userId: string, data: CreateStudentInput) {
+    const created = await prisma.student.create({
         data: {
             fullName: data.fullName,
             patientType: data.patientType ?? 'Student',
@@ -39,16 +40,33 @@ export async function createStudent(data: CreateStudentInput) {
             contactNumber: data.contactNumber,
         },
     })
+    await recordAudit({
+        userId,
+        action: 'Create',
+        entity: 'Patient',
+        entityId: created.id,
+        recordIdentifier: created.fullName,
+    })
+    return created
 }
 
-export async function updateStudent(id: string, data: UpdateStudentInput) {
-    return prisma.student.update({
+export async function updateStudent(userId: string, id: string, data: UpdateStudentInput) {
+    const updated = await prisma.student.update({
         where: { id },
         data: {
             ...data,
             dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
         },
     })
+    await recordAudit({
+        userId,
+        action: 'Edit',
+        entity: 'Patient',
+        entityId: updated.id,
+        recordIdentifier: updated.fullName,
+        metadata: { fields: Object.keys(data ?? {}) },
+    })
+    return updated
 }
 
 /** Set student archived state and cascade to their visits. */
@@ -66,12 +84,21 @@ async function setStudentArchived(id: string, archived: boolean) {
     })
 }
 
-export async function toggleArchiveStudent(id: string) {
+export async function toggleArchiveStudent(userId: string, id: string) {
     const student = await prisma.student.findUniqueOrThrow({ where: { id } })
-    return setStudentArchived(id, !student.isArchived)
+    const nextArchived = !student.isArchived
+    const updated = await setStudentArchived(id, nextArchived)
+    await recordAudit({
+        userId,
+        action: nextArchived ? 'Archive' : 'Restore',
+        entity: 'Patient',
+        entityId: updated.id,
+        recordIdentifier: (updated as any).fullName ?? id,
+    })
+    return updated
 }
 
-export async function archiveStudents(ids: string[]): Promise<BatchResult> {
+export async function archiveStudents(userId: string, ids: string[]): Promise<BatchResult> {
     const succeeded: string[] = []
     const failed: { id: string; error: string }[] = []
     for (const id of ids) {
@@ -87,10 +114,17 @@ export async function archiveStudents(ids: string[]): Promise<BatchResult> {
             })
         }
     }
+    await recordAudit({
+        userId,
+        action: 'Archive',
+        entity: 'Patient',
+        recordIdentifier: `${succeeded.length} patient(s) archived`,
+        metadata: { ids, succeeded, failed },
+    })
     return { succeeded, failed }
 }
 
-export async function restoreStudents(ids: string[]): Promise<BatchResult> {
+export async function restoreStudents(userId: string, ids: string[]): Promise<BatchResult> {
     const succeeded: string[] = []
     const failed: { id: string; error: string }[] = []
     for (const id of ids) {
@@ -106,15 +140,22 @@ export async function restoreStudents(ids: string[]): Promise<BatchResult> {
             })
         }
     }
+    await recordAudit({
+        userId,
+        action: 'Restore',
+        entity: 'Patient',
+        recordIdentifier: `${succeeded.length} patient(s) restored`,
+        metadata: { ids, succeeded, failed },
+    })
     return { succeeded, failed }
 }
 
-export async function deleteStudents(ids: string[]): Promise<BatchResult> {
+export async function deleteStudents(userId: string, ids: string[]): Promise<BatchResult> {
     const succeeded: string[] = []
     const failed: { id: string; error: string }[] = []
     for (const id of ids) {
         try {
-            await deleteStudent(id)
+            await deleteStudent(userId, id)
             succeeded.push(id)
         } catch (err: any) {
             const message = err?.message ?? 'Unknown error'
@@ -125,10 +166,18 @@ export async function deleteStudents(ids: string[]): Promise<BatchResult> {
             })
         }
     }
+    await recordAudit({
+        userId,
+        action: 'Delete',
+        entity: 'Patient',
+        recordIdentifier: `${succeeded.length} patient(s) deleted`,
+        metadata: { ids, succeeded, failed },
+    })
     return { succeeded, failed }
 }
 
 export async function bulkUpdateSchoolYear(
+    userId: string,
     ids: string[],
     schoolYear: string
 ): Promise<BatchResult> {
@@ -136,7 +185,7 @@ export async function bulkUpdateSchoolYear(
     const failed: { id: string; error: string }[] = []
     for (const id of ids) {
         try {
-            await updateStudent(id, { schoolYear })
+            await updateStudent(userId, id, { schoolYear })
             succeeded.push(id)
         } catch (err: any) {
             const message = err?.message ?? 'Unknown error'
@@ -147,10 +196,18 @@ export async function bulkUpdateSchoolYear(
             })
         }
     }
+    await recordAudit({
+        userId,
+        action: 'Edit',
+        entity: 'Patient',
+        recordIdentifier: `${succeeded.length} patient(s) school year updated`,
+        metadata: { ids, schoolYear, succeeded, failed },
+    })
     return { succeeded, failed }
 }
 
 export async function bulkUpdateGradeLevel(
+    userId: string,
     ids: string[],
     gradeLevel: string
 ): Promise<BatchResult> {
@@ -170,7 +227,7 @@ export async function bulkUpdateGradeLevel(
                 failed.push({ id, error: 'Not a student' })
                 continue
             }
-            await updateStudent(id, { gradeLevel })
+            await updateStudent(userId, id, { gradeLevel })
             succeeded.push(id)
         } catch (err: any) {
             const message = err?.message ?? 'Unknown error'
@@ -181,11 +238,18 @@ export async function bulkUpdateGradeLevel(
             })
         }
     }
+    await recordAudit({
+        userId,
+        action: 'Edit',
+        entity: 'Patient',
+        recordIdentifier: `${succeeded.length} patient(s) grade level updated`,
+        metadata: { ids, gradeLevel, succeeded, failed },
+    })
     return { succeeded, failed }
 }
 
-export async function deleteStudent(id: string) {
-    return prisma.$transaction(async (tx) => {
+export async function deleteStudent(userId: string, id: string) {
+    const deleted = await prisma.$transaction(async (tx) => {
         const student = await tx.student.findUnique({ where: { id }, select: { id: true } })
         if (!student) {
             throw Object.assign(new Error('Student not found'), { status: 404 })
@@ -205,4 +269,12 @@ export async function deleteStudent(id: string) {
 
         return tx.student.delete({ where: { id } })
     })
+    await recordAudit({
+        userId,
+        action: 'Delete',
+        entity: 'Patient',
+        entityId: deleted.id,
+        recordIdentifier: (deleted as any).fullName ?? deleted.id,
+    })
+    return deleted
 }

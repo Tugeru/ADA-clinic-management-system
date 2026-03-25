@@ -8,7 +8,7 @@ const router = Router()
 router.post('/bulk/delete', validate(BatchIdsSchema), async (req, res, next) => {
     try {
         const { ids } = req.body as { ids: string[] }
-        res.json(await svc.deleteVisits(ids))
+        res.json(await svc.deleteVisits(req.user!.userId, ids))
     } catch (err) { next(err) }
 })
 
@@ -43,13 +43,13 @@ router.post('/', validate(LogVisitSchema), async (req, res, next) => {
 
 router.patch('/:id', validate(UpdateVisitSchema), async (req, res, next) => {
     try {
-        res.json(await svc.updateVisit(req.params.id, req.body))
+        res.json(await svc.updateVisit(req.user!.userId, req.params.id, req.body))
     } catch (err) { next(err) }
 })
 
 router.delete('/:id', async (req, res, next) => {
     try {
-        await svc.deleteVisit(req.params.id)
+        await svc.deleteVisit(req.user!.userId, req.params.id)
         res.status(204).end()
     } catch (err) { next(err) }
 })
