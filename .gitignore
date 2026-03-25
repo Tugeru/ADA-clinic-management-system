@@ -25,3 +25,4 @@ Thumbs.db
 docs/gap-analysis/
 .cursor/
 AGENT.md
+.github/copilot-instructions.md
