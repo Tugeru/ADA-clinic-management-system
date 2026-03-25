@@ -10,6 +10,9 @@ vi.mock('../src/config/db.js', () => ({
     stockTransaction: {
       create: vi.fn(),
     },
+    auditLog: {
+      create: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
@@ -44,7 +47,7 @@ describe('inventory stock operations service', () => {
       }),
     );
 
-    const result = await stockIn({
+    const result = await stockIn('u1', {
       medicineId: 'med-1',
       batchNumber: 'B001',
       expirationDate: '2027-06-01',
@@ -80,7 +83,7 @@ describe('inventory stock operations service', () => {
       }),
     );
 
-    const result = await stockIn({
+    const result = await stockIn('u1', {
       medicineId: 'med-1',
       batchNumber: 'B002',
       expirationDate: '2027-06-01',
@@ -110,7 +113,7 @@ describe('inventory stock operations service', () => {
       }),
     );
 
-    const result = await adjustStock({
+    const result = await adjustStock('u1', {
       batchId: 'batch-3',
       quantity: 7,
       notes: 'Recount after audit',

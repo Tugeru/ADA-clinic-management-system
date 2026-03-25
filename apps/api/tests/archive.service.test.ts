@@ -13,6 +13,9 @@ vi.mock('../src/config/db.js', () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    auditLog: {
+      create: vi.fn(),
+    },
   },
 }))
 
@@ -96,7 +99,7 @@ describe('Student archive service', () => {
     db.student.update.mockResolvedValue({ ...activeStudent, isArchived: true })
     ;(db as any).visit = { updateMany: vi.fn().mockResolvedValue({ count: 1 }) }
 
-    const result = await toggleArchiveStudent('s1')
+    const result = await toggleArchiveStudent('u1', 's1')
 
     expect(db.student.update).toHaveBeenCalledWith({
       where: { id: 's1' },
@@ -115,7 +118,7 @@ describe('Student archive service', () => {
     db.student.update.mockResolvedValue({ ...archivedStudent, isArchived: false })
     ;(db as any).visit = { updateMany: vi.fn().mockResolvedValue({ count: 1 }) }
 
-    const result = await toggleArchiveStudent('s2')
+    const result = await toggleArchiveStudent('u1', 's2')
 
     expect(db.student.update).toHaveBeenCalledWith({
       where: { id: 's2' },
@@ -172,7 +175,7 @@ describe('Medicine inactive/restore service', () => {
     db.medicine.findUnique.mockResolvedValue(activeMedicine)
     db.medicine.update.mockResolvedValue({ ...activeMedicine, isActive: false })
 
-    const result = await deleteMedicine('m1')
+    const result = await deleteMedicine('u1', 'm1')
 
     expect(db.medicine.update).toHaveBeenCalledWith({
       where: { id: 'm1' },
@@ -184,7 +187,7 @@ describe('Medicine inactive/restore service', () => {
   it('deleteMedicine throws 404 for non-existent medicine', async () => {
     db.medicine.findUnique.mockResolvedValue(null)
 
-    await expect(deleteMedicine('non-existent')).rejects.toMatchObject({
+    await expect(deleteMedicine('u1', 'non-existent')).rejects.toMatchObject({
       status: 404,
       message: 'Medicine not found',
     })
@@ -206,7 +209,7 @@ describe('Medicine inactive/restore service', () => {
       return fn(tx)
     })
 
-    await deleteMedicine('m2')
+    await deleteMedicine('u1', 'm2')
 
     expect(db.$transaction).toHaveBeenCalled()
     expect(deleteManyStock).toHaveBeenCalledWith({ where: { batch: { medicineId: 'm2' } } })
@@ -219,7 +222,7 @@ describe('Medicine inactive/restore service', () => {
     db.medicine.findUnique.mockResolvedValue(inactiveMedicine)
     db.medicine.update.mockResolvedValue({ ...inactiveMedicine, isActive: true })
 
-    const result = await restoreMedicine('m2')
+    const result = await restoreMedicine('u1', 'm2')
 
     expect(db.medicine.update).toHaveBeenCalledWith({
       where: { id: 'm2' },
@@ -231,7 +234,7 @@ describe('Medicine inactive/restore service', () => {
   it('restoreMedicine throws 404 for non-existent medicine', async () => {
     db.medicine.findUnique.mockResolvedValue(null)
 
-    await expect(restoreMedicine('non-existent')).rejects.toMatchObject({
+    await expect(restoreMedicine('u1', 'non-existent')).rejects.toMatchObject({
       status: 404,
       message: 'Medicine not found',
     })

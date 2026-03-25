@@ -14,6 +14,9 @@ vi.mock('../src/config/db.js', () => ({
     stockTransaction: {
       updateMany: vi.fn(),
     },
+    auditLog: {
+      create: vi.fn(),
+    },
   },
 }))
 
@@ -42,7 +45,7 @@ describe('deleteStudent (hard delete)', () => {
     db.$transaction.mockImplementation(async (fn: any) => fn(db))
     db.student.findUnique.mockResolvedValue(null)
 
-    await expect(deleteStudent('missing')).rejects.toMatchObject({
+    await expect(deleteStudent('u1', 'missing')).rejects.toMatchObject({
       status: 404,
       message: 'Student not found',
     })
@@ -54,7 +57,7 @@ describe('deleteStudent (hard delete)', () => {
     db.visit.findMany.mockResolvedValue([])
     db.student.delete.mockResolvedValue({ id: 's1' })
 
-    const result = await deleteStudent('s1')
+    const result = await deleteStudent('u1', 's1')
 
     expect(db.visit.findMany).toHaveBeenCalledWith({ where: { studentId: 's1' }, select: { id: true } })
     expect(db.stockTransaction.updateMany).not.toHaveBeenCalled()
@@ -71,7 +74,7 @@ describe('deleteStudent (hard delete)', () => {
     db.visit.deleteMany.mockResolvedValue({ count: 2 })
     db.student.delete.mockResolvedValue({ id: 's1' })
 
-    await deleteStudent('s1')
+    await deleteStudent('u1', 's1')
 
     expect(db.stockTransaction.updateMany).toHaveBeenCalledWith({
       where: { referenceVisitId: { in: ['v1', 'v2'] } },

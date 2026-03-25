@@ -6,6 +6,9 @@ vi.mock('../src/config/db.js', () => ({
     student: {
       findUniqueOrThrow: vi.fn(),
     },
+    auditLog: {
+      create: vi.fn(),
+    },
   },
 }))
 
@@ -46,7 +49,7 @@ describe('toggleArchiveStudent cascades to visits', () => {
     tx.student.update.mockResolvedValue({ id: 's1', isArchived: true })
     mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
 
-    const result = await toggleArchiveStudent('s1')
+    const result = await toggleArchiveStudent('u1', 's1')
 
     expect(tx.visit.updateMany).toHaveBeenCalledWith({
       where: { studentId: 's1' },
@@ -61,7 +64,7 @@ describe('toggleArchiveStudent cascades to visits', () => {
     tx.student.update.mockResolvedValue({ id: 's1', isArchived: false })
     mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
 
-    const result = await toggleArchiveStudent('s1')
+    const result = await toggleArchiveStudent('u1', 's1')
 
     expect(tx.visit.updateMany).toHaveBeenCalledWith({
       where: { studentId: 's1' },

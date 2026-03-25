@@ -7,6 +7,9 @@ vi.mock('../src/config/db.js', () => ({
       update: vi.fn(),
       findUnique: vi.fn(),
     },
+    auditLog: {
+      create: vi.fn(),
+    },
   },
 }))
 
@@ -36,7 +39,7 @@ describe('Student service – schoolYear field', () => {
     }
     db.student.create.mockResolvedValue(created)
 
-    const result = await createStudent({
+    const result = await createStudent('u1', {
       fullName: 'Test Student',
       gradeLevel: 'Grade 11',
       strand: 'STEM',
@@ -61,7 +64,7 @@ describe('Student service – schoolYear field', () => {
     }
     db.student.create.mockResolvedValue(created)
 
-    const result = await createStudent({ fullName: 'No SY Student' })
+    const result = await createStudent('u1', { fullName: 'No SY Student' })
 
     expect(result.schoolYear).toBeUndefined()
     expect(db.student.create).toHaveBeenCalledWith(
@@ -79,7 +82,7 @@ describe('Student service – schoolYear field', () => {
     }
     db.student.update.mockResolvedValue(updated)
 
-    const result = await updateStudent('uuid-1', { schoolYear: '2026-2027' })
+    const result = await updateStudent('u1', 'uuid-1', { schoolYear: '2026-2027' })
 
     expect(result.schoolYear).toBe('2026-2027')
     expect(db.student.update).toHaveBeenCalledWith(

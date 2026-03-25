@@ -3,6 +3,9 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 vi.mock('../src/config/db.js', () => ({
   default: {
     $transaction: vi.fn(),
+    auditLog: {
+      create: vi.fn(),
+    },
   },
 }));
 
@@ -59,7 +62,7 @@ describe('deleteVisit stock rollback', () => {
     const tx = makeTx();
     mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx));
 
-    const result = await deleteVisit('visit-1');
+    const result = await deleteVisit('u1', 'visit-1');
 
     expect(result).toEqual({ id: 'visit-1' });
     expect(tx.visit.findUnique).toHaveBeenCalledWith({ where: { id: 'visit-1' } });
@@ -85,7 +88,7 @@ describe('deleteVisit stock rollback', () => {
     tx.visit.findUnique.mockResolvedValueOnce(null as any);
     mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx));
 
-    await expect(deleteVisit('missing-id')).rejects.toMatchObject({
+    await expect(deleteVisit('u1', 'missing-id')).rejects.toMatchObject({
       status: 404,
       message: 'Visit not found',
     });

@@ -42,9 +42,10 @@ test.describe('Auth flow', () => {
     // After successful login, we should be on the dashboard (root path)
     await page.waitForURL('/');
 
-    // Open user menu and click Sign Out
-    await page.getByRole('button', { name: /clinic in-charge/i }).click();
-    await page.getByRole('menuitem', { name: /sign out/i }).click();
+    // Sign out from Settings (more stable than menu selectors)
+    await page.goto('/settings');
+    await page.getByRole('button', { name: /^sign out$/i }).click();
+    await page.getByRole('button', { name: /^sign out$/i }).nth(1).click();
 
     // We should be sent back to the login page
     await page.waitForURL('/login');

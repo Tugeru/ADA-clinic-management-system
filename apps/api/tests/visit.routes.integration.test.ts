@@ -5,6 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../src/config/db.js', () => ({
   default: {
     $transaction: vi.fn(),
+    auditLog: {
+      create: vi.fn(),
+    },
   },
 }))
 

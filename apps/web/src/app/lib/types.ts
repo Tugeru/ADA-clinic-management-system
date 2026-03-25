@@ -31,6 +31,16 @@ export interface User {
   schoolCode: string;
 }
 
+export interface UserAccount {
+  id: string;
+  email: string;
+  fullName: string;
+  isActive: boolean;
+  canManageUsers: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AuthState {
   user: User | null;
   token: string | null;
