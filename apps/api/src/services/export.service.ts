@@ -1,5 +1,6 @@
 import prisma from '../config/db.js'
 import { toCsv } from '../utils/csv.js'
+import type { AuditLogExportQueryInput } from '@ada/shared'
 
 const ISO_DATE = (d: Date) => d.toISOString().slice(0, 10)
 const ISO_DT = (d: Date | null | undefined) => (d ? d.toISOString() : '')
@@ -396,6 +397,61 @@ export async function exportVisitMedicinesCsv(params: {
     const stamp = ISO_DATE(new Date())
     return {
         filename: `ada_visit_medicines_${startDate}_${endDate}_${stamp}.csv`,
+        csv: toCsv(headers, data),
+    }
+}
+
+const MAX_AUDIT_ROWS = 50_000
+
+export async function exportAuditLogCsv(params: AuditLogExportQueryInput) {
+    const where: any = {}
+    if (params.action) where.action = params.action
+    if (params.entity) where.entity = params.entity
+
+    const total = await prisma.auditLog.count({ where })
+    if (total > MAX_AUDIT_ROWS) {
+        const err = new Error(
+            `Export would include ${total} rows; maximum is ${MAX_AUDIT_ROWS}. Narrow filters.`,
+        )
+        ;(err as any).status = 400
+        throw err
+    }
+
+    const rows = await prisma.auditLog.findMany({
+        where,
+        include: { user: { select: { id: true, email: true, fullName: true } } },
+        orderBy: { createdAt: 'desc' },
+    })
+
+    const headers = [
+        'audit_id',
+        'timestamp',
+        'action',
+        'entity',
+        'entity_id',
+        'record_identifier',
+        'performed_by_user_id',
+        'performed_by_email',
+        'performed_by_name',
+        'metadata_json',
+    ]
+
+    const data = rows.map((r) => [
+        r.id,
+        ISO_DT(r.createdAt),
+        r.action,
+        r.entity,
+        r.entityId ?? '',
+        r.recordIdentifier ?? '',
+        r.userId,
+        r.user?.email ?? '',
+        r.user?.fullName ?? '',
+        r.metadata ? JSON.stringify(r.metadata) : '',
+    ])
+
+    const stamp = ISO_DATE(new Date())
+    return {
+        filename: `ada_audit_log_${stamp}.csv`,
         csv: toCsv(headers, data),
     }
 }

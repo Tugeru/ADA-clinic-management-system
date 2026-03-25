@@ -2,7 +2,7 @@ import { Router } from 'express'
 import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
 import { validateQuery } from '../middlewares/validate.js'
-import { VisitQuerySchema, type VisitQueryInput } from '@ada/shared'
+import { VisitQuerySchema, AuditLogExportQuerySchema, type VisitQueryInput, type AuditLogExportQueryInput } from '@ada/shared'
 import * as exportSvc from '../services/export.service.js'
 
 const router = Router()
@@ -105,6 +105,18 @@ router.get('/visit-medicines.csv', validateQuery(VisitQuerySchema), async (req, 
             studentId: q.studentId,
             includeArchived: q.includeArchived,
         })
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+        res.send(csv)
+    } catch (err) {
+        next(err)
+    }
+})
+
+router.get('/audit-log.csv', validateQuery(AuditLogExportQuerySchema), async (req, res, next) => {
+    try {
+        const q = req.query as unknown as AuditLogExportQueryInput
+        const { filename, csv } = await exportSvc.exportAuditLogCsv(q)
         res.setHeader('Content-Type', 'text/csv; charset=utf-8')
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
         res.send(csv)
