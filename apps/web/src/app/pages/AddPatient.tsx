@@ -113,7 +113,7 @@ export function AddPatient() {
         await createPatient.mutateAsync(payload);
       }
       toast.success(isEdit ? 'Patient record updated' : 'Patient record created');
-      navigate('/patients');
+      navigate(isEdit && id ? `/patients/${id}` : '/patients');
     } catch (err: any) {
       const detail = err?.response?.data?.errors?.[0]?.message ?? err?.response?.data?.error ?? 'Failed to save patient';
       toast.error(detail);
