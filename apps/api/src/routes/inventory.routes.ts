@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import { validate } from '../middlewares/validate.js'
-import { CreateMedicineSchema, UpdateMedicineSchema, StockInSchema, AdjustStockSchema, BatchIdsSchema } from '@ada/shared'
+import { validate, validateQuery } from '../middlewares/validate.js'
+import { CreateMedicineSchema, UpdateMedicineSchema, StockInSchema, AdjustStockSchema, BatchIdsSchema, MedicinesListQuerySchema } from '@ada/shared'
 import * as svc from '../services/inventory.service.js'
 
 const router = Router()
@@ -16,6 +16,13 @@ router.post('/bulk/delete', validate(BatchIdsSchema), async (req, res, next) => 
     try {
         const { ids } = req.body as { ids: string[] }
         res.json(await svc.deleteMedicines(req.user!.userId, ids))
+    } catch (err) { next(err) }
+})
+
+router.post('/bulk/archive', validate(BatchIdsSchema), async (req, res, next) => {
+    try {
+        const { ids } = req.body as { ids: string[] }
+        res.json(await svc.archiveMedicines(req.user!.userId, ids))
     } catch (err) { next(err) }
 })
 
@@ -37,10 +44,10 @@ router.get('/movements', async (req, res, next) => {
 
 // ─── Medicine catalog ──────────────────────────────────────────────────────────
 
-router.get('/', async (req, res, next) => {
+router.get('/', validateQuery(MedicinesListQuerySchema), async (req, res, next) => {
     try {
-        const includeInactive = req.query.includeInactive === 'true'
-        res.json(await svc.listMedicines({ includeInactive }))
+        const { includeInactive = false, search } = req.query as { includeInactive?: boolean; search?: string }
+        res.json(await svc.listMedicines({ includeInactive, search }))
     } catch (err) { next(err) }
 })
 

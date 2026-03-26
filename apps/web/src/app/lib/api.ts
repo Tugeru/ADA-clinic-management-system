@@ -149,7 +149,10 @@ export const visitApi = {
 // ─── Inventory ───────────────────────────────────────────────
 export const inventoryApi = {
   async getAll(params?: { search?: string }): Promise<Medicine[]> {
-    const { data } = await http.get('/medicines', { params });
+    const search = params?.search?.trim();
+    const { data } = await http.get('/medicines', {
+      params: search ? { search } : undefined,
+    });
     const items: any[] = Array.isArray(data) ? data : data.data ?? [];
     return items.map(mapMedicine);
   },
@@ -286,6 +289,11 @@ export const inventoryApi = {
 
   async bulkDelete(ids: string[]): Promise<{ succeeded: string[]; failed: { id: string; error: string }[] }> {
     const { data } = await http.post('/medicines/bulk/delete', { ids });
+    return data;
+  },
+
+  async bulkArchive(ids: string[]): Promise<{ succeeded: string[]; failed: { id: string; error: string }[] }> {
+    const { data } = await http.post('/medicines/bulk/archive', { ids });
     return data;
   },
 };

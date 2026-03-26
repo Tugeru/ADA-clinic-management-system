@@ -6,9 +6,21 @@ import { recordAudit } from './audit.service.js'
 
 // ─── Medicine catalog ──────────────────────────────────────────────────────────
 
-export async function listMedicines(filters?: { includeInactive?: boolean }) {
+export async function listMedicines(filters?: { includeInactive?: boolean; search?: string }) {
+    const normalizedSearch = filters?.search?.trim()
+
     const medicines = await prisma.medicine.findMany({
-        where: filters?.includeInactive ? {} : { isActive: true },
+        where: {
+            ...(filters?.includeInactive ? {} : { isActive: true }),
+            ...(normalizedSearch
+                ? {
+                    name: {
+                        contains: normalizedSearch,
+                        mode: 'insensitive',
+                    },
+                }
+                : {}),
+        },
         include: {
             batches: {
                 select: { id: true, batchNumber: true, expirationDate: true, quantityOnHand: true },
@@ -137,6 +149,46 @@ export async function restoreMedicines(userId: string, ids: string[]): Promise<B
         action: 'Restore',
         entity: 'Medicine',
         recordIdentifier: `${succeeded.length} medicine(s) restored`,
+        metadata: { ids, succeeded, failed },
+    })
+    return { succeeded, failed }
+}
+
+export async function archiveMedicines(userId: string, ids: string[]): Promise<BatchResult> {
+    const succeeded: string[] = []
+    const failed: { id: string; error: string }[] = []
+    for (const id of ids) {
+        try {
+            const medicine = await prisma.medicine.findUnique({ where: { id } })
+            if (!medicine) {
+                throw Object.assign(new Error('Medicine not found'), { status: 404 })
+            }
+            const archived = await prisma.medicine.update({
+                where: { id },
+                data: { isActive: false },
+            })
+            await recordAudit({
+                userId,
+                action: 'Archive',
+                entity: 'Medicine',
+                entityId: archived.id,
+                recordIdentifier: archived.name,
+            })
+            succeeded.push(id)
+        } catch (err: any) {
+            const message = err?.message ?? 'Unknown error'
+            const status = err?.status
+            failed.push({
+                id,
+                error: status === 404 ? 'Medicine not found' : message,
+            })
+        }
+    }
+    await recordAudit({
+        userId,
+        action: 'Archive',
+        entity: 'Medicine',
+        recordIdentifier: `${succeeded.length} medicine(s) archived`,
         metadata: { ids, succeeded, failed },
     })
     return { succeeded, failed }

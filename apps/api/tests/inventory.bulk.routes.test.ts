@@ -4,9 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const restoreMedicines = vi.fn()
 const deleteMedicines = vi.fn()
+const archiveMedicines = vi.fn()
+const listMedicines = vi.fn()
 
 vi.mock('../src/services/inventory.service.js', () => ({
-    listMedicines: vi.fn(),
+    listMedicines: (...args: any[]) => listMedicines(...args),
     getMedicineById: vi.fn(),
     createMedicine: vi.fn(),
     updateMedicine: vi.fn(),
@@ -14,6 +16,7 @@ vi.mock('../src/services/inventory.service.js', () => ({
     restoreMedicine: vi.fn(),
     restoreMedicines: (...args: any[]) => restoreMedicines(...args),
     deleteMedicines: (...args: any[]) => deleteMedicines(...args),
+    archiveMedicines: (...args: any[]) => archiveMedicines(...args),
     listStockMovements: vi.fn(),
     stockIn: vi.fn(),
     adjustStock: vi.fn(),
@@ -149,6 +152,88 @@ describe('Inventory (medicine) bulk routes', () => {
             expect(res.status).toBe(400)
             expect(res.body.error).toBe('Validation failed')
             expect(deleteMedicines).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('POST /api/medicines/bulk/archive', () => {
+        it('returns 200 with succeeded/failed when all ids succeed', async () => {
+            archiveMedicines.mockResolvedValue({ succeeded: [validId1, validId2], failed: [] })
+            const app = makeApp()
+
+            const res = await request(app)
+                .post('/api/medicines/bulk/archive')
+                .send({ ids: [validId1, validId2] })
+
+            expect(res.status).toBe(200)
+            expect(res.body).toEqual({ succeeded: [validId1, validId2], failed: [] })
+            expect(archiveMedicines).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111', [validId1, validId2])
+        })
+
+        it('returns 200 with partial failure when some ids fail', async () => {
+            archiveMedicines.mockResolvedValue({
+                succeeded: [validId1],
+                failed: [{ id: validId2, error: 'Medicine not found' }],
+            })
+            const app = makeApp()
+
+            const res = await request(app)
+                .post('/api/medicines/bulk/archive')
+                .send({ ids: [validId1, validId2] })
+
+            expect(res.status).toBe(200)
+            expect(res.body.succeeded).toEqual([validId1])
+            expect(res.body.failed).toHaveLength(1)
+            expect(res.body.failed[0]).toEqual({ id: validId2, error: 'Medicine not found' })
+        })
+
+        it('returns 400 when ids is empty', async () => {
+            const app = makeApp()
+
+            const res = await request(app)
+                .post('/api/medicines/bulk/archive')
+                .send({ ids: [] })
+
+            expect(res.status).toBe(400)
+            expect(res.body.error).toBe('Validation failed')
+            expect(archiveMedicines).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('GET /api/medicines', () => {
+        it('returns 200 and forwards search query to service', async () => {
+            listMedicines.mockResolvedValue([])
+            const app = makeApp()
+
+            const res = await request(app)
+                .get('/api/medicines')
+                .query({ search: 'para' })
+
+            expect(res.status).toBe(200)
+            expect(listMedicines).toHaveBeenCalledWith({ includeInactive: false, search: 'para' })
+        })
+
+        it('returns 200 and accepts includeInactive=true with search', async () => {
+            listMedicines.mockResolvedValue([])
+            const app = makeApp()
+
+            const res = await request(app)
+                .get('/api/medicines')
+                .query({ includeInactive: 'true', search: 'amo' })
+
+            expect(res.status).toBe(200)
+            expect(listMedicines).toHaveBeenCalledWith({ includeInactive: true, search: 'amo' })
+        })
+
+        it('returns 400 when includeInactive is invalid', async () => {
+            const app = makeApp()
+
+            const res = await request(app)
+                .get('/api/medicines')
+                .query({ includeInactive: 'yes' })
+
+            expect(res.status).toBe(400)
+            expect(res.body.error).toBe('Validation failed')
+            expect(listMedicines).not.toHaveBeenCalled()
         })
     })
 })

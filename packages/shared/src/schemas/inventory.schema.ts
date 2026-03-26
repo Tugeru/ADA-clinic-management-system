@@ -31,7 +31,16 @@ export const AdjustStockSchema = z.object({
     notes: z.string().optional(),
 })
 
+export const MedicinesListQuerySchema = z.object({
+    includeInactive: z
+        .enum(['true', 'false'])
+        .optional()
+        .transform((v) => v === 'true'),
+    search: z.string().trim().min(1).max(100).optional(),
+})
+
 export type CreateMedicineInput = z.infer<typeof CreateMedicineSchema>
 export type UpdateMedicineInput = z.infer<typeof UpdateMedicineSchema>
 export type StockInInput = z.infer<typeof StockInSchema>
 export type AdjustStockInput = z.infer<typeof AdjustStockSchema>
+export type MedicinesListQueryInput = z.infer<typeof MedicinesListQuerySchema>

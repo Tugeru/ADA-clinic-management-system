@@ -1,18 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Plus, Search, Package, ArrowRightLeft, PackagePlus, Archive, Trash2, Minus, MoreVertical, Download, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
+import { Checkbox } from '../components/ui/checkbox';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Skeleton } from '../components/ui/skeleton';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { useInventory, useArchiveMedicine, useDeleteMedicine, useMedicine } from '../lib/hooks';
+import { useInventory, useArchiveMedicine, useDeleteMedicine, useMedicine, useBulkArchiveMedicines, useBulkDeleteMedicines } from '../lib/hooks';
 import { ReduceStockDialog } from '../components/ReduceStockDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
+import { BulkActionsBar } from '../components/BulkActionsBar';
+import { BulkConfirmDialog } from '../components/BulkConfirmDialog';
+import { BulkPartialFailureDialog } from '../components/BulkPartialFailureDialog';
+import { useTableSelection } from '../hooks/useTableSelection';
 import { useNavigate } from 'react-router';
 import { downloadCsvExport } from '../lib/exportDownload';
 
@@ -28,6 +33,8 @@ export function Inventory() {
   const { data: medicines, isLoading } = useInventory(search);
   const archiveMutation = useArchiveMedicine();
   const deleteMutation = useDeleteMedicine();
+  const bulkArchiveMutation = useBulkArchiveMedicines();
+  const bulkDeleteMutation = useBulkDeleteMedicines();
 
   // Reduce stock dialog state
   const [reduceId, setReduceId] = useState<string | null>(null);
@@ -38,6 +45,30 @@ export function Inventory() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteName, setConfirmDeleteName] = useState('');
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [partialFailureOpen, setPartialFailureOpen] = useState(false);
+  const [lastBulkResult, setLastBulkResult] = useState<{ succeeded: string[]; failed: { id: string; error: string }[] } | null>(null);
+
+  const visibleMedicines = medicines ?? [];
+  const {
+    selectedIds,
+    setSelectedIds,
+    isSelected,
+    toggle,
+    selectAll,
+    clearSelection,
+    selectedCount,
+  } = useTableSelection(visibleMedicines, (m) => m.id);
+
+  useEffect(() => {
+    if (selectedIds.length === 0) return;
+    const visibleIds = new Set(visibleMedicines.map((m) => m.id));
+    const filteredSelection = selectedIds.filter((id) => visibleIds.has(id));
+    if (filteredSelection.length !== selectedIds.length) {
+      setSelectedIds(filteredSelection);
+    }
+  }, [visibleMedicines, selectedIds, setSelectedIds]);
 
   const totalItems = medicines?.length || 0;
   const lowStock = medicines?.filter(m => m.status === 'low').length || 0;
@@ -99,6 +130,50 @@ export function Inventory() {
     } finally {
       setExportingCsv(false);
     }
+  };
+
+  const handleBulkArchiveConfirm = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      const result = await bulkArchiveMutation.mutateAsync(selectedIds);
+      setBulkArchiveOpen(false);
+      if (result.failed.length > 0) {
+        setLastBulkResult(result);
+        setPartialFailureOpen(true);
+        setSelectedIds(selectedIds.filter((id) => !result.succeeded.includes(id)));
+        if (result.succeeded.length > 0) toast.success(`${result.succeeded.length} medicine(s) archived.`);
+      } else {
+        clearSelection();
+        toast.success(`${result.succeeded.length} medicine(s) archived.`);
+      }
+    } catch {
+      toast.error('Failed to archive medicines.');
+    }
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      const result = await bulkDeleteMutation.mutateAsync(selectedIds);
+      setBulkDeleteOpen(false);
+      if (result.failed.length > 0) {
+        setLastBulkResult(result);
+        setPartialFailureOpen(true);
+        setSelectedIds(selectedIds.filter((id) => !result.succeeded.includes(id)));
+        if (result.succeeded.length > 0) toast.success(`${result.succeeded.length} medicine(s) deleted.`);
+      } else {
+        clearSelection();
+        toast.success(`${result.succeeded.length} medicine(s) deleted.`);
+      }
+    } catch {
+      toast.error('Failed to delete medicines.');
+    }
+  };
+
+  const onPartialFailureClose = () => {
+    setPartialFailureOpen(false);
+    setLastBulkResult(null);
+    clearSelection();
   };
 
   return (
@@ -202,6 +277,62 @@ export function Inventory() {
         </div>
       </Card>
 
+      {/* Bulk actions */}
+      {selectedCount > 0 && (
+        <BulkActionsBar
+          selectedCount={selectedCount}
+          selectionLabel="medicines"
+          onClearSelection={clearSelection}
+          actions={[
+            { label: 'Archive', onClick: () => setBulkArchiveOpen(true), variant: 'outline' as const },
+            { label: 'Delete', onClick: () => setBulkDeleteOpen(true), variant: 'destructive' as const },
+          ]}
+        />
+      )}
+
+      <BulkConfirmDialog
+        open={bulkArchiveOpen}
+        onOpenChange={setBulkArchiveOpen}
+        title="Archive selected medicines?"
+        description={
+          <>
+            You are about to archive <span className="font-semibold text-slate-700">{selectedCount}</span> medicine(s).
+            Archived medicines will no longer appear in the active inventory but can be restored from the Archive page.
+          </>
+        }
+        confirmLabel="Yes, Archive"
+        onConfirm={handleBulkArchiveConfirm}
+        isLoading={bulkArchiveMutation.isPending}
+      />
+
+      <BulkConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title="Delete selected medicines?"
+        description={
+          <>
+            You are about to delete <span className="font-semibold text-slate-700">{selectedCount}</span> medicine(s).
+            Active medicines will be archived. Medicines already in Archive may be permanently deleted.
+          </>
+        }
+        confirmLabel="Yes, Delete"
+        onConfirm={handleBulkDeleteConfirm}
+        destructive
+        isLoading={bulkDeleteMutation.isPending}
+      />
+
+      <BulkPartialFailureDialog
+        open={partialFailureOpen}
+        onOpenChange={(open) => { if (!open) onPartialFailureClose(); }}
+        title="Some medicines could not be processed"
+        summary={
+          lastBulkResult
+            ? `${lastBulkResult.failed.length} medicine(s) could not be processed.`
+            : ''
+        }
+        failed={lastBulkResult?.failed ?? []}
+      />
+
       {/* Table */}
       <Card className="gap-0">
         {isLoading ? (
@@ -212,6 +343,23 @@ export function Inventory() {
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/80">
+                <TableHead className="w-10 pl-4 pr-0 h-9" scope="col">
+                  <Checkbox
+                    checked={
+                      visibleMedicines.length === 0
+                        ? false
+                        : visibleMedicines.every((m) => isSelected(m.id))
+                          ? true
+                          : 'indeterminate'
+                    }
+                    onCheckedChange={() => (
+                      visibleMedicines.length > 0 && visibleMedicines.every((m) => isSelected(m.id))
+                        ? clearSelection()
+                        : selectAll()
+                    )}
+                    aria-label="Select all medicines"
+                  />
+                </TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 pl-5 h-9">Medicine Name</TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Category</TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Stock</TableHead>
@@ -225,6 +373,13 @@ export function Inventory() {
             <TableBody>
               {medicines?.map(item => (
                 <TableRow key={item.id}>
+                  <TableCell className="w-10 pl-4 pr-0 py-3">
+                    <Checkbox
+                      checked={isSelected(item.id)}
+                      onCheckedChange={() => toggle(item.id)}
+                      aria-label={`Select ${item.name}`}
+                    />
+                  </TableCell>
                   <TableCell className="text-xs font-medium text-slate-800 pl-5 py-3">
                     <div className="flex items-center gap-2">
                       <Package size={13} className="text-slate-400" />{item.name}

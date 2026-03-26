@@ -465,6 +465,17 @@ export function useBulkDeleteMedicines() {
   });
 }
 
+export function useBulkArchiveMedicines() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => inventoryApi.bulkArchive(ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+      qc.invalidateQueries({ queryKey: queryKeys.archive.medicines() });
+    },
+  });
+}
+
 // ─── Dashboard Hooks ─────────────────────────────────────────
 export function useDashboardKPIs() {
   return useQuery({
