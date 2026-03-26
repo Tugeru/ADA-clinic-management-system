@@ -345,10 +345,14 @@ export const dashboardApi = {
 
 // ─── Analytics ───────────────────────────────────────────────
 export const analyticsApi = {
-  async getUsageRankings(period?: string): Promise<MedicineUsageRanking[]> {
-    const endDate = toDateStr(new Date());
-    const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
-    const startDate = toDateStr(new Date(Date.now() - days * 86400000));
+  async getUsageRankings(params?: { period?: string; startDate?: string; endDate?: string }): Promise<MedicineUsageRanking[]> {
+    const customStartDate = params?.startDate?.trim();
+    const customEndDate = params?.endDate?.trim();
+
+    const startDate = customStartDate && customEndDate
+      ? customStartDate
+      : toDateStr(new Date(Date.now() - ((params?.period === '7d' ? 7 : params?.period === '90d' ? 90 : 30) * 86400000)));
+    const endDate = customStartDate && customEndDate ? customEndDate : toDateStr(new Date());
     const { data } = await http.get('/reports/usage-rankings', { params: { startDate, endDate } });
     return (data.rankings ?? []) as MedicineUsageRanking[];
   },

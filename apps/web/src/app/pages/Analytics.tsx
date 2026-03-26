@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState, type ChangeEvent } from 'react';
 import { Calendar } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Skeleton } from '../components/ui/skeleton';
 import { cn } from '../components/ui/utils';
@@ -23,11 +27,54 @@ const rankBadgeColors: Record<number, string> = {
   3: 'bg-orange-100 text-orange-600 border-orange-200',
 };
 
+type UsageRange = {
+  startDate: string;
+  endDate: string;
+};
+
+function toDateInputValue(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getDefaultCustomRange(): UsageRange {
+  const end = new Date();
+  const start = new Date(end);
+  start.setDate(end.getDate() - 29);
+  return {
+    startDate: toDateInputValue(start),
+    endDate: toDateInputValue(end),
+  };
+}
+
+function getCustomRangeError(range: UsageRange) {
+  if (!range.startDate || !range.endDate) {
+    return 'Select both dates to load usage rankings.';
+  }
+  if (range.startDate > range.endDate) {
+    return 'Start date must be on or before end date.';
+  }
+  return '';
+}
+
 export function Analytics() {
   const [view, setView] = useState<AnalyticsView>('summary');
   const [period, setPeriod] = useState<TimePeriod>('30d');
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customRange, setCustomRange] = useState<UsageRange>(getDefaultCustomRange);
 
-  const { data: rankings, isLoading: rankingsLoading } = useUsageRankings(period);
+  const customRangeError = getCustomRangeError(customRange);
+  const customRangeIsValid = customRangeError === '';
+
+  const usageRankingsParams = useMemo(
+    () => (
+      period === 'custom'
+        ? { period, startDate: customRange.startDate, endDate: customRange.endDate, enabled: customRangeIsValid }
+        : { period }
+    ),
+    [period, customRange.startDate, customRange.endDate, customRangeIsValid],
+  );
+
+  const { data: rankings, isLoading: rankingsLoading } = useUsageRankings(usageRankingsParams);
   const { data: kpis, isLoading: kpiLoading } = useDashboardKPIs();
   const { data: lowStock, isLoading: lowStockLoading } = useLowStock();
 
@@ -68,7 +115,15 @@ export function Analytics() {
           rankings={rankings || []}
           isLoading={rankingsLoading}
           period={period}
-          onPeriodChange={setPeriod}
+          customOpen={customOpen}
+          customRange={customRange}
+          customRangeError={customRangeError}
+          onCustomOpenChange={setCustomOpen}
+          onCustomRangeChange={setCustomRange}
+          onPeriodChange={(nextPeriod) => {
+            setPeriod(nextPeriod);
+            if (nextPeriod !== 'custom') setCustomOpen(false);
+          }}
           totalDispensed={totalDispensed}
           maxDispensed={maxDispensed}
         />
@@ -184,6 +239,11 @@ function UsageRankingsView({
   rankings,
   isLoading,
   period,
+  customOpen,
+  customRange,
+  customRangeError,
+  onCustomOpenChange,
+  onCustomRangeChange,
   onPeriodChange,
   totalDispensed,
   maxDispensed,
@@ -191,6 +251,11 @@ function UsageRankingsView({
   rankings: any[];
   isLoading: boolean;
   period: TimePeriod;
+  customOpen: boolean;
+  customRange: UsageRange;
+  customRangeError: string;
+  onCustomOpenChange: (open: boolean) => void;
+  onCustomRangeChange: (range: UsageRange) => void;
   onPeriodChange: (p: TimePeriod) => void;
   totalDispensed: number;
   maxDispensed: number;
@@ -204,7 +269,7 @@ function UsageRankingsView({
           <p className="text-sm text-slate-500 mt-1">Track medicine consumption trends to optimize stock levels.</p>
         </div>
         <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-          {(['7d', '30d', '90d', 'custom'] as TimePeriod[]).map((p) => (
+          {(['7d', '30d', '90d'] as const).map((p) => (
             <button
               key={p}
               onClick={() => onPeriodChange(p)}
@@ -213,13 +278,61 @@ function UsageRankingsView({
                 period === p ? "bg-teal-600 text-white shadow-sm" : "text-slate-600 hover:bg-white"
               )}
             >
-              {p === 'custom' ? (
-                <span className="flex items-center gap-1"><Calendar size={11} /> Custom</span>
-              ) : (
-                periodLabels[p]
-              )}
+              {periodLabels[p]}
             </button>
           ))}
+          <Popover
+            open={period === 'custom' && customOpen}
+            onOpenChange={(open: boolean) => {
+              onCustomOpenChange(open);
+              if (open) onPeriodChange('custom');
+            }}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onPeriodChange('custom')}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-md transition-colors h-auto",
+                  period === 'custom' ? "bg-teal-600 text-white shadow-sm hover:bg-teal-600" : "text-slate-600 hover:bg-white hover:text-slate-700"
+                )}
+              >
+                <span className="flex items-center gap-1"><Calendar size={11} /> Custom</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 space-y-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Custom date range</p>
+                <p className="text-xs text-slate-500 mt-1">Usage rankings refresh automatically when both dates are valid.</p>
+              </div>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="analytics-custom-start" className="text-xs text-slate-600">Start Date</Label>
+                  <Input
+                    id="analytics-custom-start"
+                    type="date"
+                    value={customRange.startDate}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => onCustomRangeChange({ ...customRange, startDate: e.target.value })}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="analytics-custom-end" className="text-xs text-slate-600">End Date</Label>
+                  <Input
+                    id="analytics-custom-end"
+                    type="date"
+                    value={customRange.endDate}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => onCustomRangeChange({ ...customRange, endDate: e.target.value })}
+                    className="h-9 text-xs"
+                  />
+                </div>
+              </div>
+              <p className={cn("text-xs", customRangeError ? "text-rose-600" : "text-emerald-600")} aria-live="polite">
+                {customRangeError || 'Range is valid and rankings are updating automatically.'}
+              </p>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 

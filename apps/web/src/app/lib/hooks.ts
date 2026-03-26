@@ -2,7 +2,7 @@
 // TanStack Query hooks for data fetching
 // ─────────────────────────────────────────────────────────────
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { patientApi, visitApi, inventoryApi, dashboardApi, analyticsApi, archiveApi, patientVisitsApi, auditLogApi, referenceDataApi, userApi } from './api';
 import type { MedicineType } from './types';
 import type { PatientFormData, VisitFormData, StockInFormData, MedicineFormData, AuditAction, AuditEntity } from './types';
@@ -36,7 +36,8 @@ export const queryKeys = {
     charts: ['dashboard', 'charts'] as const,
   },
   analytics: {
-    usageRankings: (period?: string) => ['analytics', 'usageRankings', period] as const,
+    usageRankings: (params?: { period?: string; startDate?: string; endDate?: string }) =>
+      ['analytics', 'usageRankings', params] as const,
   },
   archive: {
     patients: (params?: Record<string, any>) => ['archive', 'patients', params] as const,
@@ -499,10 +500,13 @@ export function useDashboardCharts() {
 }
 
 // ─── Analytics Hooks ─────────────────────────────────────────
-export function useUsageRankings(period?: string) {
+export function useUsageRankings(params?: { period?: string; startDate?: string; endDate?: string; enabled?: boolean }) {
+  const { enabled = true, ...queryParams } = params ?? {};
   return useQuery({
-    queryKey: queryKeys.analytics.usageRankings(period),
-    queryFn: () => analyticsApi.getUsageRankings(period),
+    queryKey: queryKeys.analytics.usageRankings(queryParams),
+    queryFn: () => analyticsApi.getUsageRankings(queryParams),
+    enabled,
+    placeholderData: keepPreviousData,
   });
 }
 
