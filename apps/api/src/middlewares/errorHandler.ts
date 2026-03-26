@@ -12,7 +12,12 @@ export function errorHandler(
     console.error('[ErrorHandler]', err.message)
 
     const status = (err as any).status || 500
-    res.status(status).json({
+    const payload: Record<string, unknown> = {
         error: status === 500 ? 'Internal server error' : err.message,
-    })
+    }
+
+    if ((err as any).code) payload.code = (err as any).code
+    if ((err as any).conflict) payload.conflict = (err as any).conflict
+
+    res.status(status).json(payload)
 }

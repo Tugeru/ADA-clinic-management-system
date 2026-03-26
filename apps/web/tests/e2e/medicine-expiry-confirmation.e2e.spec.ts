@@ -24,9 +24,10 @@ test.describe('Medicine expiry confirmation modal', () => {
 
     await setAuthenticatedSession(page);
 
-    await page.route('**/api/medicines', async (route) => {
+    await page.route('**/api/medicines**', async (route) => {
+      const url = new URL(route.request().url());
       const method = route.request().method();
-      if (method === 'GET') {
+      if (method === 'GET' && url.pathname === '/api/medicines') {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -35,7 +36,7 @@ test.describe('Medicine expiry confirmation modal', () => {
         return;
       }
 
-      if (method === 'POST') {
+      if (method === 'POST' && url.pathname === '/api/medicines') {
         createCalled = true;
         const body = await route.request().postDataJSON() as { name: string };
         await route.fulfill({

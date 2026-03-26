@@ -1,8 +1,33 @@
 import prisma from '../config/db.js'
+import { Prisma } from '@prisma/client'
 import { TransactionType, EXPIRY_WARNING_DAYS } from '@ada/shared'
 import type { BatchResult } from '@ada/shared'
 import type { CreateMedicineInput, UpdateMedicineInput, StockInInput, AdjustStockInput } from '@ada/shared'
 import { recordAudit } from './audit.service.js'
+
+function normalizeMedicineName(name: string) {
+    return name.trim().toLowerCase()
+}
+
+function medicineConflictError(message: string, code: string, conflict: { id: string; name: string; isActive: boolean }) {
+    return Object.assign(new Error(message), {
+        status: 409,
+        code,
+        conflict,
+    })
+}
+
+async function findMedicineByNormalizedName(name: string, excludeId?: string) {
+    const normalizedName = normalizeMedicineName(name)
+    return prisma.$queryRaw<Array<{ id: string; name: string; isActive: boolean }>>`
+        select id, name, is_active as "isActive"
+        from medicines
+        where lower(btrim(name)) = ${normalizedName}
+          ${excludeId ? Prisma.sql`and id <> ${excludeId}` : Prisma.empty}
+        order by updated_at desc
+        limit 1
+    `
+}
 
 // ─── Medicine catalog ──────────────────────────────────────────────────────────
 
@@ -55,28 +80,98 @@ export async function getMedicineById(id: string) {
 }
 
 export async function createMedicine(userId: string, data: CreateMedicineInput) {
-    const created = await prisma.medicine.create({ data })
-    await recordAudit({
-        userId,
-        action: 'Create',
-        entity: 'Medicine',
-        entityId: created.id,
-        recordIdentifier: created.name,
-    })
-    return created
+    const name = data.name.trim()
+    const existing = await findMedicineByNormalizedName(name)
+    const existingMedicine = existing[0]
+
+    if (existingMedicine) {
+        throw medicineConflictError(
+            existingMedicine.isActive
+                ? 'An active medicine with the same name already exists.'
+                : 'An archived medicine with the same name already exists.',
+            existingMedicine.isActive ? 'ACTIVE_MEDICINE_NAME_CONFLICT' : 'ARCHIVED_MEDICINE_NAME_CONFLICT',
+            existingMedicine,
+        )
+    }
+
+    try {
+        const created = await prisma.medicine.create({
+            data: {
+                ...data,
+                name,
+            },
+        })
+        await recordAudit({
+            userId,
+            action: 'Create',
+            entity: 'Medicine',
+            entityId: created.id,
+            recordIdentifier: created.name,
+        })
+        return created
+    } catch (err: any) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+            const fallback = (await findMedicineByNormalizedName(name))[0]
+            if (fallback) {
+                throw medicineConflictError(
+                    fallback.isActive
+                        ? 'An active medicine with the same name already exists.'
+                        : 'An archived medicine with the same name already exists.',
+                    fallback.isActive ? 'ACTIVE_MEDICINE_NAME_CONFLICT' : 'ARCHIVED_MEDICINE_NAME_CONFLICT',
+                    fallback,
+                )
+            }
+        }
+        throw err
+    }
 }
 
 export async function updateMedicine(userId: string, id: string, data: UpdateMedicineInput) {
-    const updated = await prisma.medicine.update({ where: { id }, data })
-    await recordAudit({
-        userId,
-        action: 'Edit',
-        entity: 'Medicine',
-        entityId: updated.id,
-        recordIdentifier: updated.name,
-        metadata: { fields: Object.keys(data ?? {}) },
-    })
-    return updated
+    const nextData = {
+        ...data,
+        ...(data.name ? { name: data.name.trim() } : {}),
+    }
+
+    if (nextData.name) {
+        const existing = await findMedicineByNormalizedName(nextData.name, id)
+        const existingMedicine = existing[0]
+        if (existingMedicine) {
+            throw medicineConflictError(
+                existingMedicine.isActive
+                    ? 'An active medicine with the same name already exists.'
+                    : 'An archived medicine with the same name already exists.',
+                existingMedicine.isActive ? 'ACTIVE_MEDICINE_NAME_CONFLICT' : 'ARCHIVED_MEDICINE_NAME_CONFLICT',
+                existingMedicine,
+            )
+        }
+    }
+
+    try {
+        const updated = await prisma.medicine.update({ where: { id }, data: nextData })
+        await recordAudit({
+            userId,
+            action: 'Edit',
+            entity: 'Medicine',
+            entityId: updated.id,
+            recordIdentifier: updated.name,
+            metadata: { fields: Object.keys(data ?? {}) },
+        })
+        return updated
+    } catch (err: any) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002' && nextData.name) {
+            const fallback = (await findMedicineByNormalizedName(nextData.name, id))[0]
+            if (fallback) {
+                throw medicineConflictError(
+                    fallback.isActive
+                        ? 'An active medicine with the same name already exists.'
+                        : 'An archived medicine with the same name already exists.',
+                    fallback.isActive ? 'ACTIVE_MEDICINE_NAME_CONFLICT' : 'ARCHIVED_MEDICINE_NAME_CONFLICT',
+                    fallback,
+                )
+            }
+        }
+        throw err
+    }
 }
 
 export async function deleteMedicine(userId: string, id: string) {
@@ -117,6 +212,23 @@ export async function restoreMedicine(userId: string, id: string) {
     if (!medicine) {
         throw Object.assign(new Error('Medicine not found'), { status: 404 })
     }
+
+    const conflict = await prisma.medicine.findFirst({
+        where: {
+            id: { not: id },
+            name: { equals: medicine.name.trim(), mode: 'insensitive' },
+            isActive: true,
+        },
+    })
+
+    if (conflict) {
+        throw medicineConflictError(
+            'An active medicine with the same name already exists.',
+            'ACTIVE_MEDICINE_NAME_CONFLICT',
+            conflict,
+        )
+    }
+
     const restored = await prisma.medicine.update({ where: { id }, data: { isActive: true } })
     await recordAudit({
         userId,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { Package2, ArrowLeft } from 'lucide-react';
 import { Card } from '../components/ui/card';
@@ -7,10 +7,10 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { useCreateMedicine, useStockIn, useInventory } from '../lib/hooks';
+import { useCreateMedicine, useStockIn, useInventory, useArchivedMedicines, useRestoreMedicine } from '../lib/hooks';
 import type { MedicineType } from '../lib/types';
 import { toast } from 'sonner';
-import { EXPIRY_WARNING_DAYS } from '@ada/shared';
+import { EXPIRY_WARNING_DAYS, MedicineNameConflictResponseSchema } from '@ada/shared';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,11 +28,17 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function normalizeMedicineName(name: string) {
+  return name.trim().toLowerCase();
+}
+
 export function AddMedicine() {
   const navigate = useNavigate();
   const createMutation = useCreateMedicine();
   const stockInMutation = useStockIn();
+  const restoreMutation = useRestoreMedicine();
   const { data: existing } = useInventory();
+  const { data: archivedMedicines } = useArchivedMedicines();
 
   const [name, setName] = useState('');
   const [type, setType] = useState<string>('');
@@ -43,11 +49,19 @@ export function AddMedicine() {
 
   const [expiryError, setExpiryError] = useState('');
   const [amountError, setAmountError] = useState('');
+  const [nameError, setNameError] = useState('');
 
   const [showExpiryTodayConfirm, setShowExpiryTodayConfirm] = useState(false);
   const [showExpiryWarningConfirm, setShowExpiryWarningConfirm] = useState(false);
+  const [archivedConflict, setArchivedConflict] = useState<{ id: string; name: string } | null>(null);
 
-  const nameExists = existing?.some(m => m.name.toLowerCase() === name.toLowerCase()) || false;
+  const normalizedName = normalizeMedicineName(name);
+  const activeNameExists = Boolean(
+    normalizedName && existing?.some((m) => normalizeMedicineName(m.name) === normalizedName),
+  );
+  const archivedNameConflict = archivedMedicines?.data?.find(
+    (m: any) => normalizeMedicineName(m.name) === normalizedName,
+  ) as { id: string; name: string } | undefined;
   const isPending = createMutation.isPending || stockInMutation.isPending;
 
   const validate = (): boolean => {
@@ -84,47 +98,73 @@ export function AddMedicine() {
   }
 
   const doCreateAndInitialStockIn = async () => {
+    const created = await createMutation.mutateAsync({
+      name,
+      unit: '',
+      dosage: '',
+      type: (type as MedicineType) || '',
+      threshold: Number(threshold) || 0,
+      notes: notes || undefined,
+    });
+
     try {
-      const created = await createMutation.mutateAsync({
-        name,
-        unit: '',
-        dosage: '',
-        type: (type as MedicineType) || '',
-        threshold: Number(threshold) || 0,
-        notes: notes || undefined,
+      await stockInMutation.mutateAsync({
+        medicineId: String(created.id),
+        quantity: Number(amount),
+        expirationDate: expiryDate,
       });
+      toast.success('Medicine added with initial stock!');
+    } catch (err: any) {
+      const data = err?.response?.data;
+      const details = Array.isArray(data?.details) ? data.details : undefined;
+      const detailMsg = details?.length
+        ? details
+            .map((d: any) => d?.message)
+            .filter(Boolean)
+            .join(': ')
+        : undefined;
 
-      try {
-        await stockInMutation.mutateAsync({
-          medicineId: String(created.id),
-          quantity: Number(amount),
-          expirationDate: expiryDate,
-        });
-        toast.success('Medicine added with initial stock!');
-      } catch (err: any) {
-        const data = err?.response?.data;
-        const details = Array.isArray(data?.details) ? data.details : undefined;
-        const detailMsg = details?.length
-          ? details
-              .map((d: any) => d?.message)
-              .filter(Boolean)
-              .join(': ')
-          : undefined;
+      toast.error(
+        detailMsg ?? 'Medicine was added, but initial stock-in failed. You can retry from the Inventory page.',
+      );
+    }
 
-        toast.error(
-          detailMsg ?? 'Medicine was added, but initial stock-in failed. You can retry from the Inventory page.',
-        );
+    navigate('/inventory');
+  };
+
+  const handleCreateFlow = async () => {
+    try {
+      await doCreateAndInitialStockIn();
+    } catch (err: any) {
+      const parsed = MedicineNameConflictResponseSchema.safeParse(err?.response?.data);
+      if (parsed.success && parsed.data.code === 'ARCHIVED_MEDICINE_NAME_CONFLICT') {
+        setArchivedConflict({ id: parsed.data.conflict.id, name: parsed.data.conflict.name });
+        return;
       }
-
-      navigate('/inventory');
-    } catch {
+      if (parsed.success && parsed.data.code === 'ACTIVE_MEDICINE_NAME_CONFLICT') {
+        setNameError('Medicine already exists in active inventory.');
+        return;
+      }
       toast.error('Failed to add medicine.');
     }
   };
 
   const handleSubmit = async () => {
-    if (!name || nameExists) return;
+    if (!name.trim()) {
+      setNameError('Medicine name is required.');
+      return;
+    }
+    if (activeNameExists) {
+      setNameError('Medicine already exists in active inventory.');
+      return;
+    }
+    setNameError('');
     if (!validate()) return;
+
+    if (archivedNameConflict) {
+      setArchivedConflict({ id: archivedNameConflict.id, name: archivedNameConflict.name });
+      return;
+    }
 
     const diffDays = diffDaysFromToday(expiryDate);
     if (diffDays < 0) return; // defensive; validate should already block
@@ -139,14 +179,32 @@ export function AddMedicine() {
       return;
     }
 
-    await doCreateAndInitialStockIn();
+    await handleCreateFlow();
+  };
+
+  const handleRestoreArchivedMedicine = async () => {
+    if (!archivedConflict) return;
+    try {
+      await restoreMutation.mutateAsync(archivedConflict.id);
+      toast.success(`${archivedConflict.name} restored to active inventory.`);
+      setArchivedConflict(null);
+      navigate(`/inventory/${archivedConflict.id}`);
+    } catch {
+      toast.error('Failed to restore archived medicine.');
+    }
+  };
+
+  const handleUpdateArchivedMedicine = () => {
+    if (!archivedConflict) return;
+    setArchivedConflict(null);
+    navigate(`/inventory/${archivedConflict.id}/edit`);
   };
 
   return (
     <div className="max-w-2xl mx-auto">
       <AlertDialog
         open={showExpiryTodayConfirm}
-        onOpenChange={(open) => setShowExpiryTodayConfirm(open)}
+        onOpenChange={(open: boolean) => setShowExpiryTodayConfirm(open)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -160,7 +218,7 @@ export function AddMedicine() {
             <AlertDialogAction
               onClick={async () => {
                 setShowExpiryTodayConfirm(false);
-                await doCreateAndInitialStockIn();
+                await handleCreateFlow();
               }}
               disabled={isPending}
               className="bg-red-600 hover:bg-red-700 text-white"
@@ -172,8 +230,52 @@ export function AddMedicine() {
       </AlertDialog>
 
       <AlertDialog
+        open={Boolean(archivedConflict)}
+        onOpenChange={(open: boolean) => { if (!open) setArchivedConflict(null); }}
+      >
+        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-[560px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archived medicine already exists</AlertDialogTitle>
+            <AlertDialogDescription className="break-words text-left leading-relaxed">
+              An archived medicine with the same name was found.
+              {archivedConflict ? (
+                <span className="mt-2 block break-words font-medium text-slate-700">
+                  {archivedConflict.name}
+                </span>
+              ) : null}
+              Choose whether to restore that record or open it for updating instead of creating a duplicate.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 md:flex-row md:flex-wrap md:justify-end">
+            <AlertDialogAction
+              onClick={handleRestoreArchivedMedicine}
+              disabled={restoreMutation.isPending}
+              className="h-auto w-full whitespace-normal py-2 text-center bg-teal-600 text-white hover:bg-teal-700 md:w-auto"
+            >
+              {restoreMutation.isPending ? 'Restoring…' : 'Restore archived medicine'}
+            </AlertDialogAction>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleUpdateArchivedMedicine}
+              disabled={restoreMutation.isPending}
+              className="h-auto w-full whitespace-normal py-2 text-center md:w-auto"
+            >
+              Update archived medicine
+            </Button>
+            <AlertDialogCancel
+              className="h-auto w-full whitespace-normal py-2 text-center md:w-auto"
+              onClick={() => setArchivedConflict(null)}
+            >
+              Cancel and return to form
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
         open={showExpiryWarningConfirm}
-        onOpenChange={(open) => setShowExpiryWarningConfirm(open)}
+        onOpenChange={(open: boolean) => setShowExpiryWarningConfirm(open)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -189,7 +291,7 @@ export function AddMedicine() {
             <AlertDialogAction
               onClick={async () => {
                 setShowExpiryWarningConfirm(false);
-                await doCreateAndInitialStockIn();
+                await handleCreateFlow();
               }}
               disabled={isPending}
               className="bg-amber-600 hover:bg-amber-700 text-white"
@@ -221,12 +323,12 @@ export function AddMedicine() {
             </Label>
             <Input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => { setName(e.target.value); setNameError(''); }}
               placeholder="e.g. Paracetamol 500mg"
-              className={`mt-1.5 h-11 ${nameExists ? 'border-red-500 focus-visible:ring-red-200' : ''}`}
+              className={`mt-1.5 h-11 ${nameError || activeNameExists ? 'border-red-500 focus-visible:ring-red-200' : ''}`}
             />
-            {nameExists && (
-              <p className="text-xs text-red-500 mt-1">Medicine already exists in inventory.</p>
+            {(nameError || activeNameExists) && (
+              <p className="text-xs text-red-500 mt-1">{nameError || 'Medicine already exists in inventory.'}</p>
             )}
           </div>
 
@@ -239,7 +341,7 @@ export function AddMedicine() {
               <Input
                 type="date"
                 value={expiryDate}
-                onChange={(e) => { setExpiryDate(e.target.value); setExpiryError(''); }}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => { setExpiryDate(e.target.value); setExpiryError(''); }}
                 min={todayStr()}
                 className={`mt-1.5 h-11 ${expiryError ? 'border-red-500 focus-visible:ring-red-200' : ''}`}
               />
@@ -256,7 +358,7 @@ export function AddMedicine() {
               <Input
                 type="number"
                 value={amount}
-                onChange={(e) => { setAmount(e.target.value); setAmountError(''); }}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => { setAmount(e.target.value); setAmountError(''); }}
                 placeholder="e.g. 100"
                 min={1}
                 step={1}
@@ -290,7 +392,7 @@ export function AddMedicine() {
               <Input
                 type="number"
                 value={threshold}
-                onChange={(e) => setThreshold(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setThreshold(e.target.value)}
                 placeholder="Minimum stock quantity"
                 className="mt-1.5 h-11"
                 min={0}
@@ -305,7 +407,7 @@ export function AddMedicine() {
             </Label>
             <Textarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
               placeholder="Add any additional notes about storage or handling..."
               className="mt-1.5 min-h-[80px]"
             />
@@ -320,7 +422,7 @@ export function AddMedicine() {
           <Button
             className="bg-teal-600 hover:bg-teal-700 gap-2 text-sm px-6"
             onClick={handleSubmit}
-            disabled={!name || nameExists || isPending}
+            disabled={!name.trim() || activeNameExists || isPending}
           >
             <Package2 size={14} /> {isPending ? 'Saving...' : 'Save Medicine'}
           </Button>

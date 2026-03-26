@@ -11,6 +11,7 @@ vi.mock('../src/config/db.js', () => ({
     medicine: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       update: vi.fn(),
     },
     auditLog: {
@@ -33,6 +34,7 @@ const db = prisma as unknown as {
   medicine: {
     findMany: ReturnType<typeof vi.fn>
     findUnique: ReturnType<typeof vi.fn>
+    findFirst: ReturnType<typeof vi.fn>
     update: ReturnType<typeof vi.fn>
   }
 }

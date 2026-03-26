@@ -7,6 +7,22 @@ export const CreateMedicineSchema = z.object({
     reorderThreshold: z.number().int().min(0).default(0),
 })
 
+export const MedicineNameConflictCodeSchema = z.enum([
+    'ACTIVE_MEDICINE_NAME_CONFLICT',
+    'ARCHIVED_MEDICINE_NAME_CONFLICT',
+])
+
+export const MedicineNameConflictSchema = z.object({
+    id: z.string().uuid(),
+    name: z.string().min(1),
+    isActive: z.boolean(),
+})
+
+export const MedicineNameConflictResponseSchema = z.object({
+    code: MedicineNameConflictCodeSchema,
+    conflict: MedicineNameConflictSchema,
+})
+
 export const UpdateMedicineSchema = CreateMedicineSchema.partial().extend({
     isActive: z.boolean().optional(),
 })
@@ -44,3 +60,6 @@ export type UpdateMedicineInput = z.infer<typeof UpdateMedicineSchema>
 export type StockInInput = z.infer<typeof StockInSchema>
 export type AdjustStockInput = z.infer<typeof AdjustStockSchema>
 export type MedicinesListQueryInput = z.infer<typeof MedicinesListQuerySchema>
+export type MedicineNameConflictCode = z.infer<typeof MedicineNameConflictCodeSchema>
+export type MedicineNameConflict = z.infer<typeof MedicineNameConflictSchema>
+export type MedicineNameConflictResponse = z.infer<typeof MedicineNameConflictResponseSchema>
