@@ -346,7 +346,7 @@ function UsageRankingsView({
           <Card className="lg:col-span-3 gap-0">
             <div className="p-5 flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-800">Top Medicines by Volume</h3>
-              <button className="text-xs text-teal-600 font-medium hover:text-teal-700">View Full Report</button>
+
             </div>
             <Table>
               <TableHeader>
