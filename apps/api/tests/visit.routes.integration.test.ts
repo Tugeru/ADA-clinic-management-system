@@ -133,3 +133,101 @@ describe('POST /api/visits integration (FEFO multi-batch)', () => {
     )
   })
 })
+
+describe('PATCH /api/visits/:id integration (medicine reconciliation)', () => {
+  const mockedPrisma = prisma as unknown as { $transaction: ReturnType<typeof vi.fn> }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('restores previous stock, re-deducts updated medicines, and preserves release fields', async () => {
+    const stock = new Map<string, number>([
+      ['old-batch', 2],
+      ['new-batch', 5],
+    ])
+
+    const tx = {
+      visit: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'visit-1',
+          visitMedicines: [{ batchId: 'old-batch', quantityDispensed: 2 }],
+        }),
+        update: vi.fn().mockResolvedValue({ id: 'visit-1' }),
+      },
+      visitMedicine: {
+        findMany: vi.fn().mockResolvedValue([{ batchId: 'old-batch', quantityDispensed: 2 }]),
+        deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+        create: vi.fn().mockResolvedValue({}),
+      },
+      inventoryBatch: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'new-batch', quantityOnHand: stock.get('new-batch') ?? 0, expirationDate: new Date('2026-03-20'), createdAt: new Date('2026-03-01') },
+        ]),
+        findUniqueOrThrow: vi.fn(),
+        update: vi.fn().mockImplementation(async ({ where, data }: any) => {
+          const current = stock.get(where.id) ?? 0
+          stock.set(where.id, current + (data.quantityOnHand?.increment ?? 0))
+          return { id: where.id }
+        }),
+        updateMany: vi.fn().mockImplementation(async ({ where, data }: any) => {
+          const current = stock.get(where.id) ?? 0
+          const next = current - (data.quantityOnHand?.decrement ?? 0)
+          if (current >= (data.quantityOnHand?.decrement ?? 0)) {
+            stock.set(where.id, next)
+            return { count: 1 }
+          }
+          return { count: 0 }
+        }),
+      },
+      stockTransaction: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+        create: vi.fn().mockResolvedValue({}),
+      },
+    }
+
+    mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
+
+    const app = makeApp()
+    const res = await request(app)
+      .patch('/api/visits/visit-1')
+      .send({
+        disposition: 'SENT_HOME',
+        medicines: [{ medicineId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', quantity: 3 }],
+        release: {
+          releasedToName: 'Maria Dela Cruz',
+          releasedToRelationship: 'Mother',
+          releaseTime: '2026-03-10T08:30:00.000Z',
+        },
+      })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ id: 'visit-1' })
+
+    expect(tx.visitMedicine.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { visitId: 'visit-1' } }))
+    expect(tx.stockTransaction.deleteMany).toHaveBeenCalledWith({ where: { referenceVisitId: 'visit-1' } })
+    expect(tx.visitMedicine.deleteMany).toHaveBeenCalledWith({ where: { visitId: 'visit-1' } })
+    expect(tx.visit.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'visit-1' },
+      data: expect.objectContaining({
+        disposition: 'SENT_HOME',
+        releasedToName: 'Maria Dela Cruz',
+        releasedToRelationship: 'Mother',
+      }),
+    }))
+    expect(tx.inventoryBatch.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'old-batch' } }))
+    expect(tx.inventoryBatch.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'new-batch',
+        quantityOnHand: { gte: 3 },
+      },
+      data: {
+        quantityOnHand: { decrement: 3 },
+      },
+    })
+    expect(stock.get('old-batch')).toBe(4)
+    expect(stock.get('new-batch')).toBe(2)
+    expect(tx.stockTransaction.create).toHaveBeenCalled()
+    expect(tx.visitMedicine.create).toHaveBeenCalled()
+  })
+})

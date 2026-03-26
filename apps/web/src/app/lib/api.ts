@@ -126,6 +126,21 @@ export const visitApi = {
       bloodPressure: payload.bloodPressure,
       heartRate: payload.heartRate,
       respiratoryRate: payload.respiratoryRate,
+      release: payload.notifiedPerson || payload.guardianName
+        ? {
+            releasedToName: payload.notifiedPerson ?? payload.guardianName,
+            releasedToRelationship: payload.relationship || undefined,
+            releaseTime: payload.releaseTime
+              ? new Date(`${(typeof payload.timeIn === 'string' ? payload.timeIn.slice(0, 10) : toDateStr(new Date()))}T${payload.releaseTime}:00`).toISOString()
+              : undefined,
+          }
+        : undefined,
+      medicines: (payload.medicines ?? [])
+        .filter((m: any) => m.medicineId?.trim() && m.quantity > 0)
+        .map((m: any) => ({
+          medicineId: m.medicineId.trim(),
+          quantity: Number(m.quantity),
+        })),
     });
     return mapVisit(data);
   },

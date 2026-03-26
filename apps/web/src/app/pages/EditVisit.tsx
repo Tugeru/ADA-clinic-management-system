@@ -34,6 +34,26 @@ import {
 
 type MedRow = { medicineId: string; quantity: number };
 
+function toTimeInputValue(value: string) {
+  if (!value) return '';
+  if (/^\d{2}:\d{2}$/.test(value)) return value;
+
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*([AP]M)$/i);
+  if (!match) return '';
+
+  let hours = Number(match[1]);
+  const minutes = match[2];
+  const period = match[3].toUpperCase();
+
+  if (period === 'AM') {
+    hours = hours === 12 ? 0 : hours;
+  } else if (hours !== 12) {
+    hours += 12;
+  }
+
+  return `${String(hours).padStart(2, '0')}:${minutes}`;
+}
+
 export function EditVisit() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -104,7 +124,7 @@ export function EditVisit() {
       // Release info
       if (visit.releasedTo) setNotifiedPerson(visit.releasedTo);
       if (visit.releasedToRelationship) setRelationship(visit.releasedToRelationship);
-      if (visit.releaseTime) setReleaseTime(visit.releaseTime);
+      if (visit.releaseTime) setReleaseTime(toTimeInputValue(visit.releaseTime));
     }
   }, [visit]);
 
@@ -180,6 +200,9 @@ export function EditVisit() {
         heartRate?: string;
         respiratoryRate?: string;
         medicines?: { medicineId: string; quantity: number }[];
+        notifiedPerson?: string;
+        relationship?: string;
+        releaseTime?: string;
       } = {};
       const visitDateStr = visit?.date || new Date().toISOString().slice(0, 10);
       let dateISO: string;
@@ -218,6 +241,12 @@ export function EditVisit() {
           medicineId: m.medicineId.trim(),
           quantity: m.quantity,
         }));
+
+      if (disposition === 'sentHome' && notifiedPerson.trim()) {
+        payload.notifiedPerson = notifiedPerson.trim();
+        payload.relationship = relationship.trim();
+        payload.releaseTime = releaseTime.trim();
+      }
 
       await updateMutation.mutateAsync({ id, data: payload });
       toast.success('Visit updated successfully');

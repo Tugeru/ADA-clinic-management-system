@@ -168,6 +168,7 @@ export function MedicineLinesCard({
                 variant="ghost"
                 size="icon"
                 onClick={() => onRemove(i)}
+                aria-label={`Remove medicine row ${i + 1}`}
                 className="h-9 w-9 text-slate-400 hover:text-red-500"
               >
                 <Trash2 size={14} />
