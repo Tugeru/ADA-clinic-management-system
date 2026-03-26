@@ -375,7 +375,7 @@ export function PatientsList() {
             <div className="relative flex-1">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <Input
-                placeholder="Search by Name or ID number"
+                placeholder="Search by Name"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8 h-9 text-xs"
