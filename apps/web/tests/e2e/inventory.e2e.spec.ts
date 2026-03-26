@@ -5,6 +5,7 @@ type MockMedicine = {
   name: string;
   totalStock: number;
   reorderThreshold: number;
+  expirationDate?: string | null;
   purpose?: string;
   hasExpiringSoon?: boolean;
 };
@@ -31,7 +32,7 @@ function mapMedicineResponse(items: MockMedicine[]) {
     batches: [{
       id: `${m.id}-batch-1`,
       batchNumber: `B-${m.id.slice(0, 4)}`,
-      expirationDate: null,
+      expirationDate: m.expirationDate ?? null,
       quantityOnHand: m.totalStock,
     }],
     totalStock: m.totalStock,
@@ -43,8 +44,8 @@ function mapMedicineResponse(items: MockMedicine[]) {
 test.describe('Inventory page', () => {
   test('search filters medicines via API query', async ({ page }) => {
     let medicines: MockMedicine[] = [
-      { id: '11111111-1111-1111-1111-111111111111', name: 'Paracetamol', totalStock: 12, reorderThreshold: 3 },
-      { id: '22222222-2222-2222-2222-222222222222', name: 'Ibuprofen', totalStock: 8, reorderThreshold: 2 },
+      { id: '11111111-1111-1111-1111-111111111111', name: 'Paracetamol', totalStock: 12, reorderThreshold: 3, expirationDate: null },
+      { id: '22222222-2222-2222-2222-222222222222', name: 'Ibuprofen', totalStock: 8, reorderThreshold: 2, expirationDate: null },
     ];
 
     await setAuthenticatedSession(page);
@@ -69,6 +70,9 @@ test.describe('Inventory page', () => {
 
     await page.goto('/inventory');
 
+    await expect(page.getByRole('columnheader', { name: 'Expiration Status' })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Fresh' }).first()).toBeVisible();
+
     await expect(page.getByRole('row', { name: /Paracetamol/i })).toBeVisible();
     await expect(page.getByRole('row', { name: /Ibuprofen/i })).toBeVisible();
 
@@ -81,8 +85,8 @@ test.describe('Inventory page', () => {
 
   test('bulk archive and bulk delete support partial failures', async ({ page }) => {
     let medicines: MockMedicine[] = [
-      { id: '11111111-1111-1111-1111-111111111111', name: 'Paracetamol', totalStock: 12, reorderThreshold: 3 },
-      { id: '22222222-2222-2222-2222-222222222222', name: 'Ibuprofen', totalStock: 8, reorderThreshold: 2 },
+      { id: '11111111-1111-1111-1111-111111111111', name: 'Paracetamol', totalStock: 12, reorderThreshold: 3, expirationDate: null },
+      { id: '22222222-2222-2222-2222-222222222222', name: 'Ibuprofen', totalStock: 8, reorderThreshold: 2, expirationDate: null },
     ];
 
     await setAuthenticatedSession(page);
@@ -136,8 +140,8 @@ test.describe('Inventory page', () => {
     await expect(page.getByRole('row', { name: /Ibuprofen/i })).toHaveCount(0);
 
     medicines = [
-      { id: '11111111-1111-1111-1111-111111111111', name: 'Paracetamol', totalStock: 12, reorderThreshold: 3 },
-      { id: '22222222-2222-2222-2222-222222222222', name: 'Ibuprofen', totalStock: 8, reorderThreshold: 2 },
+      { id: '11111111-1111-1111-1111-111111111111', name: 'Paracetamol', totalStock: 12, reorderThreshold: 3, expirationDate: null },
+      { id: '22222222-2222-2222-2222-222222222222', name: 'Ibuprofen', totalStock: 8, reorderThreshold: 2, expirationDate: null },
     ];
     await page.goto('/inventory');
 

@@ -10,6 +10,7 @@ export type DispositionColor = 'green' | 'orange' | 'red';
 /** `expiring` = stock OK but batch(es) within expiry warning window (see lowStockReport) */
 /** `expired` = at least one batch has already expired */
 export type InventoryStatus = 'good' | 'low' | 'critical' | 'expiring' | 'expired';
+export type InventoryExpiryStatus = 'fresh' | 'expiringSoon' | 'expiresToday' | 'expired';
 
 export interface ExpiryAlertBatch {
   batchId: string;
@@ -188,6 +189,7 @@ export interface Medicine {
   unit: string;
   expiry: string;
   status: InventoryStatus;
+  expirationStatus: InventoryExpiryStatus;
   supplier?: string;
   notes?: string;
   hasExpiringSoon?: boolean;

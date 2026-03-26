@@ -7,7 +7,7 @@ import type {
   Patient, Visit, Medicine, StockMovement,
   PaginatedResponse, KPI, MedicineUsageRanking,
   DashboardAnalyticsResponse, DashboardAnalyticsParams,
-  ReferenceDataItem, MedicineType, InventoryStatus, UserAccount,
+  ReferenceDataItem, MedicineType, InventoryStatus, InventoryExpiryStatus, UserAccount,
 } from './types';
 
 // ─── Auth ───────────────────────────────────────────────────
@@ -186,6 +186,11 @@ export const inventoryApi = {
       const hasExpiringToday = expiringTodayBatches.length > 0;
       const hasExpiringSoon = expiringSoonBatches.length > 0;
       const isLow = m.isLowStock === true;
+      const expirationStatus = deriveExpirationStatusFromBuckets({
+        expiredBatches,
+        expiringTodayBatches,
+        expiringSoonBatches,
+      });
       let status: InventoryStatus;
       if (isLow && stock === 0) status = 'critical';
       else if (hasExpired) status = 'expired';
@@ -227,6 +232,7 @@ export const inventoryApi = {
           expirationDate: b.expirationDate,
           quantityOnHand: b.quantityOnHand ?? 0,
         })),
+        expirationStatus,
         status,
       };
     });
@@ -619,20 +625,56 @@ function mapVisit(v: any): Visit {
 }
 
 function mapMedicine(m: any): Medicine {
+  const batches = (m.batches ?? []) as any[];
+  const expirationStatus = deriveExpirationStatusFromBatches(batches);
+
   return {
     id: m.id,
     name: m.name,
     sku: m.id.slice(0, 8),
     category: m.purpose ?? 'General',
     type: m.purpose ?? '',
-    stock: m.totalStock ?? m.batches?.reduce((s: number, b: any) => s + b.quantityOnHand, 0) ?? 0,
+    stock: m.totalStock ?? batches.reduce((s: number, b: any) => s + b.quantityOnHand, 0) ?? 0,
     threshold: m.reorderThreshold ?? 0,
     unit: 'pcs',
-    expiry: m.batches?.[0]?.expirationDate?.slice(0, 10) ?? 'N/A',
+    expiry: batches[0]?.expirationDate?.slice(0, 10) ?? 'N/A',
     status: (m.isLowStock ? (m.totalStock === 0 ? 'critical' : 'low') : 'good') as any,
+    expirationStatus,
     notes: m.description,
     hasExpiringSoon: m.hasExpiringSoon ?? false,
   } as any;
+}
+
+function deriveExpirationStatusFromBuckets(args: {
+  expiredBatches: any[];
+  expiringTodayBatches: any[];
+  expiringSoonBatches: any[];
+}): InventoryExpiryStatus {
+  if (args.expiredBatches.length > 0) return 'expired';
+  if (args.expiringTodayBatches.length > 0) return 'expiresToday';
+  if (args.expiringSoonBatches.length > 0) return 'expiringSoon';
+  return 'fresh';
+}
+
+function deriveExpirationStatusFromBatches(batches: any[]): InventoryExpiryStatus {
+  const today = toDateStr(new Date());
+  const warningEnd = toDateStr(new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)));
+  let hasExpiringSoon = false;
+
+  for (const batch of batches) {
+    const expirationDate = normalizeDateOnly(batch?.expirationDate);
+    if (!expirationDate) continue;
+    if (expirationDate < today) return 'expired';
+    if (expirationDate === today) return 'expiresToday';
+    if (expirationDate <= warningEnd) hasExpiringSoon = true;
+  }
+
+  return hasExpiringSoon ? 'expiringSoon' : 'fresh';
+}
+
+function normalizeDateOnly(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length < 10) return null;
+  return value.slice(0, 10);
 }
 
 function studentPayload(p: any) {

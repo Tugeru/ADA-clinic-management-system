@@ -27,6 +27,20 @@ const statusStyles: Record<string, string> = {
   good: 'bg-emerald-100 text-emerald-700 border-emerald-200',
 };
 
+const expirationStatusStyles: Record<string, string> = {
+  expired: 'bg-red-100 text-red-700 border-red-200',
+  expiresToday: 'bg-rose-100 text-rose-700 border-rose-200',
+  expiringSoon: 'bg-amber-100 text-amber-700 border-amber-200',
+  fresh: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+};
+
+const expirationStatusLabels: Record<string, string> = {
+  expired: 'Expired',
+  expiresToday: 'Expires Today',
+  expiringSoon: 'Expiring Soon',
+  fresh: 'Fresh',
+};
+
 export function Inventory() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -365,6 +379,7 @@ export function Inventory() {
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Stock</TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Threshold</TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Expiry</TableHead>
+                <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Expiration Status</TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Status</TableHead>
                 {/* M-2: Actions column */}
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9 text-right pr-4">Actions</TableHead>
@@ -389,6 +404,11 @@ export function Inventory() {
                   <TableCell className="text-xs font-semibold text-slate-800 py-3">{item.stock} {item.unit}</TableCell>
                   <TableCell className="text-xs text-slate-500 py-3">{item.threshold}</TableCell>
                   <TableCell className="text-xs text-slate-500 py-3">{item.expiry}</TableCell>
+                  <TableCell className="py-3">
+                    <Badge variant="outline" className={cn('text-[9px] font-bold', expirationStatusStyles[item.expirationStatus])}>
+                      {expirationStatusLabels[item.expirationStatus]}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="py-3">
                     <Badge variant="outline" className={cn('text-[9px] font-bold', statusStyles[item.status])}>
                       {item.status.toUpperCase()}
