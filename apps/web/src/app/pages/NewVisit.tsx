@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
 import { ArrowLeft, Search, X, AlertCircle, AlertTriangle, User, Calendar, Stethoscope, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -27,6 +27,13 @@ import {
 // Track medicine UUID, quantity, and local stock validation state
 type MedRow = { medicineId: string; quantity: number; maxStock: number; error?: string };
 
+type EmergencyContactSuggestion = {
+  id: string;
+  name: string;
+  relationship: string;
+  number?: string;
+};
+
 const MEDICAL_ALERT_TEXT_MAX = 800;
 
 function truncateMedicalText(text: string, max: number): string {
@@ -53,6 +60,19 @@ export function NewVisit() {
     isSuccess: patientDetailSuccess,
     isError: patientDetailError,
   } = usePatient(selectedPatientId);
+
+  const patientForContacts = patientDetail ?? selectedPatient;
+  const emergencyContacts = useMemo<EmergencyContactSuggestion[]>(() => {
+    const contactName = patientForContacts?.contactName?.trim() ?? '';
+    if (!contactName) return [];
+
+    return [{
+      id: `${patientForContacts?.id ?? selectedPatientId}-primary-contact`,
+      name: contactName,
+      relationship: patientForContacts?.contactRelationship?.trim() ?? '',
+      number: patientForContacts?.contactNumber?.trim() ?? '',
+    }];
+  }, [patientForContacts?.id, patientForContacts?.contactName, patientForContacts?.contactRelationship, patientForContacts?.contactNumber, selectedPatientId]);
 
   const [medicalAlertOpen, setMedicalAlertOpen] = useState(false);
   const dismissedMedicalAlertForIdRef = useRef<string | null>(null);
@@ -133,6 +153,8 @@ export function NewVisit() {
   const [guardianName, setGuardianName] = useState('');
   const [relationship, setRelationship] = useState('');
   const [releaseTime, setReleaseTime] = useState('');
+  const [guardianSuggestionsOpen, setGuardianSuggestionsOpen] = useState(false);
+  const [selectedGuardianContactId, setSelectedGuardianContactId] = useState<string | null>(null);
 
   const relationshipOptions: ComboboxOption[] = [
     { value: 'Mother', label: 'Mother' },
@@ -143,10 +165,67 @@ export function NewVisit() {
     { value: 'Other', label: 'Other' },
   ];
 
+  const filteredGuardianContacts = useMemo(() => {
+    const query = guardianName.trim().toLowerCase();
+    if (!query) return emergencyContacts;
+    return emergencyContacts.filter((contact) =>
+      [contact.name, contact.relationship, contact.number]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(query)),
+    );
+  }, [emergencyContacts, guardianName]);
+
+  const activeGuardianContact = emergencyContacts.find((contact) => contact.id === selectedGuardianContactId) ?? null;
+
+  useEffect(() => {
+    setGuardianName('');
+    setRelationship('');
+    setReleaseTime('');
+    setSelectedGuardianContactId(null);
+    setGuardianSuggestionsOpen(false);
+  }, [selectedPatientId]);
+
+  const handleGuardianNameChange = (value: string) => {
+    setGuardianName(value);
+    if (emergencyContacts.length > 0) setGuardianSuggestionsOpen(true);
+
+    if (!value.trim()) {
+      setRelationship('');
+      setSelectedGuardianContactId(null);
+      return;
+    }
+
+    if (selectedGuardianContactId) {
+      const currentContact = emergencyContacts.find((contact) => contact.id === selectedGuardianContactId);
+      if (!currentContact || currentContact.name !== value) {
+        setSelectedGuardianContactId(null);
+      }
+    }
+  };
+
+  const handleSelectGuardianContact = (contact: EmergencyContactSuggestion) => {
+    setSelectedGuardianContactId(contact.id);
+    setGuardianName(contact.name);
+    setRelationship(contact.relationship);
+    setGuardianSuggestionsOpen(false);
+  };
+
+  const handleRelationshipChange = (value: string) => {
+    setRelationship(value);
+    if (selectedGuardianContactId && value !== activeGuardianContact?.relationship) {
+      setSelectedGuardianContactId(null);
+    }
+  };
+
   const selectPatient = (p: Patient) => {
     setSelectedPatient(p);
     setPatientQuery('');
     setShowDropdown(false);
+    setGuardianName('');
+    setRelationship('');
+    setReleaseTime('');
+    setSelectedGuardianContactId(null);
+    setGuardianSuggestionsOpen(false);
   };
 
   const addMedicine = () => {
@@ -196,6 +275,10 @@ export function NewVisit() {
   const handleSubmit = async () => {
     if (!selectedPatient) { toast.error('Please select a patient'); return; }
     if (!complaint.trim()) { setComplaintError(true); toast.error('Chief Complaint is required'); return; }
+    if (disposition === 'sentHome' && !guardianName.trim()) {
+      toast.error('Guardian Name is required when sending a patient home');
+      return;
+    }
     setShowMedicineLineErrors(true);
 
     const hasInvalidMedicineLines = medicines.some((m) => {
@@ -256,9 +339,9 @@ export function NewVisit() {
           .filter((m) => m.medicineId.trim() && m.quantity > 0)
           .map((m) => ({ medicineId: m.medicineId.trim(), quantity: m.quantity })),
         disposition: getDispositionValue(),
-        guardianName,
-        relationship,
-        releaseTime,
+        guardianName: guardianName.trim(),
+        relationship: relationship.trim(),
+        releaseTime: releaseTime.trim(),
       });
       toast.success('Visit record saved and finalized');
       navigate(`/visits/${result.id}`);
@@ -482,14 +565,71 @@ export function NewVisit() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Guardian Name</Label>
-                    <Input value={guardianName} onChange={e => setGuardianName(e.target.value)} className="h-9 text-xs" />
+                    <div className="relative">
+                      <Input
+                        value={guardianName}
+                        onChange={(e) => handleGuardianNameChange(e.target.value)}
+                        onFocus={() => {
+                          if (emergencyContacts.length > 0) setGuardianSuggestionsOpen(true);
+                        }}
+                        onClick={() => {
+                          if (emergencyContacts.length > 0) setGuardianSuggestionsOpen(true);
+                        }}
+                        onBlur={() => {
+                          window.setTimeout(() => setGuardianSuggestionsOpen(false), 120);
+                        }}
+                        aria-autocomplete="list"
+                        aria-expanded={guardianSuggestionsOpen && filteredGuardianContacts.length > 0}
+                        aria-controls="guardian-suggestion-list"
+                        placeholder={emergencyContacts.length > 0 ? 'Select a contact or type a name' : 'Type guardian name'}
+                        className="h-9 text-xs"
+                      />
+                      {guardianSuggestionsOpen && filteredGuardianContacts.length > 0 && (
+                        <div
+                          id="guardian-suggestion-list"
+                          role="listbox"
+                          aria-label="Emergency contact suggestions"
+                          className="absolute z-20 mt-1 max-h-44 w-full overflow-auto rounded-md border border-slate-200 bg-white shadow-lg"
+                        >
+                          {filteredGuardianContacts.map((contact) => (
+                            <button
+                              key={contact.id}
+                              type="button"
+                              role="option"
+                              aria-selected={selectedGuardianContactId === contact.id}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => handleSelectGuardianContact(contact)}
+                              className={cn(
+                                'flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-xs hover:bg-slate-50',
+                                selectedGuardianContactId === contact.id && 'bg-teal-50 text-teal-800',
+                              )}
+                            >
+                              <span className="font-medium text-slate-800">{contact.name}</span>
+                              <span className="text-[10px] text-slate-500">
+                                {contact.relationship || 'Emergency contact'}
+                                {contact.number ? ` · ${contact.number}` : ''}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {emergencyContacts.length > 0 ? (
+                      <p className="text-[10px] text-slate-500">
+                        {activeGuardianContact
+                          ? 'Selected emergency contact will keep Relationship in sync.'
+                          : 'Choose a saved contact or type a different name.'}
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-slate-500">No emergency contact saved for this patient. Type a name manually.</p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Relationship</Label>
                     <Combobox
                       options={relationshipOptions}
                       value={relationship}
-                      onValueChange={setRelationship}
+                      onValueChange={handleRelationshipChange}
                       placeholder="Select relationship"
                       searchPlaceholder="Search relationship..."
                       emptyMessage="No matches found."
