@@ -49,5 +49,27 @@ describe('Inventory route validation', () => {
     expect(res.status).toBe(400)
     expect(res.body.error).toBe('Validation failed')
   })
+
+  it('rejects batch metadata updates with empty payload', async () => {
+    const app = makeApp()
+
+    const res = await request(app)
+      .patch('/api/inventory/11111111-1111-1111-1111-111111111111/batches/22222222-2222-2222-2222-222222222222')
+      .send({})
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('Validation failed')
+  })
+
+  it('rejects batch metadata updates with past expiration date', async () => {
+    const app = makeApp()
+
+    const res = await request(app)
+      .patch('/api/inventory/11111111-1111-1111-1111-111111111111/batches/22222222-2222-2222-2222-222222222222')
+      .send({ expirationDate: '2000-01-01' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('Validation failed')
+  })
 })
 

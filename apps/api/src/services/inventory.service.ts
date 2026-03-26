@@ -2,7 +2,7 @@ import prisma from '../config/db.js'
 import { Prisma } from '@prisma/client'
 import { TransactionType, EXPIRY_WARNING_DAYS } from '@ada/shared'
 import type { BatchResult } from '@ada/shared'
-import type { CreateMedicineInput, UpdateMedicineInput, StockInInput, AdjustStockInput } from '@ada/shared'
+import type { CreateMedicineInput, UpdateMedicineInput, StockInInput, AdjustStockInput, UpdateBatchMetadataInput } from '@ada/shared'
 import { recordAudit } from './audit.service.js'
 
 function normalizeMedicineName(name: string) {
@@ -493,4 +493,96 @@ export async function adjustStock(userId: string, data: AdjustStockInput) {
         metadata: { batchId: data.batchId, quantity: data.quantity, notes: data.notes },
     })
     return batch
+}
+
+export async function updateBatchMetadata(
+    userId: string,
+    medicineId: string,
+    batchId: string,
+    data: UpdateBatchMetadataInput,
+) {
+    const current = await prisma.inventoryBatch.findUnique({
+        where: { id: batchId },
+        select: {
+            id: true,
+            medicineId: true,
+            batchNumber: true,
+            expirationDate: true,
+            quantityOnHand: true,
+        },
+    })
+
+    if (!current || current.medicineId !== medicineId) {
+        throw Object.assign(new Error('Batch not found for the selected medicine.'), {
+            status: 404,
+            code: 'BATCH_NOT_FOUND',
+        })
+    }
+
+    const visitUsageCount = await prisma.visitMedicine.count({ where: { batchId } })
+    if (visitUsageCount > 0) {
+        throw Object.assign(new Error('Cannot edit this batch because it has already been dispensed.'), {
+            status: 409,
+            code: 'BATCH_EDIT_BLOCKED_DISPENSED',
+            conflict: { batchId, medicineId, dispensedCount: visitUsageCount },
+        })
+    }
+
+    const normalizedBatchNumber = data.batchNumber === undefined
+        ? current.batchNumber
+        : (data.batchNumber === null ? null : data.batchNumber.trim())
+    const nextExpirationDate = data.expirationDate === undefined
+        ? current.expirationDate
+        : new Date(data.expirationDate)
+
+    const duplicate = await prisma.inventoryBatch.findFirst({
+        where: {
+            medicineId,
+            id: { not: batchId },
+            batchNumber: normalizedBatchNumber,
+            expirationDate: nextExpirationDate,
+        },
+        select: { id: true, batchNumber: true, expirationDate: true },
+    })
+
+    if (duplicate) {
+        throw Object.assign(new Error('Another batch already exists with the same batch number and expiration date.'), {
+            status: 409,
+            code: 'BATCH_METADATA_CONFLICT',
+            conflict: {
+                id: duplicate.id,
+                batchNumber: duplicate.batchNumber,
+                expirationDate: duplicate.expirationDate,
+            },
+        })
+    }
+
+    const updated = await prisma.inventoryBatch.update({
+        where: { id: batchId },
+        data: {
+            ...(data.batchNumber !== undefined ? { batchNumber: normalizedBatchNumber } : {}),
+            ...(data.expirationDate !== undefined ? { expirationDate: nextExpirationDate } : {}),
+        },
+    })
+
+    await recordAudit({
+        userId,
+        action: 'Edit',
+        entity: 'InventoryBatch',
+        entityId: updated.id,
+        recordIdentifier: updated.batchNumber ?? updated.id,
+        metadata: {
+            medicineId,
+            before: {
+                batchNumber: current.batchNumber,
+                expirationDate: current.expirationDate,
+            },
+            after: {
+                batchNumber: updated.batchNumber,
+                expirationDate: updated.expirationDate,
+            },
+        },
+    })
+
+    return updated
 }

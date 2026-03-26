@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { validate, validateQuery } from '../middlewares/validate.js'
-import { CreateMedicineSchema, UpdateMedicineSchema, StockInSchema, AdjustStockSchema, BatchIdsSchema, MedicinesListQuerySchema } from '@ada/shared'
+import { CreateMedicineSchema, UpdateMedicineSchema, StockInSchema, AdjustStockSchema, UpdateBatchMetadataSchema, BatchIdsSchema, MedicinesListQuerySchema } from '@ada/shared'
 import * as svc from '../services/inventory.service.js'
 
 const router = Router()
@@ -83,6 +83,12 @@ router.post('/stock-in', validate(StockInSchema), async (req, res, next) => {
 
 router.post('/adjust', validate(AdjustStockSchema), async (req, res, next) => {
     try { res.json(await svc.adjustStock(req.user!.userId, req.body)) } catch (err) { next(err) }
+})
+
+router.patch('/:medicineId/batches/:batchId', validate(UpdateBatchMetadataSchema), async (req, res, next) => {
+    try {
+        res.json(await svc.updateBatchMetadata(req.user!.userId, req.params.medicineId, req.params.batchId, req.body))
+    } catch (err) { next(err) }
 })
 
 export default router

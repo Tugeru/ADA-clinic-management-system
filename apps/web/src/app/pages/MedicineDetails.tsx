@@ -9,18 +9,39 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
 import { Skeleton } from '../components/ui/skeleton';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { useMedicine, useArchiveMedicine, useDeleteMedicine } from '../lib/hooks';
-import { useState } from 'react';
+import { useMedicine, useArchiveMedicine, useDeleteMedicine, useUpdateBatchMetadata } from '../lib/hooks';
+import { useState, type ChangeEvent } from 'react';
 import { ReduceStockDialog } from '../components/ReduceStockDialog';
+import type { InventoryExpiryStatus } from '../lib/types';
 
 const statusStyles: Record<string, string> = {
     critical: 'bg-red-100 text-red-700 border-red-200',
     low: 'bg-orange-100 text-orange-700 border-orange-200',
     expiring: 'bg-amber-100 text-amber-800 border-amber-200',
+    expired: 'bg-red-100 text-red-700 border-red-200',
     good: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+};
+
+const batchStatusBorderStyles: Record<InventoryExpiryStatus | 'noExpiry', string> = {
+    expired: 'border-red-200 bg-red-50 text-red-700',
+    expiresToday: 'border-rose-200 bg-rose-50 text-rose-700',
+    expiringSoon: 'border-amber-200 bg-amber-50 text-amber-700',
+    fresh: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    noExpiry: 'border-slate-200 bg-slate-50 text-slate-600',
+};
+
+const batchStatusLabels: Record<InventoryExpiryStatus | 'noExpiry', string> = {
+    expired: 'Expired',
+    expiresToday: 'Expires Today',
+    expiringSoon: 'Expiring Soon',
+    fresh: 'Fresh',
+    noExpiry: 'No Expiry',
 };
 
 export function MedicineDetails() {
@@ -29,9 +50,14 @@ export function MedicineDetails() {
     const { data: med, isLoading } = useMedicine(id ?? '');
     const archiveMutation = useArchiveMedicine();
     const deleteMutation = useDeleteMedicine();
+    const updateBatchMutation = useUpdateBatchMetadata();
     const [showReduceDialog, setShowReduceDialog] = useState(false);
     const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [editBatchId, setEditBatchId] = useState<string | null>(null);
+    const [editBatchNumber, setEditBatchNumber] = useState('');
+    const [editExpirationDate, setEditExpirationDate] = useState('');
+    const [editError, setEditError] = useState<string | null>(null);
 
     const confirmArchive = async () => {
         if (!id) return;
@@ -82,6 +108,56 @@ export function MedicineDetails() {
 
     const totalStock: number = (med as any).totalStock ?? med.stock;
     const batches: any[] = (med as any).batches ?? [];
+
+    const selectedBatch = batches.find((b: any) => b.id === editBatchId) ?? null;
+
+    const openBatchEditDialog = (batch: any) => {
+        setEditBatchId(batch.id);
+        setEditBatchNumber(batch.batchNumber ?? '');
+        setEditExpirationDate(batch.expirationDate ? String(batch.expirationDate).slice(0, 10) : '');
+        setEditError(null);
+    };
+
+    const closeBatchEditDialog = () => {
+        setEditBatchId(null);
+        setEditBatchNumber('');
+        setEditExpirationDate('');
+        setEditError(null);
+    };
+
+    const saveBatchMetadata = async () => {
+        if (!id || !selectedBatch) return;
+
+        const nextBatchNumber = editBatchNumber.trim();
+        const nextExpirationDate = editExpirationDate.trim();
+
+        const payload: { batchNumber?: string | null; expirationDate?: string } = {};
+        if ((selectedBatch.batchNumber ?? '') !== nextBatchNumber) {
+            payload.batchNumber = nextBatchNumber.length > 0 ? nextBatchNumber : null;
+        }
+        if ((selectedBatch.expirationDate ? String(selectedBatch.expirationDate).slice(0, 10) : '') !== nextExpirationDate) {
+            payload.expirationDate = nextExpirationDate;
+        }
+
+        if (!payload.batchNumber && !payload.expirationDate) {
+            toast.message('No changes to save.');
+            closeBatchEditDialog();
+            return;
+        }
+
+        try {
+            await updateBatchMutation.mutateAsync({
+                medicineId: id,
+                batchId: selectedBatch.id,
+                ...payload,
+            });
+            toast.success('Batch details updated.');
+            closeBatchEditDialog();
+        } catch (error: any) {
+            const message = error?.response?.data?.error ?? 'Failed to update batch details.';
+            setEditError(message);
+        }
+    };
 
     return (
         <div className="max-w-3xl mx-auto space-y-5">
@@ -167,6 +243,7 @@ export function MedicineDetails() {
                                     <th className="text-left text-[10px] uppercase text-slate-400 font-semibold py-2 pl-1">Batch #</th>
                                     <th className="text-left text-[10px] uppercase text-slate-400 font-semibold py-2">Expiry</th>
                                     <th className="text-right text-[10px] uppercase text-slate-400 font-semibold py-2 pr-1">Qty</th>
+                                    <th className="text-right text-[10px] uppercase text-slate-400 font-semibold py-2 pr-1">Edit</th>
                                     <th className="text-right text-[10px] uppercase text-slate-400 font-semibold py-2 pr-1">Reduce</th>
                                 </tr>
                             </thead>
@@ -176,10 +253,37 @@ export function MedicineDetails() {
                                         <td className="text-xs text-slate-700 py-2.5 pl-1 font-medium">
                                             {b.batchNumber ?? <span className="text-slate-400 italic">—</span>}
                                         </td>
-                                        <td className="text-xs text-slate-500 py-2.5">
-                                            {b.expirationDate ? new Date(b.expirationDate).toLocaleDateString() : '—'}
+                                        <td className="text-xs py-2.5">
+                                            <span
+                                                className={cn(
+                                                    'inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-medium',
+                                                    batchStatusBorderStyles[getBatchExpiryStatus(b.expirationDate)],
+                                                )}
+                                                aria-label={`Expiry status ${batchStatusLabels[getBatchExpiryStatus(b.expirationDate)]}`}
+                                            >
+                                                {b.expirationDate ? new Date(b.expirationDate).toLocaleDateString() : '—'}
+                                                <span className="ml-1">({batchStatusLabels[getBatchExpiryStatus(b.expirationDate)]})</span>
+                                            </span>
                                         </td>
-                                        <td className="text-xs font-bold text-slate-800 py-2.5 pr-1 text-right">{b.quantityOnHand}</td>
+                                        <td className="py-2.5 pr-1 text-right">
+                                            <span
+                                                className={cn(
+                                                    'inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-bold',
+                                                    batchStatusBorderStyles[getBatchExpiryStatus(b.expirationDate)],
+                                                )}
+                                                aria-label={`Quantity ${b.quantityOnHand}, ${batchStatusLabels[getBatchExpiryStatus(b.expirationDate)]}`}
+                                            >
+                                                {b.quantityOnHand}
+                                            </span>
+                                        </td>
+                                        <td className="py-2 pr-1 text-right">
+                                            <button
+                                                onClick={() => openBatchEditDialog(b)}
+                                                className="text-xs text-teal-600 hover:text-teal-800 disabled:opacity-30"
+                                            >
+                                                Edit
+                                            </button>
+                                        </td>
                                         <td className="py-2 pr-1 text-right">
                                             <button
                                                 onClick={() => setShowReduceDialog(true)}
@@ -282,6 +386,48 @@ export function MedicineDetails() {
                 </div>
             </div>
 
+            <Dialog open={Boolean(editBatchId)} onOpenChange={(open: boolean) => { if (!open) closeBatchEditDialog(); }}>
+                <DialogContent className="sm:max-w-[520px]">
+                    <DialogHeader>
+                        <DialogTitle>Edit Batch Details</DialogTitle>
+                        <DialogDescription>
+                            Update batch number and expiry date. Quantity edits remain in the Reduce Stock flow.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="batchNumber">Batch Number</Label>
+                            <Input
+                                id="batchNumber"
+                                value={editBatchNumber}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => setEditBatchNumber(e.target.value)}
+                                placeholder="e.g. B-2026-04"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="expirationDate">Expiry Date</Label>
+                            <Input
+                                id="expirationDate"
+                                type="date"
+                                value={editExpirationDate}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => setEditExpirationDate(e.target.value)}
+                            />
+                        </div>
+                        {editError ? (
+                            <p className="text-xs text-red-600" role="alert">{editError}</p>
+                        ) : null}
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={closeBatchEditDialog} disabled={updateBatchMutation.isPending}>Cancel</Button>
+                        <Button onClick={saveBatchMetadata} disabled={updateBatchMutation.isPending} className="bg-teal-600 hover:bg-teal-700 text-white">
+                            {updateBatchMutation.isPending ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Reduce stock dialog */}
             {showReduceDialog && (
                 <ReduceStockDialog
@@ -292,4 +438,17 @@ export function MedicineDetails() {
             )}
         </div>
     );
+}
+
+function getBatchExpiryStatus(expirationDate?: string | null): InventoryExpiryStatus | 'noExpiry' {
+    if (!expirationDate) return 'noExpiry';
+
+    const expiry = String(expirationDate).slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+    const warningWindowEnd = new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+
+    if (expiry < today) return 'expired';
+    if (expiry === today) return 'expiresToday';
+    if (expiry <= warningWindowEnd) return 'expiringSoon';
+    return 'fresh';
 }

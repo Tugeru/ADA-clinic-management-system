@@ -407,6 +407,25 @@ export function useAdjustStock() {
   });
 }
 
+export function useUpdateBatchMetadata() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      medicineId: string;
+      batchId: string;
+      batchNumber?: string | null;
+      expirationDate?: string;
+    }) => inventoryApi.updateBatchMetadata(data.medicineId, data.batchId, {
+      batchNumber: data.batchNumber,
+      expirationDate: data.expirationDate,
+    }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.detail(variables.medicineId) });
+    },
+  });
+}
+
 // Update a medicine's core details
 export function useUpdateMedicine() {
   const qc = useQueryClient();

@@ -47,6 +47,20 @@ export const AdjustStockSchema = z.object({
     notes: z.string().optional(),
 })
 
+export const UpdateBatchMetadataSchema = z.object({
+    batchNumber: z.string().trim().min(1, 'Batch number cannot be empty').max(100).nullable().optional(),
+    expirationDate: z.string().date().optional(),
+}).refine((data) => data.batchNumber !== undefined || data.expirationDate !== undefined, {
+    message: 'At least one field must be provided.',
+}).refine((data) => {
+    if (!data.expirationDate) return true
+    const todayStr = new Date().toISOString().slice(0, 10)
+    return data.expirationDate >= todayStr
+}, {
+    path: ['expirationDate'],
+    message: 'Expiration date cannot be in the past.',
+})
+
 export const MedicinesListQuerySchema = z.object({
     includeInactive: z
         .enum(['true', 'false'])
@@ -59,6 +73,7 @@ export type CreateMedicineInput = z.infer<typeof CreateMedicineSchema>
 export type UpdateMedicineInput = z.infer<typeof UpdateMedicineSchema>
 export type StockInInput = z.infer<typeof StockInSchema>
 export type AdjustStockInput = z.infer<typeof AdjustStockSchema>
+export type UpdateBatchMetadataInput = z.infer<typeof UpdateBatchMetadataSchema>
 export type MedicinesListQueryInput = z.infer<typeof MedicinesListQuerySchema>
 export type MedicineNameConflictCode = z.infer<typeof MedicineNameConflictCodeSchema>
 export type MedicineNameConflict = z.infer<typeof MedicineNameConflictSchema>

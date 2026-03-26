@@ -282,6 +282,14 @@ export const inventoryApi = {
     await http.post('/inventory/adjust', payload);
   },
 
+  async updateBatchMetadata(
+    medicineId: string,
+    batchId: string,
+    payload: { batchNumber?: string | null; expirationDate?: string }
+  ): Promise<void> {
+    await http.patch(`/medicines/${medicineId}/batches/${batchId}`, payload);
+  },
+
   // Update an existing medicine's core details
   async update(id: string, payload: { name?: string; notes?: string; threshold?: number; type?: MedicineType | '' }): Promise<Medicine> {
     const { data } = await http.patch(`/medicines/${id}`, {
