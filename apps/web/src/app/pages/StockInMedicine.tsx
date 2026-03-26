@@ -42,6 +42,7 @@ export function StockInMedicine() {
   const [expirationDate, setExpirationDate] = useState('');
 
   const [showExpiryTodayConfirm, setShowExpiryTodayConfirm] = useState(false);
+  const [showExpiryWarningConfirm, setShowExpiryWarningConfirm] = useState(false);
 
   const submitStockIn = async () => {
     try {
@@ -84,7 +85,8 @@ export function StockInMedicine() {
     }
 
     if (diffDays > 0 && diffDays <= EXPIRY_WARNING_DAYS) {
-      toast.info('This batch will expire within 30 days.');
+      setShowExpiryWarningConfirm(true);
+      return;
     }
 
     await submitStockIn();
@@ -107,6 +109,32 @@ export function StockInMedicine() {
               }}
               disabled={stockInMutation.isPending}
               className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Confirm Stock-in
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showExpiryWarningConfirm} onOpenChange={(open) => setShowExpiryWarningConfirm(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Medicine Expires Soon</AlertDialogTitle>
+            <AlertDialogDescription>
+              This batch will expire within 30 days. Do you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowExpiryWarningConfirm(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setShowExpiryWarningConfirm(false);
+                await submitStockIn();
+              }}
+              disabled={stockInMutation.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
             >
               Confirm Stock-in
             </AlertDialogAction>

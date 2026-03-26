@@ -45,6 +45,7 @@ export function AddMedicine() {
   const [amountError, setAmountError] = useState('');
 
   const [showExpiryTodayConfirm, setShowExpiryTodayConfirm] = useState(false);
+  const [showExpiryWarningConfirm, setShowExpiryWarningConfirm] = useState(false);
 
   const nameExists = existing?.some(m => m.name.toLowerCase() === name.toLowerCase()) || false;
   const isPending = createMutation.isPending || stockInMutation.isPending;
@@ -134,7 +135,8 @@ export function AddMedicine() {
     }
 
     if (diffDays > 0 && diffDays <= EXPIRY_WARNING_DAYS) {
-      toast.info('This batch will expire within 30 days.');
+      setShowExpiryWarningConfirm(true);
+      return;
     }
 
     await doCreateAndInitialStockIn();
@@ -164,6 +166,35 @@ export function AddMedicine() {
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               Confirm Stock-in
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showExpiryWarningConfirm}
+        onOpenChange={(open) => setShowExpiryWarningConfirm(open)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Medicine Expires Soon</AlertDialogTitle>
+            <AlertDialogDescription>
+              This batch will expire within 30 days. Do you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowExpiryWarningConfirm(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setShowExpiryWarningConfirm(false);
+                await doCreateAndInitialStockIn();
+              }}
+              disabled={isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Confirm Add Medicine
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
