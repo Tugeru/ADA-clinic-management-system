@@ -412,7 +412,7 @@ export function Inventory() {
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Threshold</TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Expiry</TableHead>
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Expiration Status</TableHead>
-                <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Status</TableHead>
+                <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9">Stocks Status</TableHead>
                 {/* M-2: Actions column */}
                 <TableHead className="text-[10px] uppercase font-semibold text-slate-500 h-9 text-right pr-4">Actions</TableHead>
               </TableRow>

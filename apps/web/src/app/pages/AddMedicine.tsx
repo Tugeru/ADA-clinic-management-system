@@ -44,6 +44,7 @@ export function AddMedicine() {
   const [type, setType] = useState<string>('');
   const [threshold, setThreshold] = useState('');
   const [notes, setNotes] = useState('');
+  const [batchNumber, setBatchNumber] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [amount, setAmount] = useState('');
 
@@ -111,6 +112,7 @@ export function AddMedicine() {
       await stockInMutation.mutateAsync({
         medicineId: String(created.id),
         quantity: Number(amount),
+        batchNumber: batchNumber.trim() || undefined,
         expirationDate: expiryDate,
       });
       toast.success('Medicine added with initial stock!');
@@ -332,8 +334,8 @@ export function AddMedicine() {
             )}
           </div>
 
-          {/* Expiry Date + Amount */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Expiry Date + Amount + Batch Number */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label className="text-sm font-medium text-slate-700">
                 Expiry Date <span className="text-red-500">*</span>
@@ -369,6 +371,16 @@ export function AddMedicine() {
               ) : (
                 <p className="text-[10px] text-slate-400 mt-1">Initial quantity to stock in (units).</p>
               )}
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-slate-700">Batch Number (Optional)</Label>
+              <Input
+                value={batchNumber}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setBatchNumber(e.target.value)}
+                placeholder="e.g. BT-2026-001"
+                className="mt-1.5 h-11"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">Leave blank if no batch label is available.</p>
             </div>
           </div>
 

@@ -127,6 +127,7 @@ test.describe('Add Medicine archived duplicate flow', () => {
     await page.getByPlaceholder('e.g. Paracetamol 500mg').fill('  PARACETAMOL  ');
     await page.locator('input[type="date"]').fill('2026-04-26');
     await page.locator('input[type="number"]').first().fill('12');
+    await page.getByPlaceholder('e.g. BT-2026-001').fill(' LOT-2026-APR ');
     await page.getByRole('button', { name: /save medicine/i }).click();
 
     const dialog = page.getByRole('alertdialog', { name: /archived medicine already exists/i });
@@ -139,6 +140,7 @@ test.describe('Add Medicine archived duplicate flow', () => {
     await expect(page.getByPlaceholder('e.g. Paracetamol 500mg')).toHaveValue('  PARACETAMOL  ');
     await expect(page.locator('input[type="date"]')).toHaveValue('2026-04-26');
     await expect(page.locator('input[type="number"]').first()).toHaveValue('12');
+    await expect(page.getByPlaceholder('e.g. BT-2026-001')).toHaveValue(' LOT-2026-APR ');
   });
 
   test('restores the archived medicine instead of creating a duplicate', async ({ page }) => {

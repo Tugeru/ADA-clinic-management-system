@@ -21,6 +21,7 @@ test.describe('Medicine expiry confirmation modal', () => {
   test('Add Medicine shows confirm/cancel modal for near-expiry dates', async ({ page }) => {
     let createCalled = false;
     let stockInCalled = false;
+    let stockInBody: any = null;
 
     await setAuthenticatedSession(page);
 
@@ -64,6 +65,7 @@ test.describe('Medicine expiry confirmation modal', () => {
 
     await page.route('**/api/inventory/stock-in', async (route) => {
       stockInCalled = true;
+      stockInBody = await route.request().postDataJSON();
       await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({}) });
     });
 
@@ -72,6 +74,7 @@ test.describe('Medicine expiry confirmation modal', () => {
     await page.getByPlaceholder(/e\.g\. paracetamol 500mg/i).fill('Amoxicillin 500mg');
     await page.locator('input[type="date"]').fill(daysFromToday(10));
     await page.getByPlaceholder('e.g. 100').fill('100');
+    await page.getByPlaceholder('e.g. BT-2026-001').fill('  BT-2026-010  ');
     await page.getByRole('button', { name: /save medicine/i }).click();
 
     await expect(page.getByRole('alertdialog').filter({ hasText: /medicine expires soon/i })).toBeVisible();
@@ -87,6 +90,7 @@ test.describe('Medicine expiry confirmation modal', () => {
     await expect(page).toHaveURL(/\/inventory$/);
     expect(createCalled).toBe(true);
     expect(stockInCalled).toBe(true);
+    expect(stockInBody?.batchNumber).toBe('BT-2026-010');
   });
 
   test('Stock-in Medicine shows confirm/cancel modal for near-expiry dates', async ({ page }) => {

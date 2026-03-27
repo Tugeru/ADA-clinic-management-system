@@ -457,7 +457,7 @@ export function MedicineDetails() {
                                 id="batchNumber"
                                 value={editBatchNumber}
                                 onChange={(e: ChangeEvent<HTMLInputElement>) => setEditBatchNumber(e.target.value)}
-                                placeholder="e.g. B-2026-04"
+                                placeholder="e.g. BT-2026-04"
                             />
                         </div>
                         <div className="space-y-2">
