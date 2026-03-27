@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import {
   ArrowLeft, User, GraduationCap, Heart, CheckCircle, AlertCircle,
   Briefcase, Phone,
+  NotebookText,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -309,7 +310,7 @@ export function AddPatient() {
             {/* Medical Notes */}
             <section>
               <div className="flex items-center gap-2 text-teal-700 font-bold text-xs mb-4 uppercase tracking-wide">
-                <Heart size={14} /> Medical Notes
+                <NotebookText size={14} /> Medical Notes
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Known Medical Conditions / Allergies</Label>
