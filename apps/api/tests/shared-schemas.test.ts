@@ -87,9 +87,10 @@ describe('UpdateReferenceDataSchema', () => {
 })
 
 describe('CreateStudentSchema – schoolYear field', () => {
-  it('accepts schoolYear', () => {
+  it('accepts schoolYear with split name fields', () => {
     const result = CreateStudentSchema.safeParse({
-      fullName: 'Test Student',
+      firstName: 'Test',
+      lastName: 'Student',
       schoolYear: '2025-2026',
     })
     expect(result.success).toBe(true)
@@ -98,9 +99,17 @@ describe('CreateStudentSchema – schoolYear field', () => {
     }
   })
 
-  it('schoolYear is optional', () => {
+  it('legacy fullName payload remains valid', () => {
     const result = CreateStudentSchema.safeParse({
       fullName: 'Test Student',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('schoolYear is optional', () => {
+    const result = CreateStudentSchema.safeParse({
+      firstName: 'Test',
+      lastName: 'Student',
     })
     expect(result.success).toBe(true)
     if (result.success) {
@@ -110,7 +119,9 @@ describe('CreateStudentSchema – schoolYear field', () => {
 
   it('accepts student with all academic fields', () => {
     const result = CreateStudentSchema.safeParse({
-      fullName: 'Full Student',
+      firstName: 'Full',
+      middleName: 'Middle',
+      lastName: 'Student',
       gradeLevel: 'Grade 11',
       strand: 'STEM',
       section: 'Masikhay',
@@ -124,5 +135,12 @@ describe('CreateStudentSchema – schoolYear field', () => {
       expect(result.data.section).toBe('Masikhay')
       expect(result.data.schoolYear).toBe('2025-2026')
     }
+  })
+
+  it('rejects payload when both fullName and split required names are missing', () => {
+    const result = CreateStudentSchema.safeParse({
+      schoolYear: '2025-2026',
+    })
+    expect(result.success).toBe(false)
   })
 })

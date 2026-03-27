@@ -81,7 +81,7 @@ describe('Student archive service', () => {
     expect(result.find((s: any) => s.id === 's2')?.isArchived).toBe(true)
   })
 
-  it('listStudents with search filters by fullName', async () => {
+  it('listStudents with search filters across full and split name fields', async () => {
     db.student.findMany.mockResolvedValue([activeStudent])
 
     await listStudents('anna')
@@ -89,7 +89,12 @@ describe('Student archive service', () => {
     expect(db.student.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          fullName: { contains: 'anna', mode: 'insensitive' },
+          OR: expect.arrayContaining([
+            { fullName: { contains: 'anna', mode: 'insensitive' } },
+            { firstName: { contains: 'anna', mode: 'insensitive' } },
+            { middleName: { contains: 'anna', mode: 'insensitive' } },
+            { lastName: { contains: 'anna', mode: 'insensitive' } },
+          ]),
         }),
       }),
     )

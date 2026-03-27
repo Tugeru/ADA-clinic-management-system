@@ -1,7 +1,19 @@
 import { z } from 'zod'
 
-export const CreateStudentSchema = z.object({
-    fullName: z.string().min(1, 'Full name is required'),
+const optionalTrimmedString = z
+    .string()
+    .optional()
+    .transform((value) => {
+        const trimmed = value?.trim()
+        return trimmed ? trimmed : undefined
+    })
+
+const StudentBaseSchema = z.object({
+    // Backward-compatible during migration: accept legacy fullName payloads.
+    fullName: optionalTrimmedString,
+    firstName: optionalTrimmedString,
+    middleName: optionalTrimmedString,
+    lastName: optionalTrimmedString,
     // P-1: patient type
     patientType: z.enum(['Student', 'Teacher', 'Non-Teaching Personnel']).default('Student'),
     // Student-specific
@@ -23,7 +35,28 @@ export const CreateStudentSchema = z.object({
     contactNumber: z.string().optional(),
 })
 
-export const UpdateStudentSchema = CreateStudentSchema.partial()
+export const CreateStudentSchema = StudentBaseSchema.superRefine((data, ctx) => {
+    const hasLegacyFullName = !!data.fullName
+    const hasSplitNames = !!data.firstName && !!data.lastName
+    if (!hasLegacyFullName && !hasSplitNames) {
+        if (!data.firstName) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['firstName'],
+                message: 'First name is required',
+            })
+        }
+        if (!data.lastName) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['lastName'],
+                message: 'Last name is required',
+            })
+        }
+    }
+})
+
+export const UpdateStudentSchema = StudentBaseSchema.partial()
 
 export type CreateStudentInput = z.infer<typeof CreateStudentSchema>
 export type UpdateStudentInput = z.infer<typeof UpdateStudentSchema>

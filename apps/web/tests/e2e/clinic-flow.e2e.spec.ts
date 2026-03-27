@@ -99,9 +99,9 @@ test.describe('Clinic flows (mocked API)', () => {
     await page.waitForURL('/');
 
     // Add a new patient via UI
-    await page.getByRole('link', { name: /patients/i }).click();
-    await page.getByRole('link', { name: /add new patient/i }).click();
-    await page.getByLabel(/full name/i).fill('Test Student');
+    await page.goto('/patients/add');
+    await page.getByPlaceholder('e.g. Juan').fill('Test');
+    await page.getByPlaceholder('e.g. Dela Cruz').fill('Student');
     await page.getByRole('button', { name: /save/i }).click();
 
     // Log a new visit with a medicine

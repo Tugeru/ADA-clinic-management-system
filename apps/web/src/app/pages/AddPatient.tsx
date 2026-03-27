@@ -22,12 +22,72 @@ type PatientType = 'Student' | 'Teacher' | 'Non-Teaching Personnel';
 
 const PATIENT_TYPES: PatientType[] = ['Student', 'Teacher', 'Non-Teaching Personnel'];
 
+interface PatientFormValues {
+  fullName?: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  gradeLevel?: string;
+  strand?: string;
+  section?: string;
+  schoolYear?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  department?: string;
+  position?: string;
+  knownMedicalConditions?: string;
+  contactName?: string;
+  contactRelationship?: string;
+  contactNumber?: string;
+}
+
+function normalizeNamePart(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function splitLegacyFullName(fullName: unknown): { firstName?: string; middleName?: string; lastName?: string } {
+  const legacy = normalizeNamePart(fullName);
+  if (!legacy) return {};
+
+  if (legacy.includes(',')) {
+    const [rawLast, rawRest = ''] = legacy.split(',', 2);
+    const restParts = rawRest.trim().split(/\s+/).filter(Boolean);
+    return {
+      firstName: normalizeNamePart(restParts[0]),
+      middleName: normalizeNamePart(restParts.slice(1).join(' ')),
+      lastName: normalizeNamePart(rawLast),
+    };
+  }
+
+  const parts = legacy.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return { firstName: normalizeNamePart(parts[0]) };
+  if (parts.length === 2) {
+    return {
+      firstName: normalizeNamePart(parts[0]),
+      lastName: normalizeNamePart(parts[1]),
+    };
+  }
+
+  return {
+    firstName: normalizeNamePart(parts[0]),
+    middleName: normalizeNamePart(parts.slice(1, -1).join(' ')),
+    lastName: normalizeNamePart(parts[parts.length - 1]),
+  };
+}
+
+function composeFullName(firstName?: string, middleName?: string, lastName?: string): string {
+  if (!firstName || !lastName) return '';
+  return `${lastName}, ${firstName}${middleName ? ` ${middleName}` : ''}`;
+}
+
 export function AddPatient() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
 
-  const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm();
+  const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<PatientFormValues>();
   const createPatient = useCreatePatient();
   const updatePatient = useUpdatePatient();
 
@@ -69,8 +129,11 @@ export function AddPatient() {
       setSchoolYear(ep.schoolYear ?? '');
       setGender(ep.gender ?? '');
       setContactRelationship(ep.contactRelationship ?? '');
+      const parsedNames = splitLegacyFullName(ep.fullName);
       reset({
-        fullName: ep.fullName,
+        firstName: ep.firstName ?? parsedNames.firstName ?? '',
+        middleName: ep.middleName ?? parsedNames.middleName ?? '',
+        lastName: ep.lastName ?? parsedNames.lastName ?? '',
         dateOfBirth: ep.dateOfBirth?.slice(0, 10) ?? '',
         department: ep.department ?? '',
         position: ep.position ?? '',
@@ -85,9 +148,21 @@ export function AddPatient() {
     }
   }, [existingPatient, isEdit, reset, setValue]);
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: PatientFormValues) => {
+    const firstName = normalizeNamePart(data.firstName);
+    const middleName = normalizeNamePart(data.middleName);
+    const lastName = normalizeNamePart(data.lastName);
+
+    if (!firstName || !lastName) {
+      toast.error('First name and last name are required');
+      return;
+    }
+
     const payload = {
-      fullName: data.fullName,
+      fullName: composeFullName(firstName, middleName, lastName),
+      firstName,
+      middleName,
+      lastName,
       patientType,
       // Student fields
       gradeLevel: gradeLevel || undefined,
@@ -95,16 +170,16 @@ export function AddPatient() {
       section: section || undefined,
       schoolYear: schoolYear || undefined,
       // Teacher/NTP fields
-      department: data.department || undefined,
-      position: data.position || undefined,
+      department: data.department?.trim() || undefined,
+      position: data.position?.trim() || undefined,
       // Common
       dateOfBirth: data.dateOfBirth || undefined,
       gender: gender || undefined,
-      knownMedicalConditions: data.knownMedicalConditions || undefined,
+      knownMedicalConditions: data.knownMedicalConditions?.trim() || undefined,
       // P-4: Emergency contact
-      contactName: data.contactName || undefined,
+      contactName: data.contactName?.trim() || undefined,
       contactRelationship: contactRelationship || undefined,
-      contactNumber: data.contactNumber || undefined,
+      contactNumber: data.contactNumber?.trim() || undefined,
     };
 
     try {
@@ -167,15 +242,32 @@ export function AddPatient() {
               <div className="flex items-center gap-2 text-teal-700 font-bold text-xs mb-4 uppercase tracking-wide">
                 <User size={14} /> Identification & Basic Info
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Full Name <span className="text-red-500">*</span></Label>
+                  <Label className="text-xs">First Name <span className="text-red-500">*</span></Label>
                   <Input
-                    {...register('fullName', { required: true })}
-                    placeholder="Last Name, First Name, Middle Name"
-                    className={cn('h-9 text-xs', errors.fullName && 'border-red-300 bg-red-50')}
+                    {...register('firstName', { required: true })}
+                    placeholder="e.g. Juan"
+                    className={cn('h-9 text-xs', errors.firstName && 'border-red-300 bg-red-50')}
                   />
-                  {errors.fullName && <p className="text-[10px] text-red-500 flex items-center gap-0.5"><AlertCircle size={10} /> Required</p>}
+                  {errors.firstName && <p className="text-[10px] text-red-500 flex items-center gap-0.5"><AlertCircle size={10} /> Required</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Middle Name</Label>
+                  <Input
+                    {...register('middleName')}
+                    placeholder="e.g. Santos"
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Last Name <span className="text-red-500">*</span></Label>
+                  <Input
+                    {...register('lastName', { required: true })}
+                    placeholder="e.g. Dela Cruz"
+                    className={cn('h-9 text-xs', errors.lastName && 'border-red-300 bg-red-50')}
+                  />
+                  {errors.lastName && <p className="text-[10px] text-red-500 flex items-center gap-0.5"><AlertCircle size={10} /> Required</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Date of Birth</Label>
@@ -183,7 +275,7 @@ export function AddPatient() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Gender</Label>
-                  <Select value={gender} onValueChange={(v) => { setGender(v); setValue('gender', v); }}>
+                  <Select value={gender} onValueChange={(v: string) => { setGender(v); setValue('gender', v); }}>
                     <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select Gender" /></SelectTrigger>
                     <SelectContent>
                       {['Male', 'Female', 'Other'].map(g => (

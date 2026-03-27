@@ -53,6 +53,9 @@ export interface Patient {
   id: string;
   idNumber: string;
   fullName: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
   type: PatientType;
   gender: Gender;
   dateOfBirth?: string;
@@ -91,7 +94,10 @@ export interface Patient {
 
 // Matches CreateStudentSchema / UpdateStudentSchema on the backend
 export interface PatientFormData {
-  fullName: string;
+  fullName?: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
   gradeLevel?: string;
   section?: string;
   strand?: string;

@@ -558,6 +558,59 @@ export const userApi = {
 };
 
 // ─── Mappers ─────────────────────────────────────────────────
+function normalizeNamePart(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function splitLegacyFullName(fullName: unknown): { firstName?: string; middleName?: string; lastName?: string } {
+  const legacy = normalizeNamePart(fullName);
+  if (!legacy) return {};
+
+  if (legacy.includes(',')) {
+    const [rawLast, rawRest = ''] = legacy.split(',', 2);
+    const restParts = rawRest.trim().split(/\s+/).filter(Boolean);
+    return {
+      firstName: normalizeNamePart(restParts[0]),
+      middleName: normalizeNamePart(restParts.slice(1).join(' ')),
+      lastName: normalizeNamePart(rawLast),
+    };
+  }
+
+  const parts = legacy.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    return { firstName: normalizeNamePart(parts[0]) };
+  }
+  if (parts.length === 2) {
+    return {
+      firstName: normalizeNamePart(parts[0]),
+      lastName: normalizeNamePart(parts[1]),
+    };
+  }
+
+  return {
+    firstName: normalizeNamePart(parts[0]),
+    middleName: normalizeNamePart(parts.slice(1, -1).join(' ')),
+    lastName: normalizeNamePart(parts[parts.length - 1]),
+  };
+}
+
+function composeFullName(args: {
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  fallback?: string;
+}): string {
+  const firstName = normalizeNamePart(args.firstName);
+  const middleName = normalizeNamePart(args.middleName);
+  const lastName = normalizeNamePart(args.lastName);
+  if (firstName && lastName) {
+    return `${lastName}, ${firstName}${middleName ? ` ${middleName}` : ''}`;
+  }
+  return normalizeNamePart(args.fallback) ?? '';
+}
+
 function mapStudent(s: any): Patient {
   // P-3: compute age from dateOfBirth
   let age: string | undefined;
@@ -570,9 +623,18 @@ function mapStudent(s: any): Patient {
     age = `${years}`;
   }
 
+  const parsed = splitLegacyFullName(s.fullName);
+  const firstName = normalizeNamePart(s.firstName) ?? parsed.firstName;
+  const middleName = normalizeNamePart(s.middleName) ?? parsed.middleName;
+  const lastName = normalizeNamePart(s.lastName) ?? parsed.lastName;
+  const fullName = composeFullName({ firstName, middleName, lastName, fallback: s.fullName });
+
   return {
     id: s.id,
-    fullName: s.fullName,
+    fullName,
+    firstName,
+    middleName,
+    lastName,
     idNumber: s.id.slice(0, 8),
     type: (s.patientType as any) ?? 'Student',
     gradeLevel: s.gradeLevel ?? '',
@@ -709,8 +771,21 @@ function normalizeDateOnly(value: unknown): string | null {
 }
 
 function studentPayload(p: any) {
+  const firstName = normalizeNamePart(p.firstName);
+  const middleName = normalizeNamePart(p.middleName);
+  const lastName = normalizeNamePart(p.lastName);
+  const fullName = composeFullName({
+    firstName,
+    middleName,
+    lastName,
+    fallback: p.fullName,
+  });
+
   return {
-    fullName: p.fullName,
+    fullName,
+    firstName,
+    middleName,
+    lastName,
     patientType: p.patientType ?? 'Student',
     gradeLevel: p.gradeLevel || undefined,
     strand: p.strand || undefined,

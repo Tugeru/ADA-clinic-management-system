@@ -5,15 +5,158 @@ import { recordAudit } from './audit.service.js'
 
 // Prisma client regenerated after add_strand_field migration
 
+type NameParts = {
+    fullName?: string
+    firstName?: string
+    middleName?: string
+    lastName?: string
+}
+
+function hasOwnKey(obj: object, key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(obj, key)
+}
+
+function normalizeNamePart(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined
+    const trimmed = value.trim()
+    return trimmed ? trimmed : undefined
+}
+
+function splitLegacyFullName(fullName: string | undefined): Omit<NameParts, 'fullName'> {
+    if (!fullName) return {}
+
+    const trimmed = fullName.trim()
+    if (!trimmed) return {}
+
+    if (trimmed.includes(',')) {
+        const [rawLast, rawRest = ''] = trimmed.split(',', 2)
+        const restParts = rawRest
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+        const firstName = normalizeNamePart(restParts[0])
+        const middleName = normalizeNamePart(restParts.slice(1).join(' '))
+        return {
+            firstName,
+            middleName,
+            lastName: normalizeNamePart(rawLast),
+        }
+    }
+
+    const parts = trimmed.split(/\s+/).filter(Boolean)
+    if (parts.length === 1) return { firstName: normalizeNamePart(parts[0]) }
+    if (parts.length === 2) {
+        return {
+            firstName: normalizeNamePart(parts[0]),
+            lastName: normalizeNamePart(parts[1]),
+        }
+    }
+
+    return {
+        firstName: normalizeNamePart(parts[0]),
+        middleName: normalizeNamePart(parts.slice(1, -1).join(' ')),
+        lastName: normalizeNamePart(parts[parts.length - 1]),
+    }
+}
+
+function buildFullName(parts: Omit<NameParts, 'fullName'>, fallback?: string): string {
+    if (parts.lastName && parts.firstName) {
+        const middleSegment = parts.middleName ? ` ${parts.middleName}` : ''
+        return `${parts.lastName}, ${parts.firstName}${middleSegment}`
+    }
+    return normalizeNamePart(fallback) ?? ''
+}
+
+function resolveNamePartsForCreate(data: CreateStudentInput): Required<NameParts> {
+    const legacyFullName = normalizeNamePart(data.fullName)
+    let firstName = normalizeNamePart(data.firstName)
+    let middleName = normalizeNamePart(data.middleName)
+    let lastName = normalizeNamePart(data.lastName)
+
+    if ((!firstName || !lastName) && legacyFullName) {
+        const parsed = splitLegacyFullName(legacyFullName)
+        firstName = firstName ?? parsed.firstName
+        middleName = middleName ?? parsed.middleName
+        lastName = lastName ?? parsed.lastName
+    }
+
+    const fullName = buildFullName({ firstName, middleName, lastName }, legacyFullName)
+    return {
+        fullName,
+        firstName,
+        middleName,
+        lastName,
+    }
+}
+
+function resolveNamePartsFromRecord(record: NameParts): Required<NameParts> {
+    const legacyFullName = normalizeNamePart(record.fullName)
+    const parsed = splitLegacyFullName(legacyFullName)
+    const firstName = normalizeNamePart(record.firstName) ?? parsed.firstName
+    const middleName = normalizeNamePart(record.middleName) ?? parsed.middleName
+    const lastName = normalizeNamePart(record.lastName) ?? parsed.lastName
+    const fullName = buildFullName({ firstName, middleName, lastName }, legacyFullName)
+
+    return {
+        fullName,
+        firstName,
+        middleName,
+        lastName,
+    }
+}
+
+function resolveNamePartsForUpdate(current: Required<NameParts>, payload: UpdateStudentInput): Required<NameParts> {
+    const hasLegacyFullName = hasOwnKey(payload, 'fullName')
+    const hasFirstName = hasOwnKey(payload, 'firstName')
+    const hasMiddleName = hasOwnKey(payload, 'middleName')
+    const hasLastName = hasOwnKey(payload, 'lastName')
+
+    const legacyFullName = hasLegacyFullName ? normalizeNamePart(payload.fullName) : undefined
+    let firstName = hasFirstName ? normalizeNamePart(payload.firstName) : current.firstName
+    let middleName = hasMiddleName ? normalizeNamePart(payload.middleName) : current.middleName
+    let lastName = hasLastName ? normalizeNamePart(payload.lastName) : current.lastName
+
+    if (hasLegacyFullName && legacyFullName) {
+        const parsed = splitLegacyFullName(legacyFullName)
+        firstName = parsed.firstName ?? firstName
+        middleName = parsed.middleName ?? middleName
+        lastName = parsed.lastName ?? lastName
+    }
+
+    const fullName = buildFullName(
+        { firstName, middleName, lastName },
+        hasLegacyFullName ? legacyFullName : current.fullName,
+    ) || current.fullName
+
+    return {
+        fullName,
+        firstName,
+        middleName,
+        lastName,
+    }
+}
+
 export async function listStudents(search?: string, includeArchived = false) {
     return prisma.student.findMany({
         where: {
             ...(includeArchived ? {} : { isArchived: false }),
             ...(search
-                ? { fullName: { contains: search, mode: 'insensitive' as const } }
+                ? {
+                    OR: [
+                        { fullName: { contains: search, mode: 'insensitive' as const } },
+                        { firstName: { contains: search, mode: 'insensitive' as const } },
+                        { middleName: { contains: search, mode: 'insensitive' as const } },
+                        { lastName: { contains: search, mode: 'insensitive' as const } },
+                    ],
+                }
                 : {}),
         },
-        orderBy: { fullName: 'asc' },
+        orderBy: [
+            { lastName: 'asc' as const },
+            { firstName: 'asc' as const },
+            { middleName: 'asc' as const },
+            { fullName: 'asc' as const },
+        ],
     })
 }
 
@@ -22,9 +165,17 @@ export async function getStudent(id: string) {
 }
 
 export async function createStudent(userId: string, data: CreateStudentInput) {
+    const resolvedNames = resolveNamePartsForCreate(data)
+    if (!resolvedNames.fullName) {
+        throw Object.assign(new Error('Patient name is required'), { status: 400 })
+    }
+
     const created = await prisma.student.create({
         data: {
-            fullName: data.fullName,
+            fullName: resolvedNames.fullName,
+            firstName: resolvedNames.firstName,
+            middleName: resolvedNames.middleName,
+            lastName: resolvedNames.lastName,
             patientType: data.patientType ?? 'Student',
             gradeLevel: data.gradeLevel,
             strand: data.strand,
@@ -51,12 +202,52 @@ export async function createStudent(userId: string, data: CreateStudentInput) {
 }
 
 export async function updateStudent(userId: string, id: string, data: UpdateStudentInput) {
+    const {
+        fullName: _legacyFullName,
+        firstName: _firstName,
+        middleName: _middleName,
+        lastName: _lastName,
+        dateOfBirth,
+        ...rest
+    } = data as UpdateStudentInput & Record<string, unknown>
+
+    const updateData: Record<string, unknown> = { ...rest }
+    if (hasOwnKey(data, 'dateOfBirth')) {
+        updateData.dateOfBirth = dateOfBirth ? new Date(dateOfBirth as string) : undefined
+    }
+
+    const hasNameUpdate =
+        hasOwnKey(data, 'fullName') ||
+        hasOwnKey(data, 'firstName') ||
+        hasOwnKey(data, 'middleName') ||
+        hasOwnKey(data, 'lastName')
+
+    if (hasNameUpdate) {
+        const existing = await prisma.student.findUnique({
+            where: { id },
+            select: {
+                fullName: true,
+                firstName: true,
+                middleName: true,
+                lastName: true,
+            },
+        })
+
+        if (!existing) {
+            throw Object.assign(new Error('Student not found'), { status: 404 })
+        }
+
+        const currentNames = resolveNamePartsFromRecord(existing)
+        const nextNames = resolveNamePartsForUpdate(currentNames, data)
+        updateData.fullName = nextNames.fullName
+        updateData.firstName = nextNames.firstName
+        updateData.middleName = nextNames.middleName
+        updateData.lastName = nextNames.lastName
+    }
+
     const updated = await prisma.student.update({
         where: { id },
-        data: {
-            ...data,
-            dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
-        },
+        data: updateData,
     })
     await recordAudit({
         userId,

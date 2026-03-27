@@ -173,11 +173,12 @@ test.describe('Patient edit redirect', () => {
     await setupPatientMocks(page);
 
     await page.goto('/patients/edit/patient-1');
-    await page.getByPlaceholder('Last Name, First Name, Middle Name').fill('Edited Student');
+    await page.getByPlaceholder('e.g. Juan').fill('Edited');
+    await page.getByPlaceholder('e.g. Dela Cruz').fill('Student');
     await page.getByRole('button', { name: /update patient/i }).click();
 
     await expect(page).toHaveURL(/\/patients\/patient-1$/);
-    await expect(page.getByRole('heading', { name: /edited student/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /student, edited/i })).toBeVisible();
   });
 
   test('edit from patient profile redirects back to the profile after update', async ({ page }) => {
@@ -188,11 +189,13 @@ test.describe('Patient edit redirect', () => {
     await page.getByRole('link', { name: /edit profile/i }).click();
     await expect(page).toHaveURL(/\/patients\/edit\/patient-1$/);
 
-    await page.getByPlaceholder('Last Name, First Name, Middle Name').fill('Profile Edit Student');
+    await page.getByPlaceholder('e.g. Juan').fill('Profile');
+    await page.getByPlaceholder('e.g. Santos').fill('Edit');
+    await page.getByPlaceholder('e.g. Dela Cruz').fill('Student');
     await page.getByRole('button', { name: /update patient/i }).click();
 
     await expect(page).toHaveURL(/\/patients\/patient-1$/);
-    await expect(page.getByRole('heading', { name: /profile edit student/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /student, profile edit/i })).toBeVisible();
   });
 
   test('failed update keeps user on edit page and shows error', async ({ page }) => {
@@ -200,7 +203,8 @@ test.describe('Patient edit redirect', () => {
     await setupPatientMocks(page, { patchShouldFail: true });
 
     await page.goto('/patients/edit/patient-1');
-    await page.getByPlaceholder('Last Name, First Name, Middle Name').fill('Still Editing');
+    await page.getByPlaceholder('e.g. Juan').fill('Still');
+    await page.getByPlaceholder('e.g. Dela Cruz').fill('Editing');
     await page.getByRole('button', { name: /update patient/i }).click();
 
     await expect(page).toHaveURL(/\/patients\/edit\/patient-1$/);

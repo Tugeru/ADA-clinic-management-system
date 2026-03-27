@@ -27,6 +27,38 @@ const db = prisma as unknown as {
 describe('Student service – schoolYear field', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it('createStudent accepts split names and stores canonical fullName', async () => {
+    const created = {
+      id: 'uuid-split-1',
+      fullName: 'Student, Test Middle',
+      firstName: 'Test',
+      middleName: 'Middle',
+      lastName: 'Student',
+      schoolYear: '2025-2026',
+      patientType: 'Student',
+    }
+    db.student.create.mockResolvedValue(created)
+
+    const result = await createStudent('u1', {
+      firstName: 'Test',
+      middleName: 'Middle',
+      lastName: 'Student',
+      schoolYear: '2025-2026',
+    })
+
+    expect(result.fullName).toBe('Student, Test Middle')
+    expect(db.student.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          firstName: 'Test',
+          middleName: 'Middle',
+          lastName: 'Student',
+          fullName: 'Student, Test Middle',
+        }),
+      }),
+    )
+  })
+
   it('createStudent persists schoolYear', async () => {
     const created = {
       id: 'uuid-1',
