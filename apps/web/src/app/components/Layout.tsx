@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router';
 import {
   LayoutDashboard, Users, Stethoscope, Package, BarChart3,
-  Archive, Settings, Menu, Search, ChevronDown, Calendar, LogOut
+  Archive, Settings, Menu, ChevronDown, Calendar, LogOut
 } from 'lucide-react';
 import { cn } from './ui/utils';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
@@ -136,15 +135,6 @@ export function Layout() {
             <div className="hidden lg:flex items-center gap-1.5 text-xs text-slate-400 ml-3 whitespace-nowrap">
               <Calendar size={12} />
               {today}
-            </div>
-
-            {/* Global Search */}
-            <div className="flex-1 max-w-sm ml-auto relative">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <Input
-                placeholder="Search patients, medicine..."
-                className="pl-8 h-8 text-sm bg-slate-50 border-slate-200"
-              />
             </div>
           </div>
 
