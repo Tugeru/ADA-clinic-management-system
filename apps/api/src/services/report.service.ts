@@ -1,6 +1,6 @@
 import prisma from '../config/db.js'
-import { EXPIRY_WARNING_DAYS } from '@ada/shared'
 import type { DashboardAnalyticsQueryInput } from '@ada/shared'
+import { bucketActiveExpiryBatches } from './inventory-expiry.service.js'
 
 export async function clinicSummary(startDate: string, endDate: string) {
     const visits = await prisma.visit.findMany({
@@ -28,32 +28,11 @@ export async function lowStockReport() {
     })
 
     const now = new Date()
-    // Use UTC date-only comparisons to avoid timezone drift between FE and BE.
-    const todayStr = now.toISOString().slice(0, 10)
-    const warningDate = new Date(now.getTime() + EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000)
-    const warningStr = warningDate.toISOString().slice(0, 10)
-
-    const toDateOnlyUTC = (d: Date) => d.toISOString().slice(0, 10)
 
     return medicines
         .map((m) => {
             const totalStock = m.batches.reduce((sum, b) => sum + b.quantityOnHand, 0)
-
-            const expiredBatches = m.batches.filter(
-                (b) => b.expirationDate && toDateOnlyUTC(b.expirationDate) < todayStr,
-            )
-
-            const expiringTodayBatches = m.batches.filter(
-                (b) => b.expirationDate && toDateOnlyUTC(b.expirationDate) === todayStr,
-            )
-
-            // tomorrow .. warningStr (inclusive)
-            const expiringSoonBatches = m.batches.filter(
-                (b) =>
-                    b.expirationDate &&
-                    toDateOnlyUTC(b.expirationDate) > todayStr &&
-                    toDateOnlyUTC(b.expirationDate) <= warningStr,
-            )
+            const { expiredBatches, expiringTodayBatches, expiringSoonBatches } = bucketActiveExpiryBatches(m.batches, now)
 
             return {
                 medicineId: m.id,

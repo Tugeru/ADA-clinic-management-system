@@ -42,6 +42,52 @@ function mapMedicineResponse(items: MockMedicine[]) {
 }
 
 test.describe('Inventory page', () => {
+  test('does not mark expiring soon when only near-expiry batch is fully consumed', async ({ page }) => {
+    const soonDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    await setAuthenticatedSession(page);
+
+    await page.route('**/api/medicines**', async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname !== '/api/medicines' || route.request().method() !== 'GET') {
+        await route.fallback();
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: '33333333-3333-3333-3333-333333333333',
+            name: 'Cetirizine',
+            description: '',
+            purpose: 'Medicine',
+            reorderThreshold: 2,
+            isActive: true,
+            batches: [{
+              id: '33333333-batch-1',
+              batchNumber: 'B-CETI',
+              expirationDate: soonDate,
+              quantityOnHand: 0,
+            }],
+            totalStock: 0,
+            isLowStock: true,
+            expirationStatus: 'fresh',
+            hasExpiringSoon: false,
+          },
+        ]),
+      });
+    });
+
+    await page.goto('/inventory');
+
+    await expect(page.getByRole('row', { name: /Cetirizine/i })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Fresh' })).toBeVisible();
+    const expiringSoonCard = page.locator('div').filter({ hasText: /^Expiring Soon0$/ }).first();
+    await expect(expiringSoonCard).toBeVisible();
+  });
+
   test('search filters medicines via API query', async ({ page }) => {
     let medicines: MockMedicine[] = [
       { id: '11111111-1111-1111-1111-111111111111', name: 'Paracetamol', totalStock: 12, reorderThreshold: 3, expirationDate: null },

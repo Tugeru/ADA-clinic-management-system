@@ -137,6 +137,13 @@ describe('Student archive service', () => {
 describe('Medicine inactive/restore service', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  function dateOffset(days: number): Date {
+    const d = new Date()
+    d.setUTCHours(0, 0, 0, 0)
+    d.setUTCDate(d.getUTCDate() + days)
+    return d
+  }
+
   it('listMedicines without includeInactive returns only active medicines', async () => {
     db.medicine.findMany.mockResolvedValue([activeMedicine])
 
@@ -171,6 +178,60 @@ describe('Medicine inactive/restore service', () => {
 
     expect(med.totalStock).toBe(50)
     expect(med.isLowStock).toBe(false)
+  })
+
+  it('listMedicines ignores fully consumed batches for expiring soon status', async () => {
+    db.medicine.findMany.mockResolvedValue([
+      {
+        ...activeMedicine,
+        batches: [
+          {
+            id: 'b-zero-soon',
+            batchNumber: 'B-ZERO',
+            expirationDate: dateOffset(5),
+            quantityOnHand: 0,
+          },
+          {
+            id: 'b-fresh',
+            batchNumber: 'B-FRESH',
+            expirationDate: dateOffset(90),
+            quantityOnHand: 8,
+          },
+        ],
+      },
+    ])
+
+    const [med] = await listMedicines()
+
+    expect(med.hasExpiringSoon).toBe(false)
+    expect(med.expirationStatus).toBe('fresh')
+  })
+
+  it('listMedicines applies precedence using only eligible batches', async () => {
+    db.medicine.findMany.mockResolvedValue([
+      {
+        ...activeMedicine,
+        batches: [
+          {
+            id: 'b-zero-expired',
+            batchNumber: 'B-OLD',
+            expirationDate: dateOffset(-1),
+            quantityOnHand: 0,
+          },
+          {
+            id: 'b-soon',
+            batchNumber: 'B-SOON',
+            expirationDate: dateOffset(2),
+            quantityOnHand: 5,
+          },
+        ],
+      },
+    ])
+
+    const [med] = await listMedicines()
+
+    expect(med.expirationStatus).toBe('expiringSoon')
+    expect(med.hasExpiringSoon).toBe(true)
   })
 
   it('deleteMedicine sets isActive=false (soft delete)', async () => {

@@ -638,7 +638,10 @@ function mapVisit(v: any): Visit {
 
 function mapMedicine(m: any): Medicine {
   const batches = (m.batches ?? []) as any[];
-  const expirationStatus = deriveExpirationStatusFromBatches(batches);
+  const expirationStatus = (m.expirationStatus as InventoryExpiryStatus | undefined) ?? deriveExpirationStatusFromBatches(batches);
+  const hasExpiringSoon = typeof m.hasExpiringSoon === 'boolean'
+    ? m.hasExpiringSoon
+    : expirationStatus === 'expiresToday' || expirationStatus === 'expiringSoon';
 
   return {
     id: m.id,
@@ -653,7 +656,7 @@ function mapMedicine(m: any): Medicine {
     status: (m.isLowStock ? (m.totalStock === 0 ? 'critical' : 'low') : 'good') as any,
     expirationStatus,
     notes: m.description,
-    hasExpiringSoon: m.hasExpiringSoon ?? false,
+    hasExpiringSoon,
   } as any;
 }
 

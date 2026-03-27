@@ -1,9 +1,10 @@
 import prisma from '../config/db.js'
 import { Prisma } from '@prisma/client'
-import { TransactionType, EXPIRY_WARNING_DAYS } from '@ada/shared'
+import { TransactionType } from '@ada/shared'
 import type { BatchResult } from '@ada/shared'
 import type { CreateMedicineInput, UpdateMedicineInput, StockInInput, AdjustStockInput, UpdateBatchMetadataInput } from '@ada/shared'
 import { recordAudit } from './audit.service.js'
+import { classifyActiveExpiryStatus } from './inventory-expiry.service.js'
 
 function normalizeMedicineName(name: string) {
     return name.trim().toLowerCase()
@@ -54,16 +55,12 @@ export async function listMedicines(filters?: { includeInactive?: boolean; searc
         orderBy: { name: 'asc' },
     })
 
-    const now = new Date()
-    const warningDate = new Date(now.getTime() + EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000)
-
     return medicines.map((m) => {
         const totalStock = m.batches.reduce((sum, b) => sum + b.quantityOnHand, 0)
         const isLowStock = totalStock <= m.reorderThreshold
-        const hasExpiringSoon = m.batches.some(
-            (b) => b.expirationDate && b.expirationDate <= warningDate
-        )
-        return { ...m, totalStock, isLowStock, hasExpiringSoon }
+        const expirationStatus = classifyActiveExpiryStatus(m.batches)
+        const hasExpiringSoon = expirationStatus === 'expiresToday' || expirationStatus === 'expiringSoon'
+        return { ...m, totalStock, isLowStock, hasExpiringSoon, expirationStatus }
     })
 }
 
