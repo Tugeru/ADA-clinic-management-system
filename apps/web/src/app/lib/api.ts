@@ -29,10 +29,39 @@ export const authApi = {
 
 // ─── Patients / Students ────────────────────────────────────
 export const patientApi = {
-  async getAll(params?: { search?: string; includeArchived?: boolean }): Promise<PaginatedResponse<Patient>> {
-    const { data } = await http.get('/students', { params: { search: params?.search, includeArchived: params?.includeArchived } });
-    const items: any[] = Array.isArray(data) ? data : data.data ?? [];
-    return { data: items.map(mapStudent), total: items.length, page: 1, limit: items.length, totalPages: 1 };
+  async getAll(params?: {
+    search?: string;
+    includeArchived?: boolean;
+    archivedOnly?: boolean;
+    patientType?: 'Student' | 'Teacher' | 'NTP';
+    gradeLevel?: string;
+    strand?: string;
+    section?: string;
+    schoolYear?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<Patient>> {
+    const search = params?.search?.trim();
+    const gradeLevel = params?.gradeLevel?.trim();
+    const strand = params?.strand?.trim();
+    const section = params?.section?.trim();
+    const schoolYear = params?.schoolYear?.trim();
+
+    const { data } = await http.get('/students', {
+      params: {
+        ...(search ? { search } : {}),
+        includeArchived: params?.includeArchived,
+        archivedOnly: params?.archivedOnly,
+        patientType: params?.patientType,
+        ...(gradeLevel ? { gradeLevel } : {}),
+        ...(strand ? { strand } : {}),
+        ...(section ? { section } : {}),
+        ...(schoolYear ? { schoolYear } : {}),
+        page: params?.page,
+        limit: params?.limit,
+      },
+    });
+    return mapPaginated(data, mapStudent, params?.limit ?? 20);
   },
 
   async getById(id: string): Promise<Patient | undefined> {
@@ -90,18 +119,44 @@ export const patientApi = {
   },
 
   async search(query: string): Promise<Patient[]> {
-    const { data } = await http.get('/students', { params: { search: query } });
-    const items: any[] = Array.isArray(data) ? data : data.data ?? [];
-    return items.slice(0, 5).map(mapStudent);
+    const search = query.trim();
+    if (!search) return [];
+    const { data } = await http.get('/students', { params: { search, page: 1, limit: 5 } });
+    return mapPaginated(data, mapStudent, 5).data.slice(0, 5);
   },
 };
 
 // ─── Visits ─────────────────────────────────────────────────
 export const visitApi = {
-  async getAll(params?: { search?: string; studentId?: string; startDate?: string; endDate?: string }): Promise<PaginatedResponse<Visit>> {
-    const { data } = await http.get('/visits', { params });
-    const items: any[] = Array.isArray(data) ? data : data.data ?? [];
-    return { data: items.map(mapVisit), total: items.length, page: 1, limit: items.length, totalPages: 1 };
+  async getAll(params?: {
+    search?: string;
+    studentId?: string;
+    startDate?: string;
+    endDate?: string;
+    type?: string;
+    disposition?: string;
+    period?: string;
+    includeArchived?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<Visit>> {
+    const search = params?.search?.trim();
+
+    const dateRange = resolveVisitDateRange(params?.period);
+    const { data } = await http.get('/visits', {
+      params: {
+        ...(search ? { search } : {}),
+        studentId: params?.studentId,
+        startDate: params?.startDate ?? dateRange.startDate,
+        endDate: params?.endDate ?? dateRange.endDate,
+        type: params?.type && params.type !== 'All Types' ? params.type : undefined,
+        disposition: params?.disposition && params.disposition !== 'All Dispositions' ? params.disposition : undefined,
+        includeArchived: params?.includeArchived,
+        page: params?.page,
+        limit: params?.limit,
+      },
+    });
+    return mapPaginated(data, mapVisit, params?.limit ?? 20);
   },
 
   async getById(id: number | string): Promise<Visit | undefined> {
@@ -147,8 +202,7 @@ export const visitApi = {
 
   async getTodayCount(): Promise<number> {
     const { data } = await http.get('/visits', { params: { startDate: toDateStr(new Date()), endDate: toDateStr(new Date()) } });
-    const items: any[] = Array.isArray(data) ? data : data.data ?? [];
-    return items.length;
+    return mapPaginated(data, mapVisit, 20).total;
   },
 
   async delete(id: string): Promise<void> {
@@ -163,13 +217,24 @@ export const visitApi = {
 
 // ─── Inventory ───────────────────────────────────────────────
 export const inventoryApi = {
-  async getAll(params?: { search?: string }): Promise<Medicine[]> {
+  async getAll(params?: {
+    search?: string;
+    includeInactive?: boolean;
+    inactiveOnly?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<Medicine>> {
     const search = params?.search?.trim();
     const { data } = await http.get('/medicines', {
-      params: search ? { search } : undefined,
+      params: {
+        ...(search ? { search } : {}),
+        includeInactive: params?.includeInactive,
+        inactiveOnly: params?.inactiveOnly,
+        page: params?.page,
+        limit: params?.limit,
+      },
     });
-    const items: any[] = Array.isArray(data) ? data : data.data ?? [];
-    return items.map(mapMedicine);
+    return mapPaginated(data, mapMedicine, params?.limit ?? 20);
   },
 
   async getLowStock(): Promise<Medicine[]> {
@@ -239,8 +304,8 @@ export const inventoryApi = {
   },
 
   async getAvailableForDispensing(): Promise<{ name: string; id: string; stock: number }[]> {
-    const { data } = await http.get('/medicines');
-    const items: any[] = Array.isArray(data) ? data : data.data ?? [];
+    const { data } = await http.get('/medicines', { params: { page: 1, limit: 100 } });
+    const items = mapPaginated(data, (m: any) => m, 100).data;
     const today = toDateStr(new Date());
 
     const getEligibleStock = (medicine: any) => {
@@ -356,8 +421,8 @@ export const dashboardApi = {
       http.get('/reports/low-stock'),
       http.get('/medicines'),
     ]);
-    const visitItems: any[] = Array.isArray(visits.data) ? visits.data : visits.data.data ?? [];
-    const studentItems: any[] = Array.isArray(students.data) ? students.data : students.data.data ?? [];
+    const visitPage = mapPaginated(visits.data, (v: any) => v, 20);
+    const studentPage = mapPaginated(students.data, (s: any) => s, 20);
     const lowItems: any[] = Array.isArray(lowStock.data) ? lowStock.data : lowStock.data.medicines ?? [];
     /** Report lists low-stock and expiring-only rows; this KPI counts only below-threshold stock (see report.service `isLowStock`). */
     const lowStockOnlyCount = lowItems.filter((m: any) =>
@@ -365,12 +430,12 @@ export const dashboardApi = {
         ? m.isLowStock
         : (m.totalStock ?? 0) <= (m.reorderThreshold ?? 0),
     ).length;
-    const medItems: any[] = Array.isArray(medicines.data) ? medicines.data : medicines.data.data ?? [];
+    const medicinePage = mapPaginated(medicines.data, (m: any) => m, 20);
     return [
-      { title: "TODAY'S VISITS", value: String(visitItems.length), change: '', changeType: 'positive', changeText: 'today' },
-      { title: 'ACTIVE PATIENTS', value: String(studentItems.filter((s: any) => !s.isArchived).length), change: '', changeType: 'positive', changeText: 'active' },
+      { title: "TODAY'S VISITS", value: String(visitPage.total), change: '', changeType: 'positive', changeText: 'today' },
+      { title: 'ACTIVE PATIENTS', value: String(studentPage.total), change: '', changeType: 'positive', changeText: 'active' },
       { title: 'LOW STOCK ITEMS', value: String(lowStockOnlyCount), subtitle: 'Needs Attention', subtitleColor: 'text-orange-500', highlight: lowStockOnlyCount > 0 },
-      { title: 'TOTAL MEDICINES', value: String(medItems.length), subtitle: 'In Catalog', subtitleColor: 'text-emerald-500' },
+      { title: 'TOTAL MEDICINES', value: String(medicinePage.total), subtitle: 'In Catalog', subtitleColor: 'text-emerald-500' },
     ];
   },
 
@@ -409,20 +474,54 @@ export const analyticsApi = {
 
 // ─── Archive ─────────────────────────────────────────────────
 export const archiveApi = {
-  async getArchivedPatients(params?: any): Promise<PaginatedResponse<Patient>> {
-    const { data } = await http.get('/students', { params: { includeArchived: true } });
-    const items: any[] = (Array.isArray(data) ? data : data.data ?? []).filter((s: any) => s.isArchived);
-    return { data: items.map(mapStudent), total: items.length, page: 1, limit: items.length, totalPages: 1 };
+  async getArchivedPatients(params?: {
+    search?: string;
+    patientType?: 'Student' | 'Teacher' | 'NTP';
+    gradeLevel?: string;
+    strand?: string;
+    section?: string;
+    schoolYear?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<Patient>> {
+    const search = params?.search?.trim();
+    const gradeLevel = params?.gradeLevel?.trim();
+    const strand = params?.strand?.trim();
+    const section = params?.section?.trim();
+    const schoolYear = params?.schoolYear?.trim();
+
+    const { data } = await http.get('/students', {
+      params: {
+        archivedOnly: true,
+        ...(search ? { search } : {}),
+        patientType: params?.patientType,
+        ...(gradeLevel ? { gradeLevel } : {}),
+        ...(strand ? { strand } : {}),
+        ...(section ? { section } : {}),
+        ...(schoolYear ? { schoolYear } : {}),
+        page: params?.page,
+        limit: params?.limit,
+      },
+    });
+    return mapPaginated(data, mapStudent, params?.limit ?? 20);
   },
 
   async getArchivedVisits(_params?: any): Promise<PaginatedResponse<any>> {
     return { data: [], total: 0, page: 1, limit: 10, totalPages: 0 };
   },
 
-  async getArchivedMedicines(_params?: any): Promise<PaginatedResponse<any>> {
-    const { data } = await http.get('/medicines', { params: { includeInactive: true } });
-    const items: any[] = (Array.isArray(data) ? data : data.data ?? []).filter((m: any) => !m.isActive);
-    const mapped = items.map((m: any) => {
+  async getArchivedMedicines(params?: { search?: string; page?: number; limit?: number }): Promise<PaginatedResponse<any>> {
+    const search = params?.search?.trim();
+
+    const { data } = await http.get('/medicines', {
+      params: {
+        inactiveOnly: true,
+        ...(search ? { search } : {}),
+        page: params?.page,
+        limit: params?.limit,
+      },
+    });
+    const mapped = mapPaginated(data, (m: any) => {
       const totalStock = m.totalStock ?? m.batches?.reduce((s: number, b: any) => s + b.quantityOnHand, 0) ?? 0;
       return {
         id: m.id,
@@ -436,8 +535,8 @@ export const archiveApi = {
           : '—',
         archivedBy: 'Clinic In-Charge',
       };
-    });
-    return { data: mapped, total: mapped.length, page: 1, limit: mapped.length, totalPages: 1 };
+    }, params?.limit ?? 20);
+    return mapped;
   },
 
   async restoreMedicine(id: string): Promise<void> {
@@ -451,10 +550,16 @@ export const archiveApi = {
 
 // ─── Patient visits for profile ─────────────────────────────
 export const patientVisitsApi = {
-  async getByPatientId(patientId: string, params?: { includeArchived?: boolean }): Promise<PaginatedResponse<Visit>> {
-    const { data } = await http.get('/visits', { params: { studentId: patientId, includeArchived: params?.includeArchived } });
-    const items: any[] = Array.isArray(data) ? data : data.data ?? [];
-    return { data: items.map(mapVisit), total: items.length, page: 1, limit: items.length, totalPages: 1 };
+  async getByPatientId(patientId: string, params?: { includeArchived?: boolean; page?: number; limit?: number }): Promise<PaginatedResponse<Visit>> {
+    const { data } = await http.get('/visits', {
+      params: {
+        studentId: patientId,
+        includeArchived: params?.includeArchived,
+        page: params?.page,
+        limit: params?.limit,
+      },
+    });
+    return mapPaginated(data, mapVisit, params?.limit ?? 20);
   },
 };
 
@@ -848,6 +953,62 @@ function visitPayload(p: any) {
         })()
         : undefined,
     } : undefined,
+  };
+}
+
+function resolveVisitDateRange(period?: string): { startDate?: string; endDate?: string } {
+  if (!period || period === 'All Time') return {};
+  const now = new Date();
+  const endDate = toDateStr(now);
+
+  if (period === 'Today') {
+    return { startDate: endDate, endDate };
+  }
+
+  if (period === 'This Week') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay());
+    start.setHours(0, 0, 0, 0);
+    return { startDate: toDateStr(start), endDate };
+  }
+
+  if (period === 'This Month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { startDate: toDateStr(start), endDate };
+  }
+
+  return {};
+}
+
+function mapPaginated<T>(
+  payload: any,
+  mapper: (item: any) => T,
+  fallbackLimit: number,
+): PaginatedResponse<T> {
+  const rawItems: any[] = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : [];
+
+  const total = typeof payload?.total === 'number' ? payload.total : rawItems.length;
+  const page = typeof payload?.page === 'number' ? payload.page : 1;
+  const limit = typeof payload?.limit === 'number'
+    ? payload.limit
+    : rawItems.length > 0
+      ? rawItems.length
+      : fallbackLimit;
+  const safeLimit = Math.max(limit, 1);
+  const totalPages = typeof payload?.totalPages === 'number'
+    ? payload.totalPages
+    : Math.max(1, Math.ceil(total / safeLimit));
+
+  return {
+    data: rawItems.map(mapper),
+    total,
+    page,
+    limit,
+    totalPages,
   };
 }
 

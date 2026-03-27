@@ -1,5 +1,9 @@
 import { z } from 'zod'
 
+const QueryBooleanSchema = z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .transform((value) => value === true || value === 'true')
+
 export const CreateMedicineSchema = z.object({
     name: z.string().min(1, 'Medicine name is required'),
     description: z.string().optional(),
@@ -66,7 +70,10 @@ export const MedicinesListQuerySchema = z.object({
         .enum(['true', 'false'])
         .optional()
         .transform((v) => v === 'true'),
+    inactiveOnly: QueryBooleanSchema.optional(),
     search: z.string().trim().min(1).max(100).optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
 export type CreateMedicineInput = z.infer<typeof CreateMedicineSchema>

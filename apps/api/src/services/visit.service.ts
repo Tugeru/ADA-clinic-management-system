@@ -80,27 +80,99 @@ export async function allocateBatchesForMedicine(
 }
 
 export async function listVisits(filters: {
+    search?: string
+    type?: 'Student' | 'Teacher' | 'NTP'
+    disposition?: 'Returned to Class' | 'Returned to Work' | 'Sent Home' | 'Sent to Hospital'
     studentId?: string
     startDate?: string
     endDate?: string
     includeArchived?: boolean
+    page?: number
+    limit?: number
 }) {
-    return prisma.visit.findMany({
-        where: {
-            ...(filters.includeArchived ? {} : { isArchived: false }),
-            ...(filters.studentId ? { studentId: filters.studentId } : {}),
-            ...(filters.startDate || filters.endDate
-                ? {
-                    visitDate: {
-                        ...(filters.startDate ? { gte: new Date(filters.startDate) } : {}),
-                        ...(filters.endDate ? { lte: new Date(filters.endDate) } : {}),
-                    },
-                }
-                : {}),
-        },
-        include: { student: true, visitMedicines: { include: { medicine: true } } },
-        orderBy: { timeIn: 'desc' },
-    })
+    const page = Math.max(1, filters.page ?? 1)
+    const limit = Math.min(Math.max(filters.limit ?? 20, 1), 100)
+    const skip = (page - 1) * limit
+    const normalizedSearch = filters.search?.trim()
+
+    const dispositionMap: Record<NonNullable<typeof filters.disposition>, string> = {
+        'Returned to Class': 'RETURNED_TO_CLASS',
+        'Returned to Work': 'RETURNED_TO_WORK',
+        'Sent Home': 'SENT_HOME',
+        'Sent to Hospital': 'SENT_TO_HOSPITAL',
+    }
+
+    const where = {
+        ...(filters.includeArchived ? {} : { isArchived: false }),
+        ...(filters.studentId ? { studentId: filters.studentId } : {}),
+        ...(normalizedSearch
+            ? {
+                student: {
+                    OR: [
+                        { fullName: { contains: normalizedSearch, mode: 'insensitive' as const } },
+                        { firstName: { contains: normalizedSearch, mode: 'insensitive' as const } },
+                        { middleName: { contains: normalizedSearch, mode: 'insensitive' as const } },
+                        { lastName: { contains: normalizedSearch, mode: 'insensitive' as const } },
+                    ],
+                },
+            }
+            : {}),
+        ...(filters.type
+            ? {
+                student: {
+                    ...(normalizedSearch
+                        ? {
+                            OR: [
+                                { fullName: { contains: normalizedSearch, mode: 'insensitive' as const } },
+                                { firstName: { contains: normalizedSearch, mode: 'insensitive' as const } },
+                                { middleName: { contains: normalizedSearch, mode: 'insensitive' as const } },
+                                { lastName: { contains: normalizedSearch, mode: 'insensitive' as const } },
+                            ],
+                        }
+                        : {}),
+                    patientType: filters.type === 'NTP'
+                        ? { in: ['NTP', 'Non-Teaching Personnel'] }
+                        : filters.type,
+                },
+            }
+            : {}),
+        ...(filters.disposition
+            ? { disposition: dispositionMap[filters.disposition] as any }
+            : {}),
+        ...(filters.startDate || filters.endDate
+            ? {
+                visitDate: {
+                    ...(filters.startDate ? { gte: new Date(filters.startDate) } : {}),
+                    ...(filters.endDate ? { lte: new Date(filters.endDate) } : {}),
+                },
+            }
+            : {}),
+    }
+
+    const [data, countedTotal] = await Promise.all([
+        prisma.visit.findMany({
+            where,
+            include: { student: true, visitMedicines: { include: { medicine: true } } },
+            orderBy: { timeIn: 'desc' },
+            skip,
+            take: limit,
+        }),
+        typeof (prisma.visit as any).count === 'function'
+            ? (prisma.visit as any).count({ where })
+            : Promise.resolve<number>(-1),
+    ])
+
+    const total = countedTotal >= 0 ? countedTotal : data.length
+
+    const paginated = {
+        data,
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+    }
+
+    return paginated
 }
 
 export async function getVisit(id: string) {

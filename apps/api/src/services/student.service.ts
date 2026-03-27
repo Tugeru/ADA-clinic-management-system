@@ -6,7 +6,20 @@ import { recordAudit } from './audit.service.js'
 // Prisma client regenerated after add_strand_field migration
 
 type NameParts = {
-    fullName?: string
+    fullName?: string | null
+    firstName?: string | null
+    middleName?: string | null
+    lastName?: string | null
+}
+
+type ResolvedNameParts = {
+    fullName: string
+    firstName?: string
+    middleName?: string
+    lastName?: string
+}
+
+type ParsedNameParts = {
     firstName?: string
     middleName?: string
     lastName?: string
@@ -22,7 +35,7 @@ function normalizeNamePart(value: unknown): string | undefined {
     return trimmed ? trimmed : undefined
 }
 
-function splitLegacyFullName(fullName: string | undefined): Omit<NameParts, 'fullName'> {
+function splitLegacyFullName(fullName: string | undefined): ParsedNameParts {
     if (!fullName) return {}
 
     const trimmed = fullName.trim()
@@ -59,7 +72,7 @@ function splitLegacyFullName(fullName: string | undefined): Omit<NameParts, 'ful
     }
 }
 
-function buildFullName(parts: Omit<NameParts, 'fullName'>, fallback?: string): string {
+function buildFullName(parts: ParsedNameParts, fallback?: string): string {
     if (parts.lastName && parts.firstName) {
         const middleSegment = parts.middleName ? ` ${parts.middleName}` : ''
         return `${parts.lastName}, ${parts.firstName}${middleSegment}`
@@ -67,7 +80,7 @@ function buildFullName(parts: Omit<NameParts, 'fullName'>, fallback?: string): s
     return normalizeNamePart(fallback) ?? ''
 }
 
-function resolveNamePartsForCreate(data: CreateStudentInput): Required<NameParts> {
+function resolveNamePartsForCreate(data: CreateStudentInput): ResolvedNameParts {
     const legacyFullName = normalizeNamePart(data.fullName)
     let firstName = normalizeNamePart(data.firstName)
     let middleName = normalizeNamePart(data.middleName)
@@ -89,7 +102,7 @@ function resolveNamePartsForCreate(data: CreateStudentInput): Required<NameParts
     }
 }
 
-function resolveNamePartsFromRecord(record: NameParts): Required<NameParts> {
+function resolveNamePartsFromRecord(record: NameParts): ResolvedNameParts {
     const legacyFullName = normalizeNamePart(record.fullName)
     const parsed = splitLegacyFullName(legacyFullName)
     const firstName = normalizeNamePart(record.firstName) ?? parsed.firstName
@@ -105,7 +118,7 @@ function resolveNamePartsFromRecord(record: NameParts): Required<NameParts> {
     }
 }
 
-function resolveNamePartsForUpdate(current: Required<NameParts>, payload: UpdateStudentInput): Required<NameParts> {
+function resolveNamePartsForUpdate(current: ResolvedNameParts, payload: UpdateStudentInput): ResolvedNameParts {
     const hasLegacyFullName = hasOwnKey(payload, 'fullName')
     const hasFirstName = hasOwnKey(payload, 'firstName')
     const hasMiddleName = hasOwnKey(payload, 'middleName')
@@ -136,28 +149,100 @@ function resolveNamePartsForUpdate(current: Required<NameParts>, payload: Update
     }
 }
 
-export async function listStudents(search?: string, includeArchived = false) {
-    return prisma.student.findMany({
-        where: {
-            ...(includeArchived ? {} : { isArchived: false }),
-            ...(search
-                ? {
-                    OR: [
-                        { fullName: { contains: search, mode: 'insensitive' as const } },
-                        { firstName: { contains: search, mode: 'insensitive' as const } },
-                        { middleName: { contains: search, mode: 'insensitive' as const } },
-                        { lastName: { contains: search, mode: 'insensitive' as const } },
-                    ],
-                }
-                : {}),
-        },
-        orderBy: [
-            { lastName: 'asc' as const },
-            { firstName: 'asc' as const },
-            { middleName: 'asc' as const },
-            { fullName: 'asc' as const },
-        ],
-    })
+type StudentListFilters = {
+    search?: string
+    includeArchived?: boolean
+    archivedOnly?: boolean
+    patientType?: 'Student' | 'Teacher' | 'NTP'
+    gradeLevel?: string
+    strand?: string
+    section?: string
+    schoolYear?: string
+    page?: number
+    limit?: number
+}
+
+function normalizeStudentListFilters(
+    filtersOrSearch?: StudentListFilters | string,
+    includeArchivedLegacy?: boolean,
+): StudentListFilters {
+    if (typeof filtersOrSearch === 'string') {
+        return {
+            search: filtersOrSearch,
+            includeArchived: includeArchivedLegacy ?? false,
+        }
+    }
+    if (!filtersOrSearch) {
+        return { includeArchived: includeArchivedLegacy ?? false }
+    }
+    return filtersOrSearch
+}
+
+export async function listStudents(
+    filtersOrSearch?: StudentListFilters | string,
+    includeArchivedLegacy = false,
+) {
+    const filters = normalizeStudentListFilters(filtersOrSearch, includeArchivedLegacy)
+    const search = filters?.search?.trim()
+    const includeArchived = filters?.includeArchived ?? false
+    const archivedOnly = filters?.archivedOnly ?? false
+    const page = Math.max(1, filters?.page ?? 1)
+    const limit = Math.min(Math.max(filters?.limit ?? 20, 1), 100)
+    const skip = (page - 1) * limit
+
+    const where = {
+        ...(archivedOnly ? { isArchived: true } : includeArchived ? {} : { isArchived: false }),
+        ...(filters?.patientType
+            ? {
+                patientType: filters.patientType === 'NTP'
+                    ? { in: ['NTP', 'Non-Teaching Personnel'] }
+                    : filters.patientType,
+            }
+            : {}),
+        ...(filters?.gradeLevel ? { gradeLevel: filters.gradeLevel } : {}),
+        ...(filters?.strand ? { strand: filters.strand } : {}),
+        ...(filters?.section ? { section: filters.section } : {}),
+        ...(filters?.schoolYear ? { schoolYear: filters.schoolYear } : {}),
+        ...(search
+            ? {
+                OR: [
+                    { fullName: { contains: search, mode: 'insensitive' as const } },
+                    { firstName: { contains: search, mode: 'insensitive' as const } },
+                    { middleName: { contains: search, mode: 'insensitive' as const } },
+                    { lastName: { contains: search, mode: 'insensitive' as const } },
+                ],
+            }
+            : {}),
+    }
+
+    const [data, countedTotal] = await Promise.all([
+        prisma.student.findMany({
+            where,
+            orderBy: [
+                { lastName: 'asc' as const },
+                { firstName: 'asc' as const },
+                { middleName: 'asc' as const },
+                { fullName: 'asc' as const },
+            ],
+            skip,
+            take: limit,
+        }),
+        typeof (prisma.student as any).count === 'function'
+            ? (prisma.student as any).count({ where })
+            : Promise.resolve<number>(-1),
+    ])
+
+    const total = countedTotal >= 0 ? countedTotal : data.length
+
+    const paginated = {
+        data,
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+    }
+
+    return paginated
 }
 
 export async function getStudent(id: string) {

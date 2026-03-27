@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Search, Plus, Download, MoreHorizontal, Eye, Edit, Archive, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
@@ -28,6 +28,7 @@ import { BulkConfirmDialog } from '../components/BulkConfirmDialog';
 import { BulkPartialFailureDialog } from '../components/BulkPartialFailureDialog';
 import { downloadCsvExport } from '../lib/exportDownload';
 import { getVisitExportDateRange } from '../lib/visitExportRange';
+import { buildPaginationTokens, getPageRange } from '../lib/pagination';
 
 const typeColors: Record<string, string> = {
   Student: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -47,6 +48,8 @@ const dotColors: Record<string, string> = {
   red: 'bg-red-500',
 };
 
+const PAGE_SIZE = 20;
+
 export function VisitsList() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -59,37 +62,40 @@ export function VisitsList() {
   const [partialFailureOpen, setPartialFailureOpen] = useState(false);
   const [lastBulkResult, setLastBulkResult] = useState<{ succeeded: string[]; failed: { id: string; error: string }[] } | null>(null);
   const [exportingKind, setExportingKind] = useState<null | 'visits' | 'medicines'>(null);
+  const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useVisits({ search, type: typeFilter, period: periodFilter, disposition: dispoFilter });
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useVisits({
+    search,
+    type: typeFilter,
+    period: periodFilter,
+    disposition: dispoFilter,
+    page,
+    limit: PAGE_SIZE,
+  });
   const deleteMutation = useDeleteVisit();
   const bulkDeleteMutation = useBulkDeleteVisits();
-  const allVisits = data?.data || [];
+  const visits = data?.data || [];
+  const total = data?.total || 0;
+  const totalPages = data?.totalPages || 1;
+  const range = getPageRange(page, PAGE_SIZE, total);
+  const pageTokens = useMemo(() => buildPaginationTokens(page, totalPages), [page, totalPages]);
 
-  // ── Client-side filtering ──────────────────────────────────
-  const visits = allVisits.filter((v) => {
-    // Search by patient name
-    if (search && !v.patientName.toLowerCase().includes(search.toLowerCase())) return false;
-    // Type filter
-    if (typeFilter !== 'All Types' && v.patientType !== typeFilter) return false;
-    // Disposition filter
-    if (dispoFilter !== 'All Dispositions' && v.disposition !== dispoFilter) return false;
-    // Period filter
-    if (periodFilter !== 'All Time') {
-      const visitDate = new Date(v.date);
-      const now = new Date();
-      if (periodFilter === 'Today') {
-        if (visitDate.toDateString() !== now.toDateString()) return false;
-      } else if (periodFilter === 'This Week') {
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - now.getDay());
-        startOfWeek.setHours(0, 0, 0, 0);
-        if (visitDate < startOfWeek) return false;
-      } else if (periodFilter === 'This Month') {
-        if (visitDate.getMonth() !== now.getMonth() || visitDate.getFullYear() !== now.getFullYear()) return false;
-      }
-    }
-    return true;
-  });
+  useEffect(() => {
+    setPage(1);
+  }, [search, typeFilter, periodFilter, dispoFilter]);
+
+  useEffect(() => {
+    if (!isError) return;
+    const message = (error as any)?.response?.data?.error ?? 'Failed to load visit logs.';
+    toast.error(message);
+  }, [isError, error]);
 
   const {
     selectedIds: selectedIdsArray,
@@ -109,7 +115,7 @@ export function VisitsList() {
       if (result.failed.length > 0) {
         setLastBulkResult(result);
         setPartialFailureOpen(true);
-        setSelectedIds(selectedIdsArray.filter((id) => !result.succeeded.includes(id)));
+        setSelectedIds(selectedIdsArray.filter((id: string) => !result.succeeded.includes(id)));
         if (result.succeeded.length > 0) toast.success(`${result.succeeded.length} visit(s) deleted.`);
       } else {
         clearSelection();
@@ -142,7 +148,12 @@ export function VisitsList() {
     setTypeFilter('All Types');
     setPeriodFilter('All Time');
     setDispoFilter('All Dispositions');
+    setPage(1);
   };
+
+  useEffect(() => {
+    clearSelection();
+  }, [page, clearSelection]);
 
   const exportVisitParams = () => {
     const { startDate, endDate } = getVisitExportDateRange(periodFilter);
@@ -178,7 +189,7 @@ export function VisitsList() {
   return (
     <div className="space-y-5">
       {/* Confirm Delete Dialog */}
-      <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}>
+      <AlertDialog open={!!confirmDeleteId} onOpenChange={(open: boolean) => { if (!open) setConfirmDeleteId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Visit Record?</AlertDialogTitle>
@@ -243,7 +254,7 @@ export function VisitsList() {
           <Input
             placeholder="Search by patient name..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
             className="pl-8 h-9 text-xs"
           />
         </div>
@@ -334,6 +345,25 @@ export function VisitsList() {
         {isLoading ? (
           <CardContent className="space-y-3 pt-4">
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
+          </CardContent>
+        ) : isError ? (
+          <CardContent className="py-10">
+            <div className="flex flex-col items-center justify-center gap-3 text-center">
+              <p className="text-sm font-semibold text-slate-700">Unable to load visits</p>
+              <p className="text-xs text-slate-500 max-w-md">
+                {(error as any)?.response?.data?.error
+                  ?? 'The visits service returned an error. Please try again, and verify database migrations are applied.'}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-8"
+                onClick={() => refetch()}
+                disabled={isFetching}
+              >
+                {isFetching ? 'Retrying...' : 'Retry'}
+              </Button>
+            </div>
           </CardContent>
         ) : (
           <>
@@ -486,11 +516,42 @@ export function VisitsList() {
             {/* Pagination */}
             <div className="px-5 py-3 border-t flex items-center justify-between">
               <p className="text-xs text-slate-500">
-                Showing <span className="font-semibold text-slate-800">{visits.length}</span> of <span className="font-semibold text-slate-800">{data?.total || 0}</span>
+                Showing <span className="font-semibold text-slate-800">{range.from}</span> to <span className="font-semibold text-slate-800">{range.to}</span> of <span className="font-semibold text-slate-800">{total}</span>
               </p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled className="h-7 text-xs">Previous</Button>
-                <Button variant="outline" size="sm" className="h-7 text-xs">Next</Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={page <= 1}
+                  onClick={() => setPage((prev: number) => Math.max(1, prev - 1))}
+                >
+                  Previous
+                </Button>
+                {pageTokens.map((token: number | 'ellipsis-left' | 'ellipsis-right') => (
+                  typeof token === 'number' ? (
+                    <Button
+                      key={token}
+                      variant={token === page ? 'default' : 'outline'}
+                      size="icon"
+                      className={cn('h-7 w-7 text-xs', token === page && 'bg-teal-600 hover:bg-teal-700')}
+                      onClick={() => setPage(token)}
+                    >
+                      {token}
+                    </Button>
+                  ) : (
+                    <span key={token} className="px-1 text-xs text-slate-400">...</span>
+                  )
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((prev: number) => Math.min(totalPages, prev + 1))}
+                >
+                  Next
+                </Button>
               </div>
             </div>
           </>

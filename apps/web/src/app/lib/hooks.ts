@@ -120,10 +120,22 @@ export function useChangeMyPassword() {
 }
 
 // ─── Patient Hooks ───────────────────────────────────────────
-export function usePatients(params?: { search?: string; includeArchived?: boolean }) {
+export function usePatients(params?: {
+  search?: string;
+  includeArchived?: boolean;
+  archivedOnly?: boolean;
+  patientType?: 'Student' | 'Teacher' | 'NTP';
+  gradeLevel?: string;
+  strand?: string;
+  section?: string;
+  schoolYear?: string;
+  page?: number;
+  limit?: number;
+}) {
   return useQuery({
     queryKey: queryKeys.patients.list(params as any),
     queryFn: () => patientApi.getAll(params),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -264,10 +276,18 @@ export function usePatientVisits(patientId: string, params?: { search?: string; 
 }
 
 // ─── Visit Hooks ─────────────────────────────────────────────
-export function useVisits(params?: { search?: string; type?: string; disposition?: string; period?: string }) {
+export function useVisits(params?: {
+  search?: string;
+  type?: string;
+  disposition?: string;
+  period?: string;
+  page?: number;
+  limit?: number;
+}) {
   return useQuery({
     queryKey: queryKeys.visits.list(params as any),
     queryFn: () => visitApi.getAll(params),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -339,7 +359,19 @@ export function useUpdateVisit() {
 export function useInventory(search?: string) {
   return useQuery({
     queryKey: queryKeys.inventory.list(search ? { search } : undefined),
-    queryFn: () => inventoryApi.getAll({ search }),
+    queryFn: async () => (await inventoryApi.getAll({ search, page: 1, limit: 100 })).data,
+  });
+}
+
+export function useInventoryPage(params?: {
+  search?: string;
+  page?: number;
+  limit?: number;
+}) {
+  return useQuery({
+    queryKey: queryKeys.inventory.list(params as any),
+    queryFn: () => inventoryApi.getAll(params),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -542,10 +574,20 @@ export function useUsageRankings(params?: { period?: string; startDate?: string;
 }
 
 // ─── Archive Hooks ───────────────────────────────────────────
-export function useArchivedPatients(params?: { search?: string; type?: string; page?: number }) {
+export function useArchivedPatients(params?: {
+  search?: string;
+  patientType?: 'Student' | 'Teacher' | 'NTP';
+  gradeLevel?: string;
+  strand?: string;
+  section?: string;
+  schoolYear?: string;
+  page?: number;
+  limit?: number;
+}) {
   return useQuery({
     queryKey: queryKeys.archive.patients(params),
     queryFn: () => archiveApi.getArchivedPatients(params),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -556,10 +598,11 @@ export function useArchivedVisits(params?: { search?: string; type?: string; dis
   });
 }
 
-export function useArchivedMedicines(params?: { search?: string; type?: string; page?: number }) {
+export function useArchivedMedicines(params?: { search?: string; page?: number; limit?: number }) {
   return useQuery({
     queryKey: queryKeys.archive.medicines(params),
     queryFn: () => archiveApi.getArchivedMedicines(params),
+    placeholderData: keepPreviousData,
   });
 }
 

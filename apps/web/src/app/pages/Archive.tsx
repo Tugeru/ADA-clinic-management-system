@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { Link } from 'react-router';
 import { Search, Download, RotateCcw, Trash2, Info, Archive as ArchiveIcon, Eye } from 'lucide-react';
@@ -29,6 +29,7 @@ import { BulkConfirmDialog } from '../components/BulkConfirmDialog';
 import { BulkPartialFailureDialog } from '../components/BulkPartialFailureDialog';
 import { useTableSelection } from '../hooks/useTableSelection';
 import { downloadCsvExport } from '../lib/exportDownload';
+import { buildPaginationTokens, getPageRange } from '../lib/pagination';
 
 type ArchiveTab = 'patients' | 'medicines';
 
@@ -43,6 +44,8 @@ const typeInitialsColors: Record<string, string> = {
   Teacher: 'bg-purple-100 text-purple-700',
   NTP: 'bg-teal-100 text-teal-700',
 };
+
+const PAGE_SIZE = 20;
 
 function getInitials(name: string): string {
   const parts = name.split(/[\s,]+/).filter(Boolean);
@@ -103,8 +106,18 @@ function ArchivedPatientsTab() {
   const [bulkRestoreOpen, setBulkRestoreOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useArchivedPatients();
+  const { data, isLoading } = useArchivedPatients({
+    search,
+    patientType: typeFilter !== 'All Types' ? (typeFilter as 'Student' | 'Teacher' | 'NTP') : undefined,
+    gradeLevel: gradeFilter || undefined,
+    strand: strandFilter || undefined,
+    section: sectionFilter || undefined,
+    schoolYear: schoolYearFilter || undefined,
+    page,
+    limit: PAGE_SIZE,
+  });
   const restoreMutation = useRestorePatient();
   const deleteMutation = useDeletePatient();
   const bulkRestoreMutation = useBulkRestorePatients();
@@ -133,22 +146,18 @@ function ArchivedPatientsTab() {
     setStrandFilter('');
     setSectionFilter('');
     setSchoolYearFilter('');
+    setPage(1);
   };
 
-  const allPatients = data?.data || [];
+  const filtered = data?.data || [];
+  const total = data?.total || 0;
+  const totalPages = data?.totalPages || 1;
+  const pageRange = getPageRange(page, PAGE_SIZE, total);
+  const pageTokens = useMemo(() => buildPaginationTokens(page, totalPages), [page, totalPages]);
 
-  const filtered = allPatients.filter((p: any) => {
-    if (search) {
-      const q = search.toLowerCase();
-      if (!p.fullName.toLowerCase().includes(q) && !p.idNumber?.toLowerCase().includes(q)) return false;
-    }
-    if (typeFilter !== 'All Types' && p.type !== typeFilter) return false;
-    if (gradeFilter && p.gradeLevel !== gradeFilter) return false;
-    if (strandFilter && p.strand !== strandFilter) return false;
-    if (sectionFilter && p.section !== sectionFilter) return false;
-    if (schoolYearFilter && p.schoolYear !== schoolYearFilter) return false;
-    return true;
-  });
+  useEffect(() => {
+    setPage(1);
+  }, [search, typeFilter, gradeFilter, strandFilter, sectionFilter, schoolYearFilter]);
 
   const {
     selectedIds: selectedIdsArray,
@@ -164,6 +173,10 @@ function ArchivedPatientsTab() {
   const selectedStudentIds = selectedStudents.map((p: any) => p.id);
   const selectedStudentCount = selectedStudentIds.length;
   const showUpdateSchoolYear = selectedCount > 0 && selectedStudentCount > 0;
+
+  useEffect(() => {
+    clearSelection();
+  }, [page, clearSelection]);
 
   const handleBulkConfirmSchoolYear = async () => {
     if (selectedStudentIds.length === 0 || !bulkSchoolYearValue) return;
@@ -717,8 +730,43 @@ function ArchivedPatientsTab() {
 
             <div className="px-5 py-3 border-t flex items-center justify-between">
               <p className="text-xs text-slate-500">
-                Showing <span className="font-semibold text-slate-800">{filtered.length}</span> of <span className="font-semibold text-slate-800">{allPatients.length}</span> archived patients
+                Showing <span className="font-semibold text-slate-800">{pageRange.from}</span> to <span className="font-semibold text-slate-800">{pageRange.to}</span> of <span className="font-semibold text-slate-800">{total}</span> archived patients
               </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={page <= 1}
+                  onClick={() => setPage((prev: number) => Math.max(1, prev - 1))}
+                >
+                  Previous
+                </Button>
+                {pageTokens.map((token: number | 'ellipsis-left' | 'ellipsis-right') => (
+                  typeof token === 'number' ? (
+                    <Button
+                      key={token}
+                      variant={token === page ? 'default' : 'outline'}
+                      size="icon"
+                      className={cn('h-7 w-7 text-xs', token === page && 'bg-teal-600 hover:bg-teal-700')}
+                      onClick={() => setPage(token)}
+                    >
+                      {token}
+                    </Button>
+                  ) : (
+                    <span key={token} className="px-1 text-xs text-slate-400">...</span>
+                  )
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((prev: number) => Math.min(totalPages, prev + 1))}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </>
         )}
@@ -730,6 +778,7 @@ function ArchivedPatientsTab() {
 // ═══ MEDICINES TAB ═══════════════════════════════════════════
 function ArchivedMedicinesTab() {
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [exportingMedicinesCsv, setExportingMedicinesCsv] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
   const [confirmRestore, setConfirmRestore] = useState<{ id: string; name: string } | null>(null);
@@ -738,20 +787,20 @@ function ArchivedMedicinesTab() {
   const [partialFailureOpen, setPartialFailureOpen] = useState(false);
   const [lastBulkResult, setLastBulkResult] = useState<{ succeeded: string[]; failed: { id: string; error: string }[] } | null>(null);
 
-  const { data, isLoading } = useArchivedMedicines();
+  const { data, isLoading } = useArchivedMedicines({ search, page, limit: PAGE_SIZE });
   const restoreMutation = useRestoreMedicine();
   const deleteMutation = useDeleteMedicine();
   const bulkRestoreMutation = useBulkRestoreMedicines();
   const bulkDeleteMutation = useBulkDeleteMedicines();
-  const allMedicines: any[] = data?.data || [];
+  const filtered: any[] = data?.data || [];
+  const total = data?.total || 0;
+  const totalPages = data?.totalPages || 1;
+  const pageRange = getPageRange(page, PAGE_SIZE, total);
+  const pageTokens = useMemo(() => buildPaginationTokens(page, totalPages), [page, totalPages]);
 
-  const filtered = allMedicines.filter((m: any) => {
-    if (search) {
-      const q = search.toLowerCase();
-      if (!m.name.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const {
     selectedIds: selectedIdsArray,
@@ -762,6 +811,10 @@ function ArchivedMedicinesTab() {
     clearSelection,
     selectedCount,
   } = useTableSelection(filtered, (m: any) => m.id);
+
+  useEffect(() => {
+    clearSelection();
+  }, [page, clearSelection]);
 
   const handleBulkRestoreConfirm = async () => {
     if (selectedIdsArray.length === 0) return;
@@ -1049,8 +1102,43 @@ function ArchivedMedicinesTab() {
 
             <div className="px-5 py-3 border-t flex items-center justify-between">
               <p className="text-xs text-slate-500">
-                Showing <span className="font-semibold text-slate-800">{filtered.length}</span> of <span className="font-semibold text-slate-800">{allMedicines.length}</span> archived items
+                Showing <span className="font-semibold text-slate-800">{pageRange.from}</span> to <span className="font-semibold text-slate-800">{pageRange.to}</span> of <span className="font-semibold text-slate-800">{total}</span> archived items
               </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={page <= 1}
+                  onClick={() => setPage((prev: number) => Math.max(1, prev - 1))}
+                >
+                  Previous
+                </Button>
+                {pageTokens.map((token: number | 'ellipsis-left' | 'ellipsis-right') => (
+                  typeof token === 'number' ? (
+                    <Button
+                      key={token}
+                      variant={token === page ? 'default' : 'outline'}
+                      size="icon"
+                      className={cn('h-7 w-7 text-xs', token === page && 'bg-teal-600 hover:bg-teal-700')}
+                      onClick={() => setPage(token)}
+                    >
+                      {token}
+                    </Button>
+                  ) : (
+                    <span key={token} className="px-1 text-xs text-slate-400">...</span>
+                  )
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((prev: number) => Math.min(totalPages, prev + 1))}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </>
         )}

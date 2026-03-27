@@ -32,5 +32,32 @@ describe('GET /api/visits includeArchived query', () => {
       }),
     )
   })
+
+  it('passes pagination, search, type, and disposition filters to service', async () => {
+    listVisits.mockResolvedValueOnce({ data: [], total: 0, page: 2, limit: 20, totalPages: 1 })
+
+    await request(app)
+      .get('/api/visits')
+      .query({
+        search: 'anna',
+        type: 'Student',
+        disposition: 'Sent Home',
+        includeArchived: 'false',
+        page: '2',
+        limit: '20',
+      })
+      .expect(200)
+
+    expect(listVisits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        search: 'anna',
+        type: 'Student',
+        disposition: 'Sent Home',
+        includeArchived: false,
+        page: 2,
+        limit: 20,
+      }),
+    )
+  })
 })
 

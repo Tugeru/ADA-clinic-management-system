@@ -1,6 +1,7 @@
 import { Router } from 'express'
-import { validate } from '../middlewares/validate.js'
-import { CreateStudentSchema, UpdateStudentSchema, BatchIdsSchema, BulkSchoolYearSchema, BulkGradeLevelSchema } from '@ada/shared'
+import { validate, validateQuery } from '../middlewares/validate.js'
+import { CreateStudentSchema, UpdateStudentSchema, BatchIdsSchema, BulkSchoolYearSchema, BulkGradeLevelSchema, StudentListQuerySchema } from '@ada/shared'
+import type { StudentListQueryInput } from '@ada/shared'
 import * as svc from '../services/student.service.js'
 
 const router = Router()
@@ -40,11 +41,21 @@ router.patch('/bulk/grade-level', validate(BulkGradeLevelSchema), async (req, re
     } catch (err) { next(err) }
 })
 
-router.get('/', async (req, res, next) => {
+router.get('/', validateQuery(StudentListQuerySchema), async (req, res, next) => {
     try {
-        const search = req.query.search as string | undefined
-        const includeArchived = req.query.includeArchived === 'true'
-        res.json(await svc.listStudents(search, includeArchived))
+        const { search, includeArchived, archivedOnly, patientType, gradeLevel, strand, section, schoolYear, page, limit } = req.query as unknown as StudentListQueryInput
+        res.json(await svc.listStudents({
+            search,
+            includeArchived,
+            archivedOnly,
+            patientType,
+            gradeLevel,
+            strand,
+            section,
+            schoolYear,
+            page,
+            limit,
+        }))
     } catch (err) { next(err) }
 })
 

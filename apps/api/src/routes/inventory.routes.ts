@@ -46,8 +46,14 @@ router.get('/movements', async (req, res, next) => {
 
 router.get('/', validateQuery(MedicinesListQuerySchema), async (req, res, next) => {
     try {
-        const { includeInactive = false, search } = req.query as { includeInactive?: boolean; search?: string }
-        res.json(await svc.listMedicines({ includeInactive, search }))
+        const { includeInactive = false, inactiveOnly = false, search, page, limit } = req.query as unknown as {
+            includeInactive?: boolean
+            inactiveOnly?: boolean
+            search?: string
+            page: number
+            limit: number
+        }
+        res.json(await svc.listMedicines({ includeInactive, inactiveOnly, search, page, limit }))
     } catch (err) { next(err) }
 })
 

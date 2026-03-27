@@ -16,11 +16,16 @@ router.get('/', validateQuery(VisitQuerySchema), async (req, res, next) => {
     try {
         const q = req.query as any
         const filters = {
+            search: q.search as string | undefined,
+            type: q.type as 'Student' | 'Teacher' | 'NTP' | undefined,
+            disposition: q.disposition as 'Returned to Class' | 'Returned to Work' | 'Sent Home' | 'Sent to Hospital' | undefined,
             studentId: q.studentId as string | undefined,
             startDate: q.startDate as string | undefined,
             endDate: q.endDate as string | undefined,
             // VisitQuerySchema coerces this to boolean via z.coerce.boolean()
             includeArchived: q.includeArchived === true,
+            page: q.page as number,
+            limit: q.limit as number,
         }
         res.json(await svc.listVisits(filters))
     } catch (err) { next(err) }

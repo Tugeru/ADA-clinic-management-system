@@ -1,5 +1,9 @@
 import { z } from 'zod'
 
+const QueryBooleanSchema = z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .transform((value) => value === true || value === 'true')
+
 const optionalTrimmedString = z
     .string()
     .optional()
@@ -58,5 +62,19 @@ export const CreateStudentSchema = StudentBaseSchema.superRefine((data, ctx) => 
 
 export const UpdateStudentSchema = StudentBaseSchema.partial()
 
+export const StudentListQuerySchema = z.object({
+    search: z.string().trim().min(1).max(100).optional(),
+    includeArchived: QueryBooleanSchema.optional(),
+    archivedOnly: QueryBooleanSchema.optional(),
+    patientType: z.enum(['Student', 'Teacher', 'NTP']).optional(),
+    gradeLevel: z.string().trim().min(1).max(50).optional(),
+    strand: z.string().trim().min(1).max(50).optional(),
+    section: z.string().trim().min(1).max(50).optional(),
+    schoolYear: z.string().trim().min(1).max(50).optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+})
+
 export type CreateStudentInput = z.infer<typeof CreateStudentSchema>
 export type UpdateStudentInput = z.infer<typeof UpdateStudentSchema>
+export type StudentListQueryInput = z.infer<typeof StudentListQuerySchema>

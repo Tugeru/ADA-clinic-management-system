@@ -64,7 +64,15 @@ describe('Student archive service', () => {
         where: expect.objectContaining({ isArchived: false }),
       }),
     )
-    expect(result).toEqual([activeStudent])
+    expect(result).toEqual(
+      expect.objectContaining({
+        data: [activeStudent],
+        total: 1,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+      }),
+    )
   })
 
   it('listStudents with includeArchived=true returns both active and archived', async () => {
@@ -77,8 +85,16 @@ describe('Student archive service', () => {
         where: expect.not.objectContaining({ isArchived: expect.anything() }),
       }),
     )
-    expect(result).toHaveLength(2)
-    expect(result.find((s: any) => s.id === 's2')?.isArchived).toBe(true)
+    expect(result).toEqual(
+      expect.objectContaining({
+        data: [activeStudent, archivedStudent],
+        total: 2,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+      }),
+    )
+    expect(result.data.find((s: any) => s.id === 's2')?.isArchived).toBe(true)
   })
 
   it('listStudents with search filters across full and split name fields', async () => {

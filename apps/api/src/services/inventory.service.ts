@@ -32,37 +32,68 @@ async function findMedicineByNormalizedName(name: string, excludeId?: string) {
 
 // ─── Medicine catalog ──────────────────────────────────────────────────────────
 
-export async function listMedicines(filters?: { includeInactive?: boolean; search?: string }) {
+export async function listMedicines(filters?: {
+    includeInactive?: boolean
+    inactiveOnly?: boolean
+    search?: string
+    page?: number
+    limit?: number
+}) {
     const normalizedSearch = filters?.search?.trim()
+    const page = Math.max(1, filters?.page ?? 1)
+    const limit = Math.min(Math.max(filters?.limit ?? 20, 1), 100)
+    const skip = (page - 1) * limit
 
-    const medicines = await (prisma.medicine as any).findMany({
-        where: {
-            ...(filters?.includeInactive ? {} : { isActive: true }),
-            ...(normalizedSearch
-                ? {
-                    name: {
-                        contains: normalizedSearch,
-                        mode: 'insensitive',
-                    },
-                }
-                : {}),
-        },
-        include: {
-            batches: {
-                where: { isHidden: false },
-                select: { id: true, batchNumber: true, expirationDate: true, quantityOnHand: true },
+    const where = {
+        ...(filters?.inactiveOnly ? { isActive: false } : filters?.includeInactive ? {} : { isActive: true }),
+        ...(normalizedSearch
+            ? {
+                name: {
+                    contains: normalizedSearch,
+                    mode: 'insensitive' as const,
+                },
+            }
+            : {}),
+    }
+
+    const [medicines, countedTotal] = await Promise.all([
+        (prisma.medicine as any).findMany({
+            where,
+            include: {
+                batches: {
+                    where: { isHidden: false },
+                    select: { id: true, batchNumber: true, expirationDate: true, quantityOnHand: true },
+                },
             },
-        },
-        orderBy: { name: 'asc' },
-    })
+            orderBy: { name: 'asc' },
+            skip,
+            take: limit,
+        }),
+        typeof (prisma.medicine as any).count === 'function'
+            ? (prisma.medicine as any).count({ where })
+            : Promise.resolve<number>(-1),
+    ])
 
-    return (medicines as any[]).map((m: any) => {
+    const total = countedTotal >= 0 ? countedTotal : (medicines as any[]).length
+
+    const data = (medicines as any[]).map((m: any) => {
         const totalStock = (m.batches as any[]).reduce((sum: number, b: any) => sum + b.quantityOnHand, 0)
         const isLowStock = totalStock <= m.reorderThreshold
         const expirationStatus = classifyActiveExpiryStatus(m.batches)
         const hasExpiringSoon = expirationStatus === 'expiresToday' || expirationStatus === 'expiringSoon'
         return { ...m, totalStock, isLowStock, hasExpiringSoon, expirationStatus }
     })
+
+    const paginated = {
+        data,
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+    }
+
+    const shouldReturnPaginated = filters?.page !== undefined || filters?.limit !== undefined
+    return shouldReturnPaginated ? paginated : data
 }
 
 export async function getMedicineById(id: string) {

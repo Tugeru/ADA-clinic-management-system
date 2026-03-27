@@ -1,5 +1,9 @@
 import { z } from 'zod'
 
+const QueryBooleanSchema = z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .transform((value) => value === true || value === 'true')
+
 const DispensedMedicineSchema = z.object({
     medicineId: z.string().uuid(),
     batchId: z.string().uuid().optional(),
@@ -79,10 +83,15 @@ export type UpdateVisitInput = z.infer<typeof UpdateVisitSchema>
 
 export const VisitQuerySchema = z
     .object({
+        search: z.string().trim().min(1).max(100).optional(),
+        type: z.enum(['Student', 'Teacher', 'NTP']).optional(),
+        disposition: z.enum(['Returned to Class', 'Returned to Work', 'Sent Home', 'Sent to Hospital']).optional(),
         studentId: z.string().uuid('Invalid student ID format').optional(),
         startDate: z.string().date('Invalid start date format').optional(),
         endDate: z.string().date('Invalid end date format').optional(),
-        includeArchived: z.coerce.boolean().optional(),
+        includeArchived: QueryBooleanSchema.optional(),
+        page: z.coerce.number().int().min(1).default(1),
+        limit: z.coerce.number().int().min(1).max(100).default(20),
     })
     .refine(
         (data) =>

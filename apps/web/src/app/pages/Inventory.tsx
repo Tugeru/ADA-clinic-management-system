@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router';
 import { Plus, Search, Package, ArrowRightLeft, PackagePlus, Archive, Trash2, Minus, MoreVertical, Download, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
@@ -10,7 +10,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { Skeleton } from '../components/ui/skeleton';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { useInventory, useArchiveMedicine, useDeleteMedicine, useMedicine, useBulkArchiveMedicines, useBulkDeleteMedicines } from '../lib/hooks';
+import { useInventoryPage, useArchiveMedicine, useDeleteMedicine, useMedicine, useBulkArchiveMedicines, useBulkDeleteMedicines } from '../lib/hooks';
 import { ReduceStockDialog } from '../components/ReduceStockDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
@@ -20,6 +20,7 @@ import { BulkPartialFailureDialog } from '../components/BulkPartialFailureDialog
 import { useTableSelection } from '../hooks/useTableSelection';
 import { useNavigate } from 'react-router';
 import { downloadCsvExport } from '../lib/exportDownload';
+import { buildPaginationTokens, getPageRange } from '../lib/pagination';
 
 const statusStyles: Record<string, string> = {
   critical: 'bg-red-100 text-red-700 border-red-200',
@@ -41,17 +42,20 @@ const expirationStatusLabels: Record<string, string> = {
   fresh: 'Fresh',
 };
 
+const PAGE_SIZE = 20;
+
 export function Inventory() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const {
-    data: medicines,
+    data,
     isLoading,
     isError,
     error,
     refetch,
     isFetching,
-  } = useInventory(search);
+  } = useInventoryPage({ search, page, limit: PAGE_SIZE });
   const archiveMutation = useArchiveMedicine();
   const deleteMutation = useDeleteMedicine();
   const bulkArchiveMutation = useBulkArchiveMedicines();
@@ -71,6 +75,16 @@ export function Inventory() {
   const [partialFailureOpen, setPartialFailureOpen] = useState(false);
   const [lastBulkResult, setLastBulkResult] = useState<{ succeeded: string[]; failed: { id: string; error: string }[] } | null>(null);
 
+  const medicines = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+  const pageRange = getPageRange(page, PAGE_SIZE, total);
+  const pageTokens = useMemo(() => buildPaginationTokens(page, totalPages), [page, totalPages]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
   useEffect(() => {
     if (!isError) return;
     const message = (error as any)?.response?.data?.error ?? 'Failed to load inventory medicines.';
@@ -86,18 +100,22 @@ export function Inventory() {
     selectAll,
     clearSelection,
     selectedCount,
-  } = useTableSelection(visibleMedicines, (m) => m.id);
+  } = useTableSelection(visibleMedicines, (m) => String(m.id));
 
   useEffect(() => {
     if (selectedIds.length === 0) return;
-    const visibleIds = new Set(visibleMedicines.map((m) => m.id));
-    const filteredSelection = selectedIds.filter((id) => visibleIds.has(id));
+    const visibleIds = new Set(visibleMedicines.map((m) => String(m.id)));
+    const filteredSelection = selectedIds.filter((id: string) => visibleIds.has(id));
     if (filteredSelection.length !== selectedIds.length) {
       setSelectedIds(filteredSelection);
     }
   }, [visibleMedicines, selectedIds, setSelectedIds]);
 
-  const totalItems = medicines?.length || 0;
+  useEffect(() => {
+    clearSelection();
+  }, [page, clearSelection]);
+
+  const totalItems = total;
   const lowStock = medicines?.filter(m => m.status === 'low').length || 0;
   const critical = medicines?.filter(m => m.status === 'critical').length || 0;
   const expiringSoon = medicines?.filter(m => m.hasExpiringSoon).length ?? 0;
@@ -167,7 +185,7 @@ export function Inventory() {
       if (result.failed.length > 0) {
         setLastBulkResult(result);
         setPartialFailureOpen(true);
-        setSelectedIds(selectedIds.filter((id) => !result.succeeded.includes(id)));
+        setSelectedIds(selectedIds.filter((id: string) => !result.succeeded.includes(id)));
         if (result.succeeded.length > 0) toast.success(`${result.succeeded.length} medicine(s) archived.`);
       } else {
         clearSelection();
@@ -186,7 +204,7 @@ export function Inventory() {
       if (result.failed.length > 0) {
         setLastBulkResult(result);
         setPartialFailureOpen(true);
-        setSelectedIds(selectedIds.filter((id) => !result.succeeded.includes(id)));
+        setSelectedIds(selectedIds.filter((id: string) => !result.succeeded.includes(id)));
         if (result.succeeded.length > 0) toast.success(`${result.succeeded.length} medicine(s) deleted.`);
       } else {
         clearSelection();
@@ -206,7 +224,7 @@ export function Inventory() {
   return (
     <div className="space-y-5">
       {/* Archive Confirmation Dialog */}
-      <AlertDialog open={!!confirmArchiveId} onOpenChange={(open) => { if (!open) setConfirmArchiveId(null); }}>
+      <AlertDialog open={!!confirmArchiveId} onOpenChange={(open: boolean) => { if (!open) setConfirmArchiveId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Archive Medicine?</AlertDialogTitle>
@@ -229,7 +247,7 @@ export function Inventory() {
       </AlertDialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}>
+      <AlertDialog open={!!confirmDeleteId} onOpenChange={(open: boolean) => { if (!open) setConfirmDeleteId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Medicine?</AlertDialogTitle>
@@ -300,7 +318,7 @@ export function Inventory() {
       <Card className="p-4 gap-0">
         <div className="relative max-w-sm">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search medicine..." className="pl-8 h-9 text-xs" />
+          <Input value={search} onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)} placeholder="Search medicine..." className="pl-8 h-9 text-xs" />
         </div>
       </Card>
 
@@ -386,6 +404,7 @@ export function Inventory() {
             </div>
           </CardContent>
         ) : (
+          <>
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/80">
@@ -496,13 +515,13 @@ export function Inventory() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-52">
                           <DropdownMenuItem
-                            onClick={() => handleArchive(item.id, item.name)}
+                            onClick={() => handleArchive(String(item.id), item.name)}
                             className="text-amber-600 focus:text-amber-700 focus:bg-amber-50"
                           >
                             <Archive size={12} /> Archive
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleDelete(item.id, item.name)}
+                            onClick={() => handleDelete(String(item.id), item.name)}
                             className="text-red-600 focus:text-red-700 focus:bg-red-50"
                           >
                             <Trash2 size={12} /> Delete
@@ -515,6 +534,47 @@ export function Inventory() {
               ))}
             </TableBody>
           </Table>
+          <div className="px-5 py-3 border-t flex items-center justify-between">
+            <p className="text-xs text-slate-500">
+              Showing <span className="font-semibold text-slate-800">{pageRange.from}</span> to <span className="font-semibold text-slate-800">{pageRange.to}</span> of <span className="font-semibold text-slate-800">{total}</span> medicines
+            </p>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={page <= 1}
+                onClick={() => setPage((prev: number) => Math.max(1, prev - 1))}
+              >
+                Previous
+              </Button>
+              {pageTokens.map((token: number | 'ellipsis-left' | 'ellipsis-right') => (
+                typeof token === 'number' ? (
+                  <Button
+                    key={token}
+                    variant={token === page ? 'default' : 'outline'}
+                    size="icon"
+                    className={cn('h-7 w-7 text-xs', token === page && 'bg-teal-600 hover:bg-teal-700')}
+                    onClick={() => setPage(token)}
+                  >
+                    {token}
+                  </Button>
+                ) : (
+                  <span key={token} className="px-1 text-xs text-slate-400">...</span>
+                )
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={page >= totalPages}
+                onClick={() => setPage((prev: number) => Math.min(totalPages, prev + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+          </>
         )}
       </Card>
 

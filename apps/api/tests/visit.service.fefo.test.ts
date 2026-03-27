@@ -74,6 +74,7 @@ describe('visit.service FEFO multi-batch dispensing', () => {
         medicineId: 'med-1',
         quantityOnHand: { gt: 0 },
         expirationDate: { gte: expect.any(Date) },
+        isHidden: false,
       },
       orderBy: [{ expirationDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     })
@@ -220,6 +221,7 @@ describe('visit.service FEFO multi-batch dispensing', () => {
         medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         quantityOnHand: { gt: 0 },
         expirationDate: { gte: expect.any(Date) },
+        isHidden: false,
       },
       orderBy: [{ expirationDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     })

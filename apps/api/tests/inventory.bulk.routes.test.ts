@@ -209,7 +209,13 @@ describe('Inventory (medicine) bulk routes', () => {
                 .query({ search: 'para' })
 
             expect(res.status).toBe(200)
-            expect(listMedicines).toHaveBeenCalledWith({ includeInactive: false, search: 'para' })
+            expect(listMedicines).toHaveBeenCalledWith({
+                includeInactive: false,
+                inactiveOnly: false,
+                search: 'para',
+                page: 1,
+                limit: 20,
+            })
         })
 
         it('returns 200 and accepts includeInactive=true with search', async () => {
@@ -221,7 +227,13 @@ describe('Inventory (medicine) bulk routes', () => {
                 .query({ includeInactive: 'true', search: 'amo' })
 
             expect(res.status).toBe(200)
-            expect(listMedicines).toHaveBeenCalledWith({ includeInactive: true, search: 'amo' })
+            expect(listMedicines).toHaveBeenCalledWith({
+                includeInactive: true,
+                inactiveOnly: false,
+                search: 'amo',
+                page: 1,
+                limit: 20,
+            })
         })
 
         it('returns 400 when includeInactive is invalid', async () => {
