@@ -38,6 +38,13 @@ function makeTx(): MockTx {
   }
 }
 
+function dateOffset(days: number): Date {
+  const d = new Date()
+  d.setUTCHours(0, 0, 0, 0)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d
+}
+
 const basePayload = {
   studentId: '11111111-1111-1111-1111-111111111111',
   timeIn: '2026-03-10T08:00:00.000Z',
@@ -63,8 +70,12 @@ describe('visit.service FEFO multi-batch dispensing', () => {
     const allocations = await allocateBatchesForMedicine(tx as any, 'med-1', 12)
 
     expect(tx.inventoryBatch.findMany).toHaveBeenCalledWith({
-      where: { medicineId: 'med-1', quantityOnHand: { gt: 0 } },
-      orderBy: [{ expirationDate: 'asc' }, { createdAt: 'asc' }],
+      where: {
+        medicineId: 'med-1',
+        quantityOnHand: { gt: 0 },
+        expirationDate: { gte: expect.any(Date) },
+      },
+      orderBy: [{ expirationDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     })
     expect(allocations).toEqual([
       { batchId: 'b1', quantity: 5 },
@@ -82,7 +93,7 @@ describe('visit.service FEFO multi-batch dispensing', () => {
 
     await expect(allocateBatchesForMedicine(tx as any, 'med-1', 10)).rejects.toMatchObject({
       status: 400,
-      message: 'Insufficient stock for medicine med-1',
+      message: 'Insufficient non-expired stock for medicine med-1',
     })
   })
 
@@ -153,7 +164,12 @@ describe('visit.service FEFO multi-batch dispensing', () => {
 
   it('preserves explicit batch behavior and does not split when batchId is provided', async () => {
     const tx = makeTx()
-    tx.inventoryBatch.findUniqueOrThrow.mockResolvedValue({ id: 'b2', medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', quantityOnHand: 5 })
+    tx.inventoryBatch.findUniqueOrThrow.mockResolvedValue({
+      id: 'b2',
+      medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      quantityOnHand: 5,
+      expirationDate: dateOffset(7),
+    })
     mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
 
     await createVisit('22222222-2222-2222-2222-222222222222', {
@@ -200,8 +216,12 @@ describe('visit.service FEFO multi-batch dispensing', () => {
     })
 
     expect(tx.inventoryBatch.findMany).toHaveBeenCalledWith({
-      where: { medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', quantityOnHand: { gt: 0 } },
-      orderBy: [{ expirationDate: 'asc' }, { createdAt: 'asc' }],
+      where: {
+        medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        quantityOnHand: { gt: 0 },
+        expirationDate: { gte: expect.any(Date) },
+      },
+      orderBy: [{ expirationDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     })
     expect(tx.inventoryBatch.updateMany).toHaveBeenCalledTimes(1)
     expect(tx.inventoryBatch.updateMany).toHaveBeenCalledWith({
@@ -210,6 +230,70 @@ describe('visit.service FEFO multi-batch dispensing', () => {
     })
     expect(tx.stockTransaction.create).toHaveBeenCalledTimes(1)
     expect(tx.visitMedicine.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to FEFO when explicit batch is expired but has quantity', async () => {
+    const tx = makeTx()
+    tx.inventoryBatch.findUniqueOrThrow.mockResolvedValue({
+      id: 'b-expired',
+      medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      quantityOnHand: 10,
+      expirationDate: dateOffset(-1),
+    })
+    tx.inventoryBatch.findMany.mockResolvedValue([
+      { id: 'b-fresh', quantityOnHand: 10, expirationDate: dateOffset(10) },
+    ])
+    mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
+
+    await createVisit('22222222-2222-2222-2222-222222222222', {
+      ...basePayload,
+      medicines: [
+        {
+          medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          batchId: 'b-expired',
+          quantity: 3,
+        },
+      ],
+    })
+
+    expect(tx.inventoryBatch.updateMany).toHaveBeenCalledWith({
+      where: { id: 'b-fresh', quantityOnHand: { gte: 3 } },
+      data: { quantityOnHand: { decrement: 3 } },
+    })
+    expect(tx.stockTransaction.create).toHaveBeenCalledTimes(1)
+    expect(tx.visitMedicine.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws when selected batch is expired and no non-expired fallback stock exists', async () => {
+    const tx = makeTx()
+    tx.inventoryBatch.findUniqueOrThrow.mockResolvedValue({
+      id: 'b-expired',
+      medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      quantityOnHand: 10,
+      expirationDate: dateOffset(-2),
+    })
+    tx.inventoryBatch.findMany.mockResolvedValue([])
+    mockedPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx))
+
+    await expect(
+      createVisit('22222222-2222-2222-2222-222222222222', {
+        ...basePayload,
+        medicines: [
+          {
+            medicineId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            batchId: 'b-expired',
+            quantity: 3,
+          },
+        ],
+      })
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'Insufficient non-expired stock for medicine aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    })
+
+    expect(tx.inventoryBatch.updateMany).not.toHaveBeenCalled()
+    expect(tx.stockTransaction.create).not.toHaveBeenCalled()
+    expect(tx.visitMedicine.create).not.toHaveBeenCalled()
   })
 
   it('falls back to FEFO when explicit batch has insufficient (non-zero) stock', async () => {

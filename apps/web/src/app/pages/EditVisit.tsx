@@ -251,8 +251,16 @@ export function EditVisit() {
       await updateMutation.mutateAsync({ id, data: payload });
       toast.success('Visit updated successfully');
       navigate(`/visits/${id}`);
-    } catch {
-      toast.error('Failed to update visit. Please try again.');
+    } catch (err: any) {
+      const data = err?.response?.data;
+      const detailMsg =
+        Array.isArray(data?.details) && data.details.length > 0
+          ? data.details
+              .map((d: { path?: string; message?: string }) => [d.path, d.message].filter(Boolean).join(': '))
+              .join(' · ')
+          : undefined;
+      const msg = detailMsg ?? data?.error ?? 'Failed to update visit. Please try again.';
+      toast.error(msg);
     }
   };
 

@@ -241,7 +241,23 @@ export const inventoryApi = {
   async getAvailableForDispensing(): Promise<{ name: string; id: string; stock: number }[]> {
     const { data } = await http.get('/medicines');
     const items: any[] = Array.isArray(data) ? data : data.data ?? [];
-    return items.filter((m: any) => m.totalStock > 0).map((m: any) => ({ id: m.id, name: m.name, stock: m.totalStock ?? 0 }));
+    const today = toDateStr(new Date());
+
+    const getEligibleStock = (medicine: any) => {
+      const batches = Array.isArray(medicine?.batches) ? medicine.batches : null;
+      if (!batches) return Number(medicine?.totalStock ?? 0);
+
+      return batches.reduce((sum: number, batch: any) => {
+        const qty = Number(batch?.quantityOnHand ?? 0);
+        const expirationDate = normalizeDateOnly(batch?.expirationDate);
+        if (!expirationDate || qty <= 0 || expirationDate < today) return sum;
+        return sum + qty;
+      }, 0);
+    };
+
+    return items
+      .map((m: any) => ({ id: m.id, name: m.name, stock: getEligibleStock(m) }))
+      .filter((m: any) => m.stock > 0);
   },
 
   async stockIn(payload: any): Promise<void> {

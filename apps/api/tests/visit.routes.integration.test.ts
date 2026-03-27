@@ -110,7 +110,7 @@ describe('POST /api/visits integration (FEFO multi-batch)', () => {
       })
 
     expect(res.status).toBe(400)
-    expect(res.body).toMatchObject({ error: 'Insufficient stock for medicine aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' })
+    expect(res.body).toMatchObject({ error: 'Insufficient non-expired stock for medicine aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' })
     expect(tx.inventoryBatch.updateMany).not.toHaveBeenCalled()
   })
 

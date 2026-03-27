@@ -6,6 +6,35 @@ import { recordAudit } from './audit.service.js'
 
 type BatchAllocation = { batchId: string; quantity: number }
 
+function toDateOnlyUTC(value: Date | string | null | undefined): string | null {
+    if (!value) return null
+    if (value instanceof Date) {
+        return isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10)
+    }
+
+    const normalized = value.slice(0, 10)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return normalized
+
+    const parsed = new Date(value)
+    return isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10)
+}
+
+function isBatchEligibleForDispense(batch: {
+    expirationDate?: Date | string | null
+    quantityOnHand: number
+}, now: Date = new Date()): boolean {
+    if (batch.quantityOnHand <= 0) return false
+    const expirationDate = toDateOnlyUTC(batch.expirationDate)
+    if (!expirationDate) return false
+    const today = toDateOnlyUTC(now)
+    if (!today) return false
+    return expirationDate >= today
+}
+
+function getTodayStartUTC(now: Date = new Date()): Date {
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+}
+
 /**
  * Allocate requested quantity across FEFO-ordered batches for a medicine.
  * Throws 400 when total available stock across all batches is insufficient.
@@ -15,13 +44,15 @@ export async function allocateBatchesForMedicine(
     medicineId: string,
     requestedQty: number
 ): Promise<BatchAllocation[]> {
+    const todayStartUTC = getTodayStartUTC()
     const batches = await tx.inventoryBatch.findMany({
         where: {
             medicineId,
             quantityOnHand: { gt: 0 },
+            expirationDate: { gte: todayStartUTC },
         },
-        // deterministic FEFO: earliest expiry first, then earliest created
-        orderBy: [{ expirationDate: 'asc' }, { createdAt: 'asc' }],
+        // deterministic FEFO: earliest expiry first, then earliest created, then id
+        orderBy: [{ expirationDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     })
 
     let remaining = requestedQty
@@ -37,7 +68,7 @@ export async function allocateBatchesForMedicine(
 
     if (remaining > 0) {
         throw Object.assign(
-            new Error(`Insufficient stock for medicine ${medicineId}`),
+            new Error(`Insufficient non-expired stock for medicine ${medicineId}`),
             { status: 400 }
         )
     }
@@ -134,10 +165,10 @@ export async function createVisit(userId: string, data: LogVisitInput) {
                             { status: 400 }
                         )
                     }
-                    if (batch.quantityOnHand >= med.quantity) {
+                    if (isBatchEligibleForDispense(batch) && batch.quantityOnHand >= med.quantity) {
                         allocations = [{ batchId: batch.id, quantity: med.quantity }]
                     } else {
-                        // Fall back to FEFO when requested batch is depleted or has insufficient stock
+                        // Fall back to FEFO when selected batch is expired, depleted, or insufficient.
                         allocations = await allocateBatchesForMedicine(
                             tx,
                             med.medicineId,
@@ -282,7 +313,7 @@ export async function updateVisit(userId: string, id: string, data: UpdateVisitI
                             { status: 400 }
                         )
                     }
-                    if (batch.quantityOnHand >= med.quantity) {
+                    if (isBatchEligibleForDispense(batch) && batch.quantityOnHand >= med.quantity) {
                         allocations = [{ batchId: batch.id, quantity: med.quantity }]
                     } else {
                         allocations = await allocateBatchesForMedicine(
