@@ -91,4 +91,10 @@ router.patch('/:medicineId/batches/:batchId', validate(UpdateBatchMetadataSchema
     } catch (err) { next(err) }
 })
 
+router.delete('/:medicineId/batches/:batchId', async (req, res, next) => {
+    try {
+        res.json(await svc.deleteBatch(req.user!.userId, req.params.medicineId, req.params.batchId))
+    } catch (err) { next(err) }
+})
+
 export default router

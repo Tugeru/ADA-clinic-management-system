@@ -15,7 +15,7 @@ import { Label } from '../components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { cn } from '../components/ui/utils';
 import { toast } from 'sonner';
-import { useMedicine, useArchiveMedicine, useDeleteMedicine, useUpdateBatchMetadata } from '../lib/hooks';
+import { useMedicine, useArchiveMedicine, useDeleteMedicine, useUpdateBatchMetadata, useDeleteBatch } from '../lib/hooks';
 import { useState, type ChangeEvent } from 'react';
 import { ReduceStockDialog } from '../components/ReduceStockDialog';
 import type { InventoryExpiryStatus } from '../lib/types';
@@ -51,6 +51,7 @@ export function MedicineDetails() {
     const archiveMutation = useArchiveMedicine();
     const deleteMutation = useDeleteMedicine();
     const updateBatchMutation = useUpdateBatchMetadata();
+    const deleteBatchMutation = useDeleteBatch();
     const [showReduceDialog, setShowReduceDialog] = useState(false);
     const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -58,6 +59,8 @@ export function MedicineDetails() {
     const [editBatchNumber, setEditBatchNumber] = useState('');
     const [editExpirationDate, setEditExpirationDate] = useState('');
     const [editError, setEditError] = useState<string | null>(null);
+    const [deleteBatchId, setDeleteBatchId] = useState<string | null>(null);
+    const [deleteBatchError, setDeleteBatchError] = useState<string | null>(null);
 
     const confirmArchive = async () => {
         if (!id) return;
@@ -108,8 +111,10 @@ export function MedicineDetails() {
 
     const totalStock: number = (med as any).totalStock ?? med.stock;
     const batches: any[] = (med as any).batches ?? [];
+    const todayDate = new Date().toISOString().slice(0, 10);
 
     const selectedBatch = batches.find((b: any) => b.id === editBatchId) ?? null;
+    const selectedBatchForDelete = batches.find((b: any) => b.id === deleteBatchId) ?? null;
 
     const openBatchEditDialog = (batch: any) => {
         setEditBatchId(batch.id);
@@ -123,6 +128,16 @@ export function MedicineDetails() {
         setEditBatchNumber('');
         setEditExpirationDate('');
         setEditError(null);
+    };
+
+    const openBatchDeleteDialog = (batchId: string) => {
+        setDeleteBatchId(batchId);
+        setDeleteBatchError(null);
+    };
+
+    const closeBatchDeleteDialog = () => {
+        setDeleteBatchId(null);
+        setDeleteBatchError(null);
     };
 
     const saveBatchMetadata = async () => {
@@ -156,6 +171,22 @@ export function MedicineDetails() {
         } catch (error: any) {
             const message = error?.response?.data?.error ?? 'Failed to update batch details.';
             setEditError(message);
+        }
+    };
+
+    const confirmBatchDelete = async () => {
+        if (!id || !selectedBatchForDelete) return;
+
+        try {
+            await deleteBatchMutation.mutateAsync({
+                medicineId: id,
+                batchId: selectedBatchForDelete.id,
+            });
+            toast.success('Batch deleted.');
+            closeBatchDeleteDialog();
+        } catch (error: any) {
+            const message = error?.response?.data?.error ?? 'Failed to delete batch.';
+            setDeleteBatchError(message);
         }
     };
 
@@ -244,11 +275,21 @@ export function MedicineDetails() {
                                     <th className="text-left text-[10px] uppercase text-slate-400 font-semibold py-2">Expiry</th>
                                     <th className="text-right text-[10px] uppercase text-slate-400 font-semibold py-2 pr-1">Qty</th>
                                     <th className="text-right text-[10px] uppercase text-slate-400 font-semibold py-2 pr-1">Edit</th>
+                                    <th className="text-right text-[10px] uppercase text-slate-400 font-semibold py-2 pr-1">Delete</th>
                                     <th className="text-right text-[10px] uppercase text-slate-400 font-semibold py-2 pr-1">Reduce</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {batches.map((b: any) => (
+                                    (() => {
+                                        const expiryStatus = getBatchExpiryStatus(b.expirationDate);
+                                        const isExpired = expiryStatus === 'expired';
+                                        const isEligibleForDelete = b.quantityOnHand === 0 || isExpired;
+                                        const deleteDisabledReason = isEligibleForDelete
+                                            ? undefined
+                                            : 'Only fully consumed or expired batches can be deleted';
+
+                                        return (
                                     <tr key={b.id} className="border-b last:border-0 hover:bg-slate-50/50">
                                         <td className="text-xs text-slate-700 py-2.5 pl-1 font-medium">
                                             {b.batchNumber ?? <span className="text-slate-400 italic">—</span>}
@@ -257,21 +298,21 @@ export function MedicineDetails() {
                                             <span
                                                 className={cn(
                                                     'inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-medium',
-                                                    batchStatusBorderStyles[getBatchExpiryStatus(b.expirationDate)],
+                                                    batchStatusBorderStyles[expiryStatus],
                                                 )}
-                                                aria-label={`Expiry status ${batchStatusLabels[getBatchExpiryStatus(b.expirationDate)]}`}
+                                                aria-label={`Expiry status ${batchStatusLabels[expiryStatus]}`}
                                             >
                                                 {b.expirationDate ? new Date(b.expirationDate).toLocaleDateString() : '—'}
-                                                <span className="ml-1">({batchStatusLabels[getBatchExpiryStatus(b.expirationDate)]})</span>
+                                                <span className="ml-1">({batchStatusLabels[expiryStatus]})</span>
                                             </span>
                                         </td>
                                         <td className="py-2.5 pr-1 text-right">
                                             <span
                                                 className={cn(
                                                     'inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-bold',
-                                                    batchStatusBorderStyles[getBatchExpiryStatus(b.expirationDate)],
+                                                    batchStatusBorderStyles[expiryStatus],
                                                 )}
-                                                aria-label={`Quantity ${b.quantityOnHand}, ${batchStatusLabels[getBatchExpiryStatus(b.expirationDate)]}`}
+                                                aria-label={`Quantity ${b.quantityOnHand}, ${batchStatusLabels[expiryStatus]}`}
                                             >
                                                 {b.quantityOnHand}
                                             </span>
@@ -280,8 +321,20 @@ export function MedicineDetails() {
                                             <button
                                                 onClick={() => openBatchEditDialog(b)}
                                                 className="text-xs text-teal-600 hover:text-teal-800 disabled:opacity-30"
+                                                aria-label={`Edit batch ${b.batchNumber ?? 'without number'}`}
                                             >
                                                 Edit
+                                            </button>
+                                        </td>
+                                        <td className="py-2 pr-1 text-right">
+                                            <button
+                                                onClick={() => openBatchDeleteDialog(b.id)}
+                                                disabled={!isEligibleForDelete}
+                                                title={deleteDisabledReason}
+                                                className="text-xs text-red-600 hover:text-red-800 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                                aria-label={`Delete batch ${b.batchNumber ?? 'without number'}`}
+                                            >
+                                                Delete
                                             </button>
                                         </td>
                                         <td className="py-2 pr-1 text-right">
@@ -294,6 +347,8 @@ export function MedicineDetails() {
                                             </button>
                                         </td>
                                     </tr>
+                                        )
+                                    })()
                                 ))}
                             </tbody>
                         </table>
@@ -411,6 +466,7 @@ export function MedicineDetails() {
                                 id="expirationDate"
                                 type="date"
                                 value={editExpirationDate}
+                                min={todayDate}
                                 onChange={(e: ChangeEvent<HTMLInputElement>) => setEditExpirationDate(e.target.value)}
                             />
                         </div>
@@ -427,6 +483,32 @@ export function MedicineDetails() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={Boolean(deleteBatchId)} onOpenChange={(open) => { if (!open) closeBatchDeleteDialog(); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Batch?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You are about to permanently delete batch{' '}
+                            <span className="font-semibold text-slate-700">{selectedBatchForDelete?.batchNumber ?? '—'}</span>.
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    {deleteBatchError ? (
+                        <p className="text-xs text-red-600" role="alert">{deleteBatchError}</p>
+                    ) : null}
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleteBatchMutation.isPending}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmBatchDelete}
+                            disabled={deleteBatchMutation.isPending}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            {deleteBatchMutation.isPending ? 'Deleting...' : 'Delete Batch'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Reduce stock dialog */}
             {showReduceDialog && (

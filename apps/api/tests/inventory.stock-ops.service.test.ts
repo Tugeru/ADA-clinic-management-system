@@ -7,12 +7,14 @@ vi.mock('../src/config/db.js', () => ({
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
     },
     visitMedicine: {
       count: vi.fn(),
     },
     stockTransaction: {
       create: vi.fn(),
+      deleteMany: vi.fn(),
     },
     auditLog: {
       create: vi.fn(),
@@ -22,7 +24,7 @@ vi.mock('../src/config/db.js', () => ({
 }));
 
 import prisma from '../src/config/db.js';
-import { stockIn, adjustStock, updateBatchMetadata } from '../src/services/inventory.service.js';
+import { stockIn, adjustStock, updateBatchMetadata, deleteBatch } from '../src/services/inventory.service.js';
 
 describe('inventory stock operations service', () => {
   const db = prisma as unknown as {
@@ -31,12 +33,14 @@ describe('inventory stock operations service', () => {
       findUnique: ReturnType<typeof vi.fn>;
       create: ReturnType<typeof vi.fn>;
       update: ReturnType<typeof vi.fn>;
+      delete: ReturnType<typeof vi.fn>;
     };
     visitMedicine: {
       count: ReturnType<typeof vi.fn>;
     };
     stockTransaction: {
       create: ReturnType<typeof vi.fn>;
+      deleteMany: ReturnType<typeof vi.fn>;
     };
     $transaction: ReturnType<typeof vi.fn>;
   };
@@ -219,6 +223,66 @@ describe('inventory stock operations service', () => {
     });
 
     expect(db.inventoryBatch.update).not.toHaveBeenCalled();
+  });
+
+  it('deletes a fully consumed batch that has no dispense references', async () => {
+    db.inventoryBatch.findUnique.mockResolvedValueOnce({
+      id: 'batch-8',
+      medicineId: 'med-1',
+      batchNumber: 'B-08',
+      expirationDate: null,
+      quantityOnHand: 0,
+    } as any);
+    db.visitMedicine.count.mockResolvedValueOnce(0);
+    db.$transaction.mockImplementation(async (cb: any) =>
+      cb({
+        stockTransaction: db.stockTransaction,
+        inventoryBatch: db.inventoryBatch,
+      }),
+    );
+
+    const result = await deleteBatch('u1', 'med-1', 'batch-8');
+
+    expect(db.stockTransaction.deleteMany).toHaveBeenCalledWith({ where: { batchId: 'batch-8' } });
+    expect(db.inventoryBatch.delete).toHaveBeenCalledWith({ where: { id: 'batch-8' } });
+    expect(result).toEqual({ id: 'batch-8', deleted: true });
+  });
+
+  it('rejects deletion when batch is neither fully consumed nor expired', async () => {
+    const future = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+    db.inventoryBatch.findUnique.mockResolvedValueOnce({
+      id: 'batch-9',
+      medicineId: 'med-1',
+      batchNumber: 'B-09',
+      expirationDate: future,
+      quantityOnHand: 5,
+    } as any);
+
+    await expect(deleteBatch('u1', 'med-1', 'batch-9')).rejects.toMatchObject({
+      status: 409,
+      code: 'BATCH_DELETE_NOT_ELIGIBLE',
+    });
+
+    expect(db.inventoryBatch.delete).not.toHaveBeenCalled();
+  });
+
+  it('rejects deletion when batch has dispense references', async () => {
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    db.inventoryBatch.findUnique.mockResolvedValueOnce({
+      id: 'batch-10',
+      medicineId: 'med-1',
+      batchNumber: 'B-10',
+      expirationDate: yesterday,
+      quantityOnHand: 3,
+    } as any);
+    db.visitMedicine.count.mockResolvedValueOnce(1);
+
+    await expect(deleteBatch('u1', 'med-1', 'batch-10')).rejects.toMatchObject({
+      status: 409,
+      code: 'BATCH_DELETE_BLOCKED_REFERENCED',
+    });
+
+    expect(db.inventoryBatch.delete).not.toHaveBeenCalled();
   });
 });
 

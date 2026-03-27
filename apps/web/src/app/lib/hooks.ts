@@ -426,6 +426,18 @@ export function useUpdateBatchMetadata() {
   });
 }
 
+export function useDeleteBatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { medicineId: string; batchId: string }) =>
+      inventoryApi.deleteBatch(data.medicineId, data.batchId),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.detail(variables.medicineId) });
+    },
+  });
+}
+
 // Update a medicine's core details
 export function useUpdateMedicine() {
   const qc = useQueryClient();

@@ -290,6 +290,10 @@ export const inventoryApi = {
     await http.patch(`/medicines/${medicineId}/batches/${batchId}`, payload);
   },
 
+  async deleteBatch(medicineId: string, batchId: string): Promise<void> {
+    await http.delete(`/medicines/${medicineId}/batches/${batchId}`);
+  },
+
   // Update an existing medicine's core details
   async update(id: string, payload: { name?: string; notes?: string; threshold?: number; type?: MedicineType | '' }): Promise<Medicine> {
     const { data } = await http.patch(`/medicines/${id}`, {

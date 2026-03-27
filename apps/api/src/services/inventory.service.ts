@@ -586,3 +586,73 @@ export async function updateBatchMetadata(
 
     return updated
 }
+
+export async function deleteBatch(userId: string, medicineId: string, batchId: string) {
+    const batch = await prisma.inventoryBatch.findUnique({
+        where: { id: batchId },
+        select: {
+            id: true,
+            medicineId: true,
+            batchNumber: true,
+            expirationDate: true,
+            quantityOnHand: true,
+        },
+    })
+
+    if (!batch || batch.medicineId !== medicineId) {
+        throw Object.assign(new Error('Batch not found for the selected medicine.'), {
+            status: 404,
+            code: 'BATCH_NOT_FOUND',
+        })
+    }
+
+    const today = new Date().toISOString().slice(0, 10)
+    const isExpired = batch.expirationDate
+        ? batch.expirationDate.toISOString().slice(0, 10) < today
+        : false
+    const isFullyConsumed = batch.quantityOnHand === 0
+    const isEligible = isFullyConsumed || isExpired
+
+    if (!isEligible) {
+        throw Object.assign(new Error('Batch can only be deleted when fully consumed or expired.'), {
+            status: 409,
+            code: 'BATCH_DELETE_NOT_ELIGIBLE',
+            conflict: {
+                batchId,
+                medicineId,
+                quantityOnHand: batch.quantityOnHand,
+                expirationDate: batch.expirationDate,
+            },
+        })
+    }
+
+    const visitUsageCount = await prisma.visitMedicine.count({ where: { batchId } })
+    if (visitUsageCount > 0) {
+        throw Object.assign(new Error('Batch cannot be deleted because it is referenced in past dispenses.'), {
+            status: 409,
+            code: 'BATCH_DELETE_BLOCKED_REFERENCED',
+            conflict: { batchId, medicineId, dispensedCount: visitUsageCount },
+        })
+    }
+
+    await prisma.$transaction(async (tx) => {
+        await tx.stockTransaction.deleteMany({ where: { batchId } })
+        await tx.inventoryBatch.delete({ where: { id: batchId } })
+    })
+
+    await recordAudit({
+        userId,
+        action: 'Delete',
+        entity: 'InventoryBatch',
+        entityId: batchId,
+        recordIdentifier: batch.batchNumber ?? batchId,
+        metadata: {
+            medicineId,
+            quantityOnHand: batch.quantityOnHand,
+            expirationDate: batch.expirationDate,
+            reason: isFullyConsumed ? 'fully-consumed' : 'expired',
+        },
+    })
+
+    return { id: batchId, deleted: true }
+}
