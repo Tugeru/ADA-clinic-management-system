@@ -521,7 +521,6 @@ export function Dashboard() {
               </Button>
               <Separator className="my-3" />
               <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 cursor-pointer hover:text-slate-600 uppercase tracking-wide">
-                <HelpCircle size={13} />
               </div>
             </CardContent>
           </Card>
