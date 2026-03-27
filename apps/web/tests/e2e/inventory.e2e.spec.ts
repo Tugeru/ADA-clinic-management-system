@@ -42,6 +42,33 @@ function mapMedicineResponse(items: MockMedicine[]) {
 }
 
 test.describe('Inventory page', () => {
+  test('shows a clear error state when medicines request fails', async ({ page }) => {
+    await setAuthenticatedSession(page);
+
+    await page.route('**/api/medicines**', async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname !== '/api/medicines' || route.request().method() !== 'GET') {
+        await route.fallback();
+        return;
+      }
+
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'Database schema is out of date. Please run pending database migrations and retry.',
+          code: 'DB_SCHEMA_MIGRATION_REQUIRED',
+        }),
+      });
+    });
+
+    await page.goto('/inventory');
+
+    await expect(page.getByText('Unable to load medicines')).toBeVisible();
+    await expect(page.getByRole('main').getByText('Database schema is out of date. Please run pending database migrations and retry.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
+  });
+
   test('does not mark expiring soon when only near-expiry batch is fully consumed', async ({ page }) => {
     const soonDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 

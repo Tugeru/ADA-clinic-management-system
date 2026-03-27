@@ -130,6 +130,9 @@ model InventoryBatch {
   batchNumber    String?   @map("batch_number")
   expirationDate DateTime? @map("expiration_date") @db.Date
   quantityOnHand Int       @default(0) @map("quantity_on_hand")
+  isHidden       Boolean   @default(false) @map("is_hidden")
+  hiddenAt       DateTime? @map("hidden_at") @db.Timestamptz
+  hiddenReason   String?   @map("hidden_reason")
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -139,6 +142,7 @@ model InventoryBatch {
   visitMedicines    VisitMedicine[]
 
   @@unique([medicineId, batchNumber, expirationDate], name: "uq_batch")
+  @@index([medicineId, isHidden])
   @@map("inventory_batches")
 }
 

@@ -74,6 +74,7 @@ describe('inventory stock operations service', () => {
         batchNumber: 'B001',
         expirationDate: new Date('2027-06-01'),
         quantityOnHand: 10,
+        isHidden: false,
       },
     });
     expect(db.stockTransaction.create).toHaveBeenCalledWith({
@@ -105,7 +106,12 @@ describe('inventory stock operations service', () => {
     expect(result).toEqual({ id: 'batch-2' });
     expect(db.inventoryBatch.update).toHaveBeenCalledWith({
       where: { id: 'batch-2' },
-      data: { quantityOnHand: { increment: 5 } },
+      data: {
+        quantityOnHand: { increment: 5 },
+        isHidden: false,
+        hiddenAt: null,
+        hiddenReason: null,
+      },
     });
     expect(db.stockTransaction.create).toHaveBeenCalledWith({
       data: {
@@ -232,20 +238,22 @@ describe('inventory stock operations service', () => {
       batchNumber: 'B-08',
       expirationDate: null,
       quantityOnHand: 0,
+      isHidden: false,
     } as any);
-    db.visitMedicine.count.mockResolvedValueOnce(0);
-    db.$transaction.mockImplementation(async (cb: any) =>
-      cb({
-        stockTransaction: db.stockTransaction,
-        inventoryBatch: db.inventoryBatch,
-      }),
-    );
 
     const result = await deleteBatch('u1', 'med-1', 'batch-8');
 
-    expect(db.stockTransaction.deleteMany).toHaveBeenCalledWith({ where: { batchId: 'batch-8' } });
-    expect(db.inventoryBatch.delete).toHaveBeenCalledWith({ where: { id: 'batch-8' } });
-    expect(result).toEqual({ id: 'batch-8', deleted: true });
+    expect(db.inventoryBatch.update).toHaveBeenCalledWith({
+      where: { id: 'batch-8' },
+      data: {
+        isHidden: true,
+        hiddenAt: expect.any(Date),
+        hiddenReason: 'fully-consumed',
+      },
+    });
+    expect(db.stockTransaction.deleteMany).not.toHaveBeenCalled();
+    expect(db.inventoryBatch.delete).not.toHaveBeenCalled();
+    expect(result).toEqual({ id: 'batch-8', deleted: true, cleanupMode: 'hidden' });
   });
 
   it('rejects deletion when batch is neither fully consumed nor expired', async () => {
@@ -256,6 +264,7 @@ describe('inventory stock operations service', () => {
       batchNumber: 'B-09',
       expirationDate: future,
       quantityOnHand: 5,
+      isHidden: false,
     } as any);
 
     await expect(deleteBatch('u1', 'med-1', 'batch-9')).rejects.toMatchObject({
@@ -274,15 +283,21 @@ describe('inventory stock operations service', () => {
       batchNumber: 'B-10',
       expirationDate: yesterday,
       quantityOnHand: 3,
+      isHidden: false,
     } as any);
-    db.visitMedicine.count.mockResolvedValueOnce(1);
 
-    await expect(deleteBatch('u1', 'med-1', 'batch-10')).rejects.toMatchObject({
-      status: 409,
-      code: 'BATCH_DELETE_BLOCKED_REFERENCED',
+    const result = await deleteBatch('u1', 'med-1', 'batch-10');
+
+    expect(db.inventoryBatch.update).toHaveBeenCalledWith({
+      where: { id: 'batch-10' },
+      data: {
+        isHidden: true,
+        hiddenAt: expect.any(Date),
+        hiddenReason: 'expired',
+      },
     });
-
     expect(db.inventoryBatch.delete).not.toHaveBeenCalled();
+    expect(result).toEqual({ id: 'batch-10', deleted: true, cleanupMode: 'hidden' });
   });
 });
 

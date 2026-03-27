@@ -35,7 +35,7 @@ async function findMedicineByNormalizedName(name: string, excludeId?: string) {
 export async function listMedicines(filters?: { includeInactive?: boolean; search?: string }) {
     const normalizedSearch = filters?.search?.trim()
 
-    const medicines = await prisma.medicine.findMany({
+    const medicines = await (prisma.medicine as any).findMany({
         where: {
             ...(filters?.includeInactive ? {} : { isActive: true }),
             ...(normalizedSearch
@@ -49,14 +49,15 @@ export async function listMedicines(filters?: { includeInactive?: boolean; searc
         },
         include: {
             batches: {
+                where: { isHidden: false },
                 select: { id: true, batchNumber: true, expirationDate: true, quantityOnHand: true },
             },
         },
         orderBy: { name: 'asc' },
     })
 
-    return medicines.map((m) => {
-        const totalStock = m.batches.reduce((sum, b) => sum + b.quantityOnHand, 0)
+    return (medicines as any[]).map((m: any) => {
+        const totalStock = (m.batches as any[]).reduce((sum: number, b: any) => sum + b.quantityOnHand, 0)
         const isLowStock = totalStock <= m.reorderThreshold
         const expirationStatus = classifyActiveExpiryStatus(m.batches)
         const hasExpiringSoon = expirationStatus === 'expiresToday' || expirationStatus === 'expiringSoon'
@@ -65,10 +66,11 @@ export async function listMedicines(filters?: { includeInactive?: boolean; searc
 }
 
 export async function getMedicineById(id: string) {
-    return prisma.medicine.findUnique({
+    return (prisma.medicine as any).findUnique({
         where: { id },
         include: {
             batches: {
+                where: { isHidden: false },
                 select: { id: true, batchNumber: true, expirationDate: true, quantityOnHand: true },
                 orderBy: { expirationDate: 'asc' },
             },
@@ -334,7 +336,7 @@ export async function deleteMedicines(userId: string, ids: string[]): Promise<Ba
 export async function stockIn(userId: string, data: StockInInput) {
     const batch = await prisma.$transaction(async (tx) => {
         // Find or create batch
-        let batch = await tx.inventoryBatch.findFirst({
+        let batch = await (tx.inventoryBatch as any).findFirst({
             where: {
                 medicineId: data.medicineId,
                 batchNumber: data.batchNumber ?? null,
@@ -343,17 +345,23 @@ export async function stockIn(userId: string, data: StockInInput) {
         })
 
         if (batch) {
-            batch = await tx.inventoryBatch.update({
+            batch = await (tx.inventoryBatch as any).update({
                 where: { id: batch.id },
-                data: { quantityOnHand: { increment: data.quantity } },
+                data: {
+                    quantityOnHand: { increment: data.quantity },
+                    isHidden: false,
+                    hiddenAt: null,
+                    hiddenReason: null,
+                },
             })
         } else {
-            batch = await tx.inventoryBatch.create({
+            batch = await (tx.inventoryBatch as any).create({
                 data: {
                     medicineId: data.medicineId,
                     batchNumber: data.batchNumber,
                     expirationDate: data.expirationDate ? new Date(data.expirationDate) : undefined,
                     quantityOnHand: data.quantity,
+                    isHidden: false,
                 },
             })
         }
@@ -585,7 +593,7 @@ export async function updateBatchMetadata(
 }
 
 export async function deleteBatch(userId: string, medicineId: string, batchId: string) {
-    const batch = await prisma.inventoryBatch.findUnique({
+    const batch = await (prisma.inventoryBatch as any).findUnique({
         where: { id: batchId },
         select: {
             id: true,
@@ -601,6 +609,10 @@ export async function deleteBatch(userId: string, medicineId: string, batchId: s
             status: 404,
             code: 'BATCH_NOT_FOUND',
         })
+    }
+
+    if (batch.isHidden) {
+        return { id: batchId, deleted: true, cleanupMode: 'hidden' as const }
     }
 
     const today = new Date().toISOString().slice(0, 10)
@@ -623,18 +635,13 @@ export async function deleteBatch(userId: string, medicineId: string, batchId: s
         })
     }
 
-    const visitUsageCount = await prisma.visitMedicine.count({ where: { batchId } })
-    if (visitUsageCount > 0) {
-        throw Object.assign(new Error('Batch cannot be deleted because it is referenced in past dispenses.'), {
-            status: 409,
-            code: 'BATCH_DELETE_BLOCKED_REFERENCED',
-            conflict: { batchId, medicineId, dispensedCount: visitUsageCount },
-        })
-    }
-
-    await prisma.$transaction(async (tx) => {
-        await tx.stockTransaction.deleteMany({ where: { batchId } })
-        await tx.inventoryBatch.delete({ where: { id: batchId } })
+    await (prisma.inventoryBatch as any).update({
+        where: { id: batchId },
+        data: {
+            isHidden: true,
+            hiddenAt: new Date(),
+            hiddenReason: isFullyConsumed ? 'fully-consumed' : 'expired',
+        },
     })
 
     await recordAudit({
@@ -648,8 +655,9 @@ export async function deleteBatch(userId: string, medicineId: string, batchId: s
             quantityOnHand: batch.quantityOnHand,
             expirationDate: batch.expirationDate,
             reason: isFullyConsumed ? 'fully-consumed' : 'expired',
+            cleanupMode: 'hidden',
         },
     })
 
-    return { id: batchId, deleted: true }
+    return { id: batchId, deleted: true, cleanupMode: 'hidden' as const }
 }

@@ -182,10 +182,10 @@ export function MedicineDetails() {
                 medicineId: id,
                 batchId: selectedBatchForDelete.id,
             });
-            toast.success('Batch deleted.');
+            toast.success('Batch removed from active view.');
             closeBatchDeleteDialog();
         } catch (error: any) {
-            const message = error?.response?.data?.error ?? 'Failed to delete batch.';
+            const message = error?.response?.data?.error ?? 'Failed to remove batch from active view.';
             setDeleteBatchError(message);
         }
     };
@@ -287,7 +287,7 @@ export function MedicineDetails() {
                                         const isEligibleForDelete = b.quantityOnHand === 0 || isExpired;
                                         const deleteDisabledReason = isEligibleForDelete
                                             ? undefined
-                                            : 'Only fully consumed or expired batches can be deleted';
+                                            : 'Only fully consumed or expired batches can be removed';
 
                                         return (
                                     <tr key={b.id} className="border-b last:border-0 hover:bg-slate-50/50">
@@ -332,9 +332,9 @@ export function MedicineDetails() {
                                                 disabled={!isEligibleForDelete}
                                                 title={deleteDisabledReason}
                                                 className="text-xs text-red-600 hover:text-red-800 disabled:text-slate-400 disabled:cursor-not-allowed"
-                                                aria-label={`Delete batch ${b.batchNumber ?? 'without number'}`}
+                                                aria-label={`Remove batch ${b.batchNumber ?? 'without number'} from active view`}
                                             >
-                                                Delete
+                                                Remove
                                             </button>
                                         </td>
                                         <td className="py-2 pr-1 text-right">
@@ -484,14 +484,14 @@ export function MedicineDetails() {
                 </DialogContent>
             </Dialog>
 
-            <AlertDialog open={Boolean(deleteBatchId)} onOpenChange={(open) => { if (!open) closeBatchDeleteDialog(); }}>
+            <AlertDialog open={Boolean(deleteBatchId)} onOpenChange={(open: boolean) => { if (!open) closeBatchDeleteDialog(); }}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Batch?</AlertDialogTitle>
+                        <AlertDialogTitle>Remove Batch From Active View?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            You are about to permanently delete batch{' '}
+                            You are about to hide batch{' '}
                             <span className="font-semibold text-slate-700">{selectedBatchForDelete?.batchNumber ?? '—'}</span>.
-                            This action cannot be undone.
+                            Past visits, stock movements, and audit logs will remain intact.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     {deleteBatchError ? (
@@ -504,7 +504,7 @@ export function MedicineDetails() {
                             disabled={deleteBatchMutation.isPending}
                             className="bg-red-600 hover:bg-red-700 text-white"
                         >
-                            {deleteBatchMutation.isPending ? 'Deleting...' : 'Delete Batch'}
+                            {deleteBatchMutation.isPending ? 'Removing...' : 'Remove Batch'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

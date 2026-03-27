@@ -140,16 +140,16 @@ test.describe('MedicineDetails batch controls', () => {
 
     await page.goto(`/inventory/${medicineId}`);
 
-    const eligibleDelete = page.getByRole('button', { name: /Delete batch B-FULL/i });
-    const ineligibleDelete = page.getByRole('button', { name: /Delete batch B-ACTIVE/i });
+    const eligibleDelete = page.getByRole('button', { name: /Remove batch B-FULL from active view/i });
+    const ineligibleDelete = page.getByRole('button', { name: /Remove batch B-ACTIVE from active view/i });
 
     await expect(eligibleDelete).toBeEnabled();
     await expect(ineligibleDelete).toBeDisabled();
 
     await eligibleDelete.click();
-    await page.getByRole('button', { name: 'Delete Batch' }).click();
+    await page.getByRole('button', { name: 'Remove Batch' }).click();
 
-    await expect(page.getByText('Batch deleted.')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Delete batch B-FULL/i })).toHaveCount(0);
+    await expect(page.getByText('Batch removed from active view.')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Remove batch B-FULL from active view/i })).toHaveCount(0);
   });
 });

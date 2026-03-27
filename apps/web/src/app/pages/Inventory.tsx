@@ -44,7 +44,14 @@ const expirationStatusLabels: Record<string, string> = {
 export function Inventory() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const { data: medicines, isLoading } = useInventory(search);
+  const {
+    data: medicines,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useInventory(search);
   const archiveMutation = useArchiveMedicine();
   const deleteMutation = useDeleteMedicine();
   const bulkArchiveMutation = useBulkArchiveMedicines();
@@ -63,6 +70,12 @@ export function Inventory() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [partialFailureOpen, setPartialFailureOpen] = useState(false);
   const [lastBulkResult, setLastBulkResult] = useState<{ succeeded: string[]; failed: { id: string; error: string }[] } | null>(null);
+
+  useEffect(() => {
+    if (!isError) return;
+    const message = (error as any)?.response?.data?.error ?? 'Failed to load inventory medicines.';
+    toast.error(message);
+  }, [isError, error]);
 
   const visibleMedicines = medicines ?? [];
   const {
@@ -352,6 +365,25 @@ export function Inventory() {
         {isLoading ? (
           <CardContent className="space-y-3 pt-4">
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </CardContent>
+        ) : isError ? (
+          <CardContent className="py-10">
+            <div className="flex flex-col items-center justify-center gap-3 text-center">
+              <p className="text-sm font-semibold text-slate-700">Unable to load medicines</p>
+              <p className="text-xs text-slate-500 max-w-md">
+                {(error as any)?.response?.data?.error
+                  ?? 'The inventory service returned an error. Please try again, and verify database migrations are applied.'}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-8"
+                onClick={() => refetch()}
+                disabled={isFetching}
+              >
+                {isFetching ? 'Retrying...' : 'Retry'}
+              </Button>
+            </div>
           </CardContent>
         ) : (
           <Table>

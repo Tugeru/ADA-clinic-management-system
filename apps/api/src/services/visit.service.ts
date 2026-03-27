@@ -22,7 +22,9 @@ function toDateOnlyUTC(value: Date | string | null | undefined): string | null {
 function isBatchEligibleForDispense(batch: {
     expirationDate?: Date | string | null
     quantityOnHand: number
+    isHidden?: boolean
 }, now: Date = new Date()): boolean {
+    if (batch.isHidden) return false
     if (batch.quantityOnHand <= 0) return false
     const expirationDate = toDateOnlyUTC(batch.expirationDate)
     if (!expirationDate) return false
@@ -50,6 +52,7 @@ export async function allocateBatchesForMedicine(
             medicineId,
             quantityOnHand: { gt: 0 },
             expirationDate: { gte: todayStartUTC },
+            isHidden: false,
         },
         // deterministic FEFO: earliest expiry first, then earliest created, then id
         orderBy: [{ expirationDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],

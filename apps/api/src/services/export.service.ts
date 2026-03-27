@@ -168,7 +168,10 @@ export async function exportMedicinesCsv(params: { includeInactive: boolean; det
         const medicines = await prisma.medicine.findMany({
             where: params.includeInactive ? {} : { isActive: true },
             include: {
-                batches: { select: { quantityOnHand: true } },
+                batches: {
+                    where: { isHidden: false },
+                    select: { quantityOnHand: true },
+                },
             },
             orderBy: { name: 'asc' },
         })
@@ -208,6 +211,7 @@ export async function exportMedicinesCsv(params: { includeInactive: boolean; det
         where: params.includeInactive ? {} : { isActive: true },
         include: {
             batches: {
+                where: { isHidden: false },
                 orderBy: [{ expirationDate: 'asc' }, { createdAt: 'asc' }],
             },
         },

@@ -24,7 +24,7 @@ export async function clinicSummary(startDate: string, endDate: string) {
 export async function lowStockReport() {
     const medicines = await prisma.medicine.findMany({
         where: { isActive: true },
-        include: { batches: true },
+        include: { batches: { where: { isHidden: false } } },
     })
 
     const now = new Date()
