@@ -28,24 +28,24 @@ export function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#F4F6F8]">
+        <div className="min-h-screen flex items-center justify-center bg-[#F4F6F8] relative overflow-hidden">
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-gradient-to-br from-teal-50 via-transparent to-emerald-50"
+                className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-teal-50 via-transparent to-emerald-50"
             />
-            <div className="w-full max-w-sm mx-4">
+            <div className="w-full max-w-sm mx-4 relative z-10">
                 {/* Logo / Header */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-full mb-4 ring-1 ring-slate-200/60 shadow-sm">
+                    <div className="inline-flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center overflow-hidden rounded-full mb-5 ring-1 ring-slate-200/60 shadow-sm">
                         <img
                             src={schoolLogo}
                             alt="Cabantian Stand-Alone Senior High School"
                             className="h-full w-full object-cover"
-                            width={64}
-                            height={64}
+                            width={96}
+                            height={96}
                         />
                     </div>
-                    <h1 className="text-2xl font-bold text-slate-800">ADA Clinic System</h1>
+                    <h1 className="text-2xl font-bold text-slate-800">ADA Clinic Management System</h1>
                     <p className="text-slate-500 text-sm mt-1">Cabantian Stand-Alone SHS</p>
                 </div>
 
