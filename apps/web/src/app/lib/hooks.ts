@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { patientApi, visitApi, inventoryApi, dashboardApi, analyticsApi, archiveApi, patientVisitsApi, auditLogApi, referenceDataApi, userApi } from './api';
-import type { MedicineType } from './types';
+import type { DashboardAnalyticsParams, MedicineType } from './types';
 import type { PatientFormData, VisitFormData, StockInFormData, MedicineFormData, AuditAction, AuditEntity } from './types';
 
 // ─── Query Keys ──────────────────────────────────────────────
@@ -33,7 +33,7 @@ export const queryKeys = {
   dashboard: {
     kpis: ['dashboard', 'kpis'] as const,
     recentVisits: ['dashboard', 'recentVisits'] as const,
-    charts: ['dashboard', 'charts'] as const,
+    charts: (params?: DashboardAnalyticsParams) => ['dashboard', 'charts', params] as const,
   },
   analytics: {
     usageRankings: (params?: { period?: string; startDate?: string; endDate?: string }) =>
@@ -555,10 +555,10 @@ export function useRecentVisits() {
   });
 }
 
-export function useDashboardCharts() {
+export function useDashboardCharts(params?: DashboardAnalyticsParams) {
   return useQuery({
-    queryKey: queryKeys.dashboard.charts,
-    queryFn: () => dashboardApi.getChartData(),
+    queryKey: queryKeys.dashboard.charts(params),
+    queryFn: () => dashboardApi.getChartData(params),
   });
 }
 

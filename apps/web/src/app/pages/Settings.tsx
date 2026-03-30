@@ -22,6 +22,7 @@ import {
 import { cn } from '../components/ui/utils';
 import { useAuth } from '../lib/auth-context';
 import { useAuditLog, useReferenceData, useCreateReferenceData, useUpdateReferenceData, useDeleteReferenceData, useUsers, useCreateUser, useResetUserPassword, useSetUserActive, useSetUserCanManageUsers, useDeleteUser, useChangeMyPassword } from '../lib/hooks';
+import { buildPaginationTokens, type PaginationToken } from '../lib/pagination';
 import { toast } from 'sonner';
 import type { ReferenceDataItem, UserAccount } from '../lib/types';
 import { downloadCsvExport } from '../lib/exportDownload';
@@ -1064,6 +1065,7 @@ function AuditLogTab() {
   const entries = data?.data || [];
   const total = data?.total || 0;
   const totalPages = data?.totalPages || 1;
+  const pageTokens = buildPaginationTokens(page, totalPages);
 
   const handleExport = async () => {
     const params = {
@@ -1233,18 +1235,21 @@ function AuditLogTab() {
               >
                 <ChevronLeft size={14} />
               </Button>
-              {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i + 1).map(p => (
-                <Button
-                  key={p}
-                  variant={p === page ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setPage(p)}
-                  className={cn('h-7 w-7 p-0 text-xs', p === page && 'bg-teal-600 hover:bg-teal-700')}
-                >
-                  {p}
-                </Button>
+              {pageTokens.map((token: PaginationToken) => (
+                typeof token === 'number' ? (
+                  <Button
+                    key={token}
+                    variant={token === page ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setPage(token)}
+                    className={cn('h-7 w-7 p-0 text-xs', token === page && 'bg-teal-600 hover:bg-teal-700')}
+                  >
+                    {token}
+                  </Button>
+                ) : (
+                  <span key={token} className="text-xs text-slate-400 px-1">...</span>
+                )
               ))}
-              {totalPages > 3 && <span className="text-xs text-slate-400 px-1">...</span>}
               <Button
                 variant="outline"
                 size="sm"
