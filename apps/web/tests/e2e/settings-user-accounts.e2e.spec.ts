@@ -194,5 +194,73 @@ test.describe('Settings - User Accounts', () => {
     await page.getByRole('option', { name: 'Delete' }).click();
     await expect(page.getByRole('cell', { name: 'new@ada.clinic' }).first()).toBeVisible();
   });
+
+  test('audit log pagination shows pages beyond 3 and loads selected page', async ({ page }) => {
+    await page.route('**/auth/login', async (route) => {
+      const body = await route.request().postDataJSON();
+      if (body.email === 'admin@ada.clinic' && body.password === 'password123') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            token: 'fake-jwt-token',
+            user: { id: '11111111-1111-1111-1111-111111111111', email: 'admin@ada.clinic', fullName: 'Clinic Admin' },
+          }),
+        });
+      } else {
+        await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'Invalid email or password' }) });
+      }
+    });
+
+    await page.route('**/audit-log**', async (route) => {
+      const url = new URL(route.request().url());
+      const currentPage = Number(url.searchParams.get('page') ?? '1');
+      const limit = 10;
+      const total = 55;
+      const totalPages = Math.ceil(total / limit);
+      const start = (currentPage - 1) * limit + 1;
+      const end = Math.min(start + limit - 1, total);
+
+      const rows = Array.from({ length: Math.max(0, end - start + 1) }, (_, i) => {
+        const n = start + i;
+        return {
+          id: `audit-${n}`,
+          timestamp: new Date().toISOString(),
+          action: 'Edit',
+          entity: 'Visit',
+          entityId: `visit-${n}`,
+          recordIdentifier: `entry-${n}`,
+          performedBy: 'Clinic Admin (admin@ada.clinic)',
+          metadata: null,
+        };
+      });
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: rows,
+          total,
+          page: currentPage,
+          limit,
+          totalPages,
+        }),
+      });
+    });
+
+    await page.goto('/login');
+    await page.getByTestId('login-email').fill('admin@ada.clinic');
+    await page.getByTestId('login-password').fill('password123');
+    await page.getByTestId('login-submit').click();
+    await page.waitForURL('/');
+
+    await page.goto('/settings');
+    await page.getByRole('button', { name: /audit log/i }).click();
+
+    await expect(page.getByRole('button', { name: '4' })).toBeVisible();
+
+    await page.getByRole('button', { name: '4' }).click();
+    await expect(page.getByRole('cell', { name: 'entry-31' })).toBeVisible();
+  });
 });
 
