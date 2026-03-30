@@ -38,7 +38,7 @@
 
 | Test Case | Pre-Condition(s) | Procedure(s) | Test Data | Expected Result | Actual Result | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| Valid Login | User account exists and is active. User is on Login page. | 1. Click the Email field and type the registered email address. 2. Click the Password field and type the correct password. 3. Click the Sign in button. | S1 (Email field): `admin@ada.clinic`.<br>S2 (Password field): `ada_admin_2025`.<br>S3 (Button clicked): `Sign in`. | Login succeeds and user is redirected to Dashboard. |  |  |
+    | Valid Login | User account exists and is active. User is on Login page. | 1. Click the Email field and type the registered email address. 2. Click the Password field and type the correct password. 3. Click the Sign in button. | S1 (Email field): `admin@ada.clinic`.<br>S2 (Password field): `ada_admin_2025`.<br>S3 (Button clicked): `Sign in`. | Login succeeds and user is redirected to Dashboard. |  |  |
 
 **Test Case ID:** ADA-LOG-002  
 **Test Scenario:** Verify login failure when password is incorrect.
