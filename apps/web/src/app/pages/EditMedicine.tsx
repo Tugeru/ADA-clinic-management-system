@@ -61,7 +61,7 @@ export function EditMedicine() {
         },
       });
       toast.success('Medicine updated');
-      navigate('/inventory');
+      navigate(`/inventory/${id}`);
     } catch (err) {
       toast.error('Failed to update medicine.');
     }
@@ -70,11 +70,11 @@ export function EditMedicine() {
   return (
     <div className="max-w-2xl mx-auto">
       <button
-        onClick={() => navigate('/inventory')}
+        onClick={() => navigate(`/inventory/${id}`)}
         className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors mb-4"
       >
         <ArrowLeft size={16} />
-        <span>Back to Inventory</span>
+        <span>Back to Details</span>
       </button>
 
       <div className="flex items-center justify-between mb-6">
@@ -142,7 +142,7 @@ export function EditMedicine() {
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" className="h-9 text-xs" onClick={() => navigate('/inventory')}>
+              <Button type="button" variant="outline" className="h-9 text-xs" onClick={() => navigate(`/inventory/${id}`)}>
                 Cancel
               </Button>
               <Button type="submit" className="h-9 text-xs" disabled={updateMutation.isPending}>
