@@ -118,6 +118,7 @@ If any layer is not applicable, explicitly say so.
 
 ## 7) Architecture & Patterns
 - Follow the existing folder structure and patterns in the repository.
+- Use `docs/dev-guidelines/Monorepo_Structure.md` as the canonical source for folder placement and test/doc location conventions.
 - Prefer composition over inheritance.
 - Keep side-effects at the edges (controllers, handlers); keep business logic in services/modules.
 - Make reusable logic testable (export functions, avoid hard-wired globals).
