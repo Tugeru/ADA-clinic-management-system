@@ -15,6 +15,9 @@ import auditRoutes from './routes/audit.routes.js'
 
 const app = express()
 
+// Trust Render's reverse proxy (required for rate limiting + X-Forwarded-For)
+app.set('trust proxy', 1)
+
 // ─── Global middleware ─────────────────────────────────────────────────────────
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }))
 app.use(express.json())
