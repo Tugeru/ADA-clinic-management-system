@@ -17,6 +17,9 @@ dotenv.config({ path: path.resolve(import.meta.dirname, '../../../../.env') })
  * - PORT: Server port (default: 3000)
  * - JWT_EXPIRES_IN: JWT expiration duration (default: '7d')
  * - CORS_ORIGIN: Allowed CORS origin (default: 'http://localhost:5173')
+ * - SELF_PING_ENABLED: Enable self keep-alive pings (default: false)
+ * - SELF_PING_INTERVAL_MS: Keep-alive ping interval in milliseconds (default: 600000)
+ * - SELF_PING_TIMEOUT_MS: Keep-alive request timeout in milliseconds (default: 10000)
  */
 const envSchema = z.object({
   NODE_ENV: z
@@ -46,6 +49,33 @@ const envSchema = z.object({
     .string()
     .url('CORS_ORIGIN must be a valid URL')
     .default('http://localhost:5173'),
+
+  RENDER_EXTERNAL_URL: z
+    .string()
+    .url('RENDER_EXTERNAL_URL must be a valid URL')
+    .optional(),
+
+  SELF_PING_ENABLED: z
+    .string()
+    .default('false')
+    .transform((value) => value.toLowerCase() === 'true'),
+
+  SELF_PING_BASE_URL: z
+    .string()
+    .url('SELF_PING_BASE_URL must be a valid URL')
+    .optional(),
+
+  SELF_PING_INTERVAL_MS: z
+    .string()
+    .regex(/^\d+$/, 'SELF_PING_INTERVAL_MS must be a number')
+    .transform(Number)
+    .default('600000'),
+
+  SELF_PING_TIMEOUT_MS: z
+    .string()
+    .regex(/^\d+$/, 'SELF_PING_TIMEOUT_MS must be a number')
+    .transform(Number)
+    .default('10000'),
 })
 
 export type Env = z.infer<typeof envSchema>

@@ -267,6 +267,10 @@ All routes except `POST /api/auth/login` require `Authorization: Bearer <token>`
 | `JWT_SECRET` | **Yes** | — | Secret key for signing JWT tokens |
 | `JWT_EXPIRES_IN` | No | `7d` | JWT expiry duration |
 | `CORS_ORIGIN` | No | `http://localhost:5173` | Allowed CORS origin |
+| `SELF_PING_ENABLED` | No | `false` | Enable self keep-alive ping loop for Render free tier |
+| `SELF_PING_BASE_URL` | No | — | Explicit API base URL used by keep-alive pinger |
+| `SELF_PING_INTERVAL_MS` | No | `600000` | Keep-alive interval in milliseconds |
+| `SELF_PING_TIMEOUT_MS` | No | `10000` | Keep-alive request timeout in milliseconds |
 | `VITE_API_BASE_URL` | **Yes (web)** | `http://localhost:3000/api` | API base URL for the frontend |
 
 ---
@@ -299,6 +303,14 @@ In production, **always** set:
 - `JWT_SECRET` — a strong random secret (at least 64 chars)
 - `CORS_ORIGIN` — your deployed frontend URL
 - `VITE_API_BASE_URL` — your deployed API URL
+
+If you deploy on Render free tier and want to keep the API warm, set:
+- `SELF_PING_ENABLED=true`
+- `SELF_PING_INTERVAL_MS=600000`
+- `SELF_PING_TIMEOUT_MS=10000`
+- Optional: `SELF_PING_BASE_URL=https://<your-api-service>.onrender.com`
+
+> Keep-alive pings hit `GET /api/health` and are isolated to API startup.
 
 ### Run migrations in production
 
