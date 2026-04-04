@@ -1,0 +1,120 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - img
+          - generic:
+            - heading [level=1]: ADA
+            - paragraph: CSASHS Clinic Manager
+        - navigation:
+          - link:
+            - /url: /
+            - img
+            - text: Dashboard
+          - link:
+            - /url: /patients
+            - img
+            - text: Patients
+          - link:
+            - /url: /visits
+            - img
+            - text: Visits
+          - link:
+            - /url: /inventory
+            - img
+            - text: Inventory
+          - link:
+            - /url: /analytics
+            - img
+            - text: Analytics
+          - link:
+            - /url: /archive
+            - img
+            - text: Archive
+          - link:
+            - /url: /settings
+            - img
+            - text: Settings
+        - generic:
+          - paragraph: v1.0.0 · © 2026 ADA System
+      - main:
+        - generic:
+          - generic:
+            - heading [level=2]: Inventory
+            - generic:
+              - img
+              - text: Sun, Apr 5, 2026
+          - button:
+            - generic:
+              - generic: CI
+            - generic:
+              - paragraph: Clinic In-Charge
+            - img
+        - generic:
+          - generic:
+            - button:
+              - img
+              - generic: Back to Inventory
+            - generic:
+              - heading [level=2]: Add New Medicine
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - text: Medicine Name
+                    - generic: "*"
+                  - textbox:
+                    - /placeholder: e.g. Paracetamol 500mg
+                    - text: PARACETAMOL
+                - generic:
+                  - generic:
+                    - generic:
+                      - text: Expiry Date
+                      - generic: "*"
+                    - textbox: 2026-04-26
+                    - paragraph: Date this batch expires (on box/blister).
+                  - generic:
+                    - generic:
+                      - text: Amount of Medicine
+                      - generic: "*"
+                    - spinbutton: "12"
+                    - paragraph: Initial quantity to stock in (units).
+                  - generic:
+                    - generic: Batch Number (Optional)
+                    - textbox:
+                      - /placeholder: e.g. BT-2026-001
+                      - text: LOT-2026-APR
+                    - paragraph: Leave blank if no batch label is available.
+                - generic:
+                  - generic:
+                    - generic: Type
+                    - combobox:
+                      - generic: Select medicine type
+                      - img
+                  - generic:
+                    - generic: Threshold
+                    - spinbutton
+                - generic:
+                  - generic:
+                    - text: Notes
+                    - generic: (Optional)
+                  - textbox:
+                    - /placeholder: Add any additional notes about storage or handling...
+              - generic:
+                - button: Cancel
+                - button:
+                  - img
+                  - text: Save Medicine
+    - region "Notifications alt+T"
+  - alertdialog "Medicine Expires Soon" [ref=e2]:
+    - generic [ref=e3]:
+      - heading "Medicine Expires Soon" [level=2] [ref=e4]
+      - paragraph [ref=e5]: This batch will expire within 30 days. Do you want to continue?
+    - generic [ref=e6]:
+      - button "Cancel" [active] [ref=e7]
+      - button "Confirm Add Medicine" [ref=e8]
+```

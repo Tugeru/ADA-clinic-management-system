@@ -213,11 +213,11 @@ test.describe('Visits list operations', () => {
       )
     ).toBeTruthy();
 
-    await page.getByRole('button', { name: 'Reset filters' }).click();
+    await page.getByLabel('Reset all filters').click();
     await expect(page.getByRole('row', { name: /Smith, Alan/i })).toBeVisible();
 
     await page.getByRole('button', { name: 'Next' }).click();
-    await expect(page.getByText('Patient, 23')).toBeVisible();
+    await expect(page.getByText('Patient, 23').first()).toBeVisible();
     await expect.poll(() => visitsRequests.some((entry) => entry.includes('page=2'))).toBeTruthy();
 
     await page.getByRole('button', { name: 'Previous' }).click();
@@ -234,6 +234,7 @@ test.describe('Visits list operations', () => {
 
     await expect(page.getByText('Some visits could not be deleted')).toBeVisible();
     await expect(page.getByText('Visit was already removed.')).toBeVisible();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Close' }).click();
 
     await page.getByRole('button', { name: /Export CSV/i }).click();
     const visitsExportDownloadPromise = page.waitForEvent('download');
