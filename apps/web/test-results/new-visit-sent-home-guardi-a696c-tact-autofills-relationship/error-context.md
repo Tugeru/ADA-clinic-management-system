@@ -1,0 +1,156 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - img [ref=e6]
+        - generic [ref=e7]:
+          - heading "ADA" [level=1] [ref=e8]
+          - paragraph [ref=e9]: CSASHS Clinic Manager
+      - navigation [ref=e10]:
+        - link "Dashboard" [ref=e11] [cursor=pointer]:
+          - /url: /
+          - img [ref=e12]
+          - text: Dashboard
+        - link "Patients" [ref=e17] [cursor=pointer]:
+          - /url: /patients
+          - img [ref=e18]
+          - text: Patients
+        - link "Visits" [ref=e23] [cursor=pointer]:
+          - /url: /visits
+          - img [ref=e24]
+          - text: Visits
+        - link "Inventory" [ref=e28] [cursor=pointer]:
+          - /url: /inventory
+          - img [ref=e29]
+          - text: Inventory
+        - link "Analytics" [ref=e33] [cursor=pointer]:
+          - /url: /analytics
+          - img [ref=e34]
+          - text: Analytics
+        - link "Archive" [ref=e36] [cursor=pointer]:
+          - /url: /archive
+          - img [ref=e37]
+          - text: Archive
+        - link "Settings" [ref=e40] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e41]
+          - text: Settings
+      - paragraph [ref=e45]: v1.0.0 · © 2026 ADA System
+    - main [ref=e46]:
+      - generic [ref=e47]:
+        - generic [ref=e48]:
+          - heading "Visits & Consultations" [level=2] [ref=e49]
+          - generic [ref=e50]:
+            - img [ref=e51]
+            - text: Sun, Apr 5, 2026
+        - button "CI Clinic In-Charge" [ref=e53]:
+          - generic [ref=e55]: CI
+          - generic [ref=e56]:
+            - paragraph [ref=e57]: Clinic In-Charge
+            - paragraph
+          - img
+      - generic [ref=e59]:
+        - link "Back to Visits" [ref=e60] [cursor=pointer]:
+          - /url: /visits
+          - img
+          - text: Back to Visits
+        - generic [ref=e61]:
+          - heading "New Clinic Consultation" [level=2] [ref=e62]
+          - paragraph [ref=e63]: Record patient visit details. Fields marked * are required.
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - generic [ref=e67]:
+              - img [ref=e68]
+              - heading "Patient Information" [level=4] [ref=e71]
+            - generic [ref=e73]:
+              - img [ref=e74]
+              - textbox "Search by name or ID..." [active] [ref=e77]: Mar
+              - button "Student Santos, Maria [11111111]" [ref=e79]:
+                - generic [ref=e80]: Student
+                - generic [ref=e81]: Santos, Maria
+                - generic [ref=e82]: "[11111111]"
+          - generic [ref=e83]:
+            - generic [ref=e85]:
+              - img [ref=e86]
+              - heading "Visit Details" [level=4] [ref=e88]
+            - generic [ref=e89]:
+              - generic [ref=e90]:
+                - generic [ref=e91]:
+                  - generic [ref=e92]: Date
+                  - textbox [ref=e93]: 2026-04-04
+                - generic [ref=e94]:
+                  - generic [ref=e95]:
+                    - text: Time In
+                    - generic [ref=e96]: "*"
+                  - textbox [ref=e97]: 00:07
+                - generic [ref=e98]:
+                  - generic [ref=e99]: Time Out
+                  - textbox [ref=e100]
+              - generic [ref=e101]:
+                - generic [ref=e102]:
+                  - text: Chief Complaint
+                  - generic [ref=e103]: "*"
+                - textbox "Enter patient's complaint..." [ref=e104]
+              - generic [ref=e105]:
+                - generic [ref=e106]: Assessment / Intervention
+                - textbox "Describe assessment..." [ref=e107]
+              - generic [ref=e108]:
+                - generic [ref=e109]: Remarks
+                - textbox "Additional notes..." [ref=e110]
+          - generic [ref=e111]:
+            - generic [ref=e113]:
+              - img [ref=e114]
+              - heading "Vital Signs" [level=4] [ref=e118]
+            - generic [ref=e120]:
+              - generic [ref=e121]:
+                - generic [ref=e122]: Temperature (°C)
+                - textbox "e.g. 36.5" [ref=e123]:
+                  - /placeholder: " e.g. 36.5"
+              - generic [ref=e124]:
+                - generic [ref=e125]: Blood Pressure
+                - textbox "e.g. 120/80" [ref=e126]
+              - generic [ref=e127]:
+                - generic [ref=e128]: Heart Rate (bpm)
+                - textbox "e.g. 80" [ref=e129]
+          - generic [ref=e130]:
+            - generic [ref=e132]:
+              - img [ref=e133]
+              - heading "Medicine Administered" [level=4] [ref=e136]
+            - generic [ref=e137]:
+              - alert [ref=e138]:
+                - img [ref=e139]
+                - generic [ref=e141]: Inventory Update
+                - generic [ref=e142]: Inventory will be adjusted automatically based on changes.
+              - generic [ref=e143]:
+                - generic [ref=e144]:
+                  - generic [ref=e145]: Medicine
+                  - combobox [ref=e146]:
+                    - generic: Select...
+                    - img
+                - generic [ref=e147]:
+                  - generic [ref=e148]: Qty
+                  - spinbutton [ref=e149]: "1"
+                - button "Remove medicine row 1" [ref=e151]:
+                  - img
+              - button "+ Add Medicine" [ref=e152]
+          - generic [ref=e153]:
+            - generic [ref=e155]:
+              - img [ref=e156]
+              - heading "Disposition" [level=4] [ref=e159]
+            - generic [ref=e161]:
+              - button "Returned to Work" [ref=e162]:
+                - img
+                - text: Returned to Work
+              - button "Sent Home" [ref=e163]
+              - button "Referred to Hospital" [ref=e164]
+          - generic [ref=e165]:
+            - link "Cancel" [ref=e166] [cursor=pointer]:
+              - /url: /visits
+            - button "Save & Finalize" [ref=e167]:
+              - img
+              - text: Save & Finalize
+  - region "Notifications alt+T"
+```

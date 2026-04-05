@@ -1,0 +1,128 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - img
+          - generic:
+            - heading [level=1]: ADA
+            - paragraph: CSASHS Clinic Manager
+        - navigation:
+          - link:
+            - /url: /
+            - img
+            - text: Dashboard
+          - link:
+            - /url: /patients
+            - img
+            - text: Patients
+          - link:
+            - /url: /visits
+            - img
+            - text: Visits
+          - link:
+            - /url: /inventory
+            - img
+            - text: Inventory
+          - link:
+            - /url: /analytics
+            - img
+            - text: Analytics
+          - link:
+            - /url: /archive
+            - img
+            - text: Archive
+          - link:
+            - /url: /settings
+            - img
+            - text: Settings
+        - generic:
+          - paragraph: v1.0.0 · © 2026 ADA System
+      - main:
+        - generic:
+          - generic:
+            - heading [level=2]: Settings
+            - generic:
+              - img
+              - text: Sun, Apr 5, 2026
+          - button:
+            - generic:
+              - generic: CI
+            - generic:
+              - paragraph: Clinic In-Charge
+            - img
+        - generic:
+          - generic:
+            - generic:
+              - heading [level=2]: Settings
+              - paragraph: Manage your account, clinic profile, and view activity logs
+            - generic:
+              - button:
+                - img
+                - text: Account & Security
+              - button:
+                - img
+                - text: User Accounts
+              - button:
+                - img
+                - text: Academic Fields
+              - button:
+                - img
+                - text: Audit Log
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                  - generic:
+                    - heading [level=3]: Change Password
+                    - paragraph: Update your account password to keep your account secure
+                - generic:
+                  - generic:
+                    - generic: Current Password
+                    - generic:
+                      - textbox:
+                        - /placeholder: Enter current password
+                      - button:
+                        - img
+                  - generic:
+                    - generic: New Password
+                    - generic:
+                      - textbox:
+                        - /placeholder: Enter new password
+                      - button:
+                        - img
+                    - paragraph: At least 8 characters
+                  - generic:
+                    - generic: Confirm New Password
+                    - generic:
+                      - textbox:
+                        - /placeholder: Re-enter new password
+                      - button:
+                        - img
+                - generic:
+                  - button [disabled]:
+                    - img
+                    - text: Update Password
+              - generic:
+                - button:
+                  - img
+                  - text: Sign Out
+    - region "Notifications alt+T"
+  - dialog "Sign out?" [ref=e2]:
+    - generic [ref=e3]:
+      - img [ref=e5]
+      - heading "Sign out?" [level=2] [ref=e8]
+      - paragraph [ref=e9]: You will need to log in again to access ADA.
+    - generic [ref=e10]:
+      - button "Cancel" [active] [ref=e11]
+      - button "Sign Out" [ref=e12]:
+        - img
+        - text: Sign Out
+    - button "Close" [ref=e13]:
+      - img
+      - generic [ref=e14]: Close
+```
