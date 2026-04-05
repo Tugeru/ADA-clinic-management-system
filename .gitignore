@@ -19,12 +19,3 @@ logs/
 Thumbs.db
 .vscode/settings.json
 
-# ─── Agent Plans (not for source control) ─────────────────────────────────────
-*-plan.md
-*-plan.json
-docs/gap-analysis/
-.cursor/
-AGENT.md
-AGENTS.md
-.github/copilot-instructions.md
-.vscode
